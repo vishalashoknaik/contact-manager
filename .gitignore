@@ -12,6 +12,19 @@
 
 # testing
 /coverage
+test-output.log
+
+# IDE
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+*.iml
+contact-manager.iml
+
+# Editor
+*.swp
+*.swo
+*~
 
 # next.js
 /.next/
