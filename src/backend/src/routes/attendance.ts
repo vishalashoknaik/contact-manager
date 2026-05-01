@@ -57,7 +57,6 @@ router.get('/lookup', async (req: Request, res: Response) => {
  *   gender?: string,
  *   ieDate?: string,
  *   areaOfStay?: string,
- *   remarks?: string,
  *   activities?: string[],
  *   areas?: string[],
  *   programs?: string[]
@@ -72,7 +71,6 @@ router.post('/submit', async (req: Request, res: Response) => {
       gender,
       ieDate,
       areaOfStay,
-      remarks,
       activities = [],
       areas = [],
       programs = []
@@ -85,16 +83,25 @@ router.post('/submit', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Center ID is required' })
     }
 
+    const existingContact = await prisma.contact.findUnique({
+      where: { phone_centerId: { phone, centerId } }
+    })
+
+    if (!existingContact && (!gender || !ieDate || !areaOfStay)) {
+      return res.status(400).json({
+        error: 'Gender, IE Date, and Area of Stay are required for new contacts'
+      })
+    }
+
     // Upsert the contact — preserve fields not provided
     const contact = await prisma.contact.upsert({
       where: { phone_centerId: { phone, centerId } },
       create: {
         name,
         phone,
-        gender: gender || 'Male',
-        ieDate: ieDate || null,
-        areaOfStay: areaOfStay || null,
-        remarks: remarks || null,
+        gender,
+        ieDate,
+        areaOfStay,
         centerId,
         selected: false
       },
@@ -103,7 +110,6 @@ router.post('/submit', async (req: Request, res: Response) => {
         gender: gender !== undefined ? gender : undefined,
         ieDate: ieDate !== undefined ? (ieDate || null) : undefined,
         areaOfStay: areaOfStay !== undefined ? areaOfStay : undefined,
-        remarks: remarks !== undefined && remarks !== '' ? remarks : undefined,
         lastUpdated: new Date()
       }
     })

@@ -18,10 +18,9 @@ type SessionConfig = {
 type AttendeeForm = {
   phone: string
   name: string
-  gender: Gender
+  gender: Gender | ''
   ieDate: string
   areaOfStay: string
-  remarks: string
 }
 
 type SessionAttendee = {
@@ -30,13 +29,61 @@ type SessionAttendee = {
   submittedAt: string
 }
 
+type AttendancePayload = {
+  name: string
+  phone: string
+  gender?: Gender
+  ieDate?: string
+  areaOfStay?: string
+  activities: string[]
+  areas: string[]
+  programs: string[]
+}
+
+type PersistedAttendanceRecord = SessionAttendee & {
+  id: string
+  payload: AttendancePayload
+  status: 'synced' | 'pending'
+  error?: string
+}
+
+type PersistedAttendanceState = {
+  session: SessionConfig
+  records: PersistedAttendanceRecord[]
+}
+
 const EMPTY_FORM: AttendeeForm = {
   phone: '',
   name: '',
-  gender: 'Male',
+  gender: '',
   ieDate: '',
-  areaOfStay: '',
-  remarks: ''
+  areaOfStay: ''
+}
+
+function getStorageKey(centerId: string) {
+  return `attendance-session:${centerId}`
+}
+
+function loadPersistedAttendanceState(storageKey: string): PersistedAttendanceState | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = localStorage.getItem(storageKey)
+    if (!raw) return null
+    return JSON.parse(raw) as PersistedAttendanceState
+  } catch {
+    return null
+  }
+}
+
+function savePersistedAttendanceState(storageKey: string, state: PersistedAttendanceState) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(storageKey, JSON.stringify(state))
+}
+
+function clearPersistedAttendanceState(storageKey: string) {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(storageKey)
 }
 
 // ─── Setup Screen ─────────────────────────────────────────────────────────────
@@ -164,54 +211,98 @@ function SetupScreen({
 
 function AttendanceEntry({
   session,
+  storageKey,
   onEndSession
 }: {
   session: SessionConfig
+  storageKey: string
   onEndSession: () => void
 }) {
   const [form, setForm] = useState<AttendeeForm>(EMPTY_FORM)
   const [lookupStatus, setLookupStatus] = useState<'idle' | 'loading' | 'found' | 'new'>('idle')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [count, setCount] = useState(0)
   const [lastSubmitted, setLastSubmitted] = useState<string | null>(null)
-  const [sessionAttendees, setSessionAttendees] = useState<SessionAttendee[]>([])
+  const [records, setRecords] = useState<PersistedAttendanceRecord[]>(() => {
+    const persisted = loadPersistedAttendanceState(storageKey)
+    return persisted?.records || []
+  })
+  const [persistEnabled, setPersistEnabled] = useState(true)
   const [showSessionAttendees, setShowSessionAttendees] = useState(false)
   const phoneRef = useRef<HTMLInputElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
+  const lookupRequestRef = useRef<Promise<'found' | 'new' | undefined> | null>(null)
+  const lastLookupPhoneRef = useRef('')
+
+  const count = records.length
+  const sessionAttendees = records
+  const pendingCount = records.filter(record => record.status === 'pending').length
 
   // Focus phone field on mount and after each submission
   useEffect(() => {
     phoneRef.current?.focus()
   }, [count])
 
+  useEffect(() => {
+    if (!persistEnabled) {
+      return
+    }
+    savePersistedAttendanceState(storageKey, { session, records })
+  }, [persistEnabled, records, session, storageKey])
+
   function setField<K extends keyof AttendeeForm>(key: K, value: AttendeeForm[K]) {
     setForm(prev => ({ ...prev, [key]: value }))
   }
 
-  async function handlePhoneLookup() {
-    const phone = form.phone.trim()
+  async function performPhoneLookup(phone: string) {
     if (!phone) return
 
-    setLookupStatus('loading')
-    try {
-      const result = await attendanceApi.lookup(phone)
-      if (result.found) {
+    if (lookupRequestRef.current && lastLookupPhoneRef.current === phone) {
+      return lookupRequestRef.current
+    }
+
+    lastLookupPhoneRef.current = phone
+
+    const request = (async () => {
+      setLookupStatus('loading')
+      try {
+        const result = await attendanceApi.lookup(phone)
+        if (result.found) {
+          setForm(prev => ({
+            ...prev,
+            name: result.contact.name,
+            gender: (result.contact.gender as Gender) || 'Male',
+            ieDate: result.contact.ieDate || '',
+            areaOfStay: result.contact.areaOfStay || ''
+          }))
+          setLookupStatus('found')
+          return 'found' as const
+        }
+
         setForm(prev => ({
           ...prev,
-          name: result.contact.name,
-          gender: (result.contact.gender as Gender) || 'Male',
-          ieDate: result.contact.ieDate || '',
-          areaOfStay: result.contact.areaOfStay || '',
-          remarks: '' // always blank for new attendance entry
+          gender: prev.gender || '',
+          ieDate: prev.ieDate || '',
+          areaOfStay: prev.areaOfStay || ''
         }))
-        setLookupStatus('found')
-      } else {
         setLookupStatus('new')
+        return 'new' as const
+      } catch {
+        setLookupStatus('new')
+        return 'new' as const
+      } finally {
+        lookupRequestRef.current = null
       }
-    } catch {
-      setLookupStatus('new')
-    }
+    })()
+
+    lookupRequestRef.current = request
+    return request
+  }
+
+  async function handlePhoneLookup() {
+    const phone = form.phone.trim()
+    const result = await performPhoneLookup(phone)
+    if (!result) return
 
     // Move focus to name field
     setTimeout(() => nameRef.current?.focus(), 50)
@@ -225,35 +316,106 @@ function AttendanceEntry({
     setSubmitError(null)
 
     try {
-      await attendanceApi.submit({
+      const effectiveLookupStatus =
+        lookupStatus === 'found' ? 'found' : await performPhoneLookup(form.phone.trim())
+
+      if (
+        effectiveLookupStatus === 'new' &&
+        (!form.gender || !form.ieDate.trim() || !form.areaOfStay.trim())
+      ) {
+        setSubmitError('Gender, IE Date, and Area of Stay are required for new contacts')
+        return
+      }
+
+      const payload: AttendancePayload = {
         name: form.name.trim(),
         phone: form.phone.trim(),
-        gender: form.gender,
+        gender: form.gender || undefined,
         ieDate: form.ieDate || undefined,
         areaOfStay: form.areaOfStay || undefined,
-        remarks: form.remarks || undefined,
         activities: session.activities,
         areas: session.areas,
         programs: session.programs
+      }
+
+      const recordId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const submittedAt = new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
       })
+      const optimisticRecord: PersistedAttendanceRecord = {
+        id: recordId,
+        name: payload.name,
+        phone: payload.phone,
+        submittedAt,
+        payload,
+        status: 'pending'
+      }
+
+      setRecords(prev => [optimisticRecord, ...prev])
+
+      await attendanceApi.submit(payload)
+
+      setRecords(prev => prev.map(record => (
+        record.id === recordId
+          ? { ...record, status: 'synced', error: undefined }
+          : record
+      )))
 
       setLastSubmitted(form.name.trim())
-      setSessionAttendees(prev => [
-        {
-          name: form.name.trim(),
-          phone: form.phone.trim(),
-          submittedAt: new Date().toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-          })
-        },
-        ...prev
-      ])
-      setCount(c => c + 1)
       setForm(EMPTY_FORM)
       setLookupStatus('idle')
+      setShowSessionAttendees(false)
+      lastLookupPhoneRef.current = ''
     } catch (err: any) {
-      setSubmitError(err?.message || 'Failed to record attendance')
+      const message = err?.message || 'Failed to record attendance'
+      setSubmitError(message)
+      setRecords(prev => prev.map(record => (
+        record.phone === form.phone.trim() && record.name === form.name.trim() && record.status === 'pending'
+          ? { ...record, error: message }
+          : record
+      )))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function retryPendingRecords() {
+    let hasFailure = false
+
+    for (const record of records.filter(item => item.status === 'pending')) {
+      try {
+        await attendanceApi.submit(record.payload)
+        setRecords(prev => prev.map(item => (
+          item.id === record.id ? { ...item, status: 'synced', error: undefined } : item
+        )))
+      } catch (err: any) {
+        hasFailure = true
+        const message = err?.message || 'Failed to record attendance'
+        setRecords(prev => prev.map(item => (
+          item.id === record.id ? { ...item, error: message } : item
+        )))
+      }
+    }
+
+    return !hasFailure
+  }
+
+  async function handleEndSession() {
+    setSubmitting(true)
+    setSubmitError(null)
+
+    try {
+      const synced = await retryPendingRecords()
+      if (!synced) {
+        setSubmitError('Some attendance records are still not synced. Please retry before ending the session.')
+        window.alert('Some attendance records are still not synced. Please retry before ending the session.')
+        return
+      }
+
+      setPersistEnabled(false)
+      clearPersistedAttendanceState(storageKey)
+      onEndSession()
     } finally {
       setSubmitting(false)
     }
@@ -381,6 +543,8 @@ function AttendanceEntry({
                 onChange={e => {
                   setField('phone', e.target.value)
                   setLookupStatus('idle')
+                  setShowSessionAttendees(false)
+                  lastLookupPhoneRef.current = ''
                 }}
                 onBlur={handlePhoneLookup}
                 onKeyDown={e => {
@@ -431,12 +595,15 @@ function AttendanceEntry({
 
           {/* Gender */}
           <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>Gender</label>
+            <label style={labelStyle}>
+              Gender{lookupStatus === 'new' ? ' *' : ''}
+            </label>
             <select
               value={form.gender}
-              onChange={e => setField('gender', e.target.value as Gender)}
+              onChange={e => setField('gender', e.target.value as Gender | '')}
               style={inputStyle}
             >
+              <option value="">Select gender</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
               <option value="Other">Other</option>
@@ -445,7 +612,9 @@ function AttendanceEntry({
 
           {/* IE Date */}
           <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>IE Date</label>
+            <label style={labelStyle}>
+              IE Date{lookupStatus === 'new' ? ' *' : ''}
+            </label>
             <input
               type="text"
               value={form.ieDate}
@@ -457,7 +626,9 @@ function AttendanceEntry({
 
           {/* Area of Stay */}
           <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>Area of Stay</label>
+            <label style={labelStyle}>
+              Area of Stay{lookupStatus === 'new' ? ' *' : ''}
+            </label>
             <input
               type="text"
               value={form.areaOfStay}
@@ -467,17 +638,32 @@ function AttendanceEntry({
             />
           </div>
 
-          {/* Remarks — always blank, fresh entry */}
-          <div style={{ marginBottom: 24 }}>
-            <label style={labelStyle}>Remarks</label>
-            <textarea
-              value={form.remarks}
-              onChange={e => setField('remarks', e.target.value)}
-              placeholder="Optional notes for this visit"
-              rows={2}
-              style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
-            />
-          </div>
+          {lookupStatus === 'new' && (
+            <div style={{ marginBottom: 16, fontSize: 12, color: 'var(--text-secondary, #666)' }}>
+              New contacts must include gender, IE Date, and Area of Stay.
+            </div>
+          )}
+
+          {pendingCount > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={retryPendingRecords}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#ffc107',
+                  color: '#212529',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Retry Pending Sync ({pendingCount})
+              </button>
+            </div>
+          )}
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 12 }}>
@@ -488,7 +674,7 @@ function AttendanceEntry({
                 flex: 1,
                 padding: '12px',
                 backgroundColor:
-                  submitting || !form.name.trim() || !form.phone.trim() ? '#adb5bd' : '#0d6efd',
+                    submitting || !form.name.trim() || !form.phone.trim() ? '#adb5bd' : '#0d6efd',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 6,
@@ -502,7 +688,7 @@ function AttendanceEntry({
             </button>
             <button
               type="button"
-              onClick={onEndSession}
+              onClick={handleEndSession}
               style={{
                 padding: '12px 20px',
                 backgroundColor: '#6c757d',
@@ -577,6 +763,11 @@ function AttendanceEntry({
                       <div style={{ color: 'var(--text-secondary, #666)', fontSize: 13 }}>
                         {attendee.phone}
                       </div>
+                      {'status' in attendee && attendee.status === 'pending' && (
+                        <div style={{ color: '#dc3545', fontSize: 12, marginTop: 4 }}>
+                          Pending sync{attendee.error ? `: ${attendee.error}` : ''}
+                        </div>
+                      )}
                     </div>
                     <div style={{ color: 'var(--text-secondary, #666)', fontSize: 12, whiteSpace: 'nowrap' }}>
                       {attendee.submittedAt}
@@ -596,9 +787,19 @@ function AttendanceEntry({
 
 export default function AttendancePage() {
   const router = useRouter()
-  const { isLoggedIn, isLoading, selectedCenter } = useAuth()
+  const { isLoggedIn, isLoading, selectedCenter, selectedCenterDetails } = useAuth()
   const { activities, areas, programs } = useConfig()
-  const [session, setSession] = useState<SessionConfig | null>(null)
+  const centerLabel = selectedCenterDetails?.name || selectedCenter || 'Unknown Center'
+  const storageKey = selectedCenter ? getStorageKey(selectedCenter) : ''
+  const [session, setSession] = useState<SessionConfig | null>(() => {
+    if (!selectedCenter) return null
+    return loadPersistedAttendanceState(getStorageKey(selectedCenter))?.session || null
+  })
+
+  useEffect(() => {
+    if (!selectedCenter) return
+    setSession(loadPersistedAttendanceState(getStorageKey(selectedCenter))?.session || null)
+  }, [selectedCenter])
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
@@ -663,18 +864,27 @@ export default function AttendancePage() {
           ←
         </button>
         <span style={{ fontWeight: 600, fontSize: 16 }}>
-          {session ? 'Attendance Entry' : 'Session Setup'}
+          {(session ? 'Taking Attendance' : 'Attendance Setup') + ` - ${centerLabel}`}
         </span>
       </div>
 
       {session ? (
-        <AttendanceEntry session={session} onEndSession={() => router.push('/')} />
+        <AttendanceEntry
+          session={session}
+          storageKey={storageKey}
+          onEndSession={() => router.push('/')}
+        />
       ) : (
         <SetupScreen
           activities={activities}
           areas={areas}
           programs={programs}
-          onStart={cfg => setSession(cfg)}
+          onStart={cfg => {
+            setSession(cfg)
+            if (storageKey) {
+              savePersistedAttendanceState(storageKey, { session: cfg, records: [] })
+            }
+          }}
         />
       )}
     </div>

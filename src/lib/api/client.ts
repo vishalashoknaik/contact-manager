@@ -324,7 +324,6 @@ export const attendanceApi = {
       gender?: string
       ieDate?: string
       areaOfStay?: string
-      remarks?: string
       activities?: string[]
       areas?: string[]
       programs?: string[]
