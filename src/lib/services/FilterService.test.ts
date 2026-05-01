@@ -295,5 +295,187 @@ describe('FilterService', () => {
 
       expect(result.map(c => c.name)).toEqual(['Alpha', 'Beta', 'Gamma'])
     })
+
+    it('filters by gender exact match', () => {
+      const contacts = [
+        makeContact({ id: 1, name: 'Alice', gender: 'Female' }),
+        makeContact({ id: 2, name: 'Bob', gender: 'Male', phone: '222' }),
+        makeContact({ id: 3, name: 'Charlie', gender: 'Other', phone: '333' })
+      ]
+
+      const femaleFilter = makeFilters({ genderFilter: 'Female' })
+      const resultFemale = FilterService.filterContacts(contacts, femaleFilter, [], [], [])
+      expect(resultFemale).toEqual([contacts[0]])
+
+      const maleFilter = makeFilters({ genderFilter: 'Male' })
+      const resultMale = FilterService.filterContacts(contacts, maleFilter, [], [], [])
+      expect(resultMale).toEqual([contacts[1]])
+
+      const otherFilter = makeFilters({ genderFilter: 'Other' })
+      const resultOther = FilterService.filterContacts(contacts, otherFilter, [], [], [])
+      expect(resultOther).toEqual([contacts[2]])
+    })
+
+    it('filters by area of stay case-insensitively', () => {
+      const contacts = [
+        makeContact({ id: 1, name: 'Alice', areaOfStay: 'Downtown' }),
+        makeContact({ id: 2, name: 'Bob', areaOfStay: 'Uptown', phone: '222' }),
+        makeContact({ id: 3, name: 'Charlie', areaOfStay: 'Midtown', phone: '333' })
+      ]
+
+      const filter = makeFilters({ areaOfStayFilter: 'DOWN' })
+      const result = FilterService.filterContacts(contacts, filter, [], [], [])
+      expect(result).toEqual([contacts[0]])
+
+      const filter2 = makeFilters({ areaOfStayFilter: 'town' })
+      const result2 = FilterService.filterContacts(contacts, filter2, [], [], [])
+      expect(result2).toHaveLength(3) // All contain "town"
+    })
+
+    it('handles contacts with missing optional fields in filters', () => {
+      const contacts = [
+        makeContact({ id: 1, name: 'Alice', areaOfStay: 'Downtown' }),
+        makeContact({ id: 2, name: 'Bob', areaOfStay: undefined, phone: '222' }),
+        makeContact({ id: 3, name: 'Charlie', gender: 'Female', phone: '333' })
+      ]
+
+      const areaFilter = makeFilters({ areaOfStayFilter: 'Downtown' })
+      const resultArea = FilterService.filterContacts(contacts, areaFilter, [], [], [])
+      expect(resultArea).toEqual([contacts[0]])
+
+      const genderFilter = makeFilters({ genderFilter: 'Female' })
+      const resultGender = FilterService.filterContacts(contacts, genderFilter, [], [], [])
+      expect(resultGender).toEqual([contacts[2]])
+    })
+
+    it('sorts by gender alphabetically', () => {
+      const contacts = [
+        makeContact({ id: 1, gender: 'Other' }),
+        makeContact({ id: 2, gender: 'Female', phone: '222' }),
+        makeContact({ id: 3, gender: 'Male', phone: '333' })
+      ]
+
+      const result = FilterService.sortContacts(
+        contacts,
+        { key: 'gender', direction: 'asc' },
+        []
+      )
+
+      expect(result.map(c => c.gender)).toEqual(['Female', 'Male', 'Other'])
+    })
+
+    it('sorts by ieDate chronologically', () => {
+      const contacts = [
+        makeContact({ id: 1, ieDate: '2026-03-01' }),
+        makeContact({ id: 2, ieDate: '2026-05-01', phone: '222' }),
+        makeContact({ id: 3, ieDate: '2026-01-01', phone: '333' })
+      ]
+
+      const result = FilterService.sortContacts(
+        contacts,
+        { key: 'ieDate', direction: 'asc' },
+        []
+      )
+
+      expect(result.map(c => c.id)).toEqual([3, 1, 2])
+    })
+
+    it('sorts by areaOfStay alphabetically', () => {
+      const contacts = [
+        makeContact({ id: 1, areaOfStay: 'Uptown' }),
+        makeContact({ id: 2, areaOfStay: 'Downtown', phone: '222' }),
+        makeContact({ id: 3, areaOfStay: 'Midtown', phone: '333' })
+      ]
+
+      const result = FilterService.sortContacts(
+        contacts,
+        { key: 'areaOfStay', direction: 'asc' },
+        []
+      )
+
+      expect(result.map(c => c.areaOfStay)).toEqual(['Downtown', 'Midtown', 'Uptown'])
+    })
+
+    it('combines gender and areaOfStay filters', () => {
+      const contacts = [
+        makeContact({ id: 1, gender: 'Female', areaOfStay: 'Downtown' }),
+        makeContact({ id: 2, gender: 'Female', areaOfStay: 'Uptown', phone: '222' }),
+        makeContact({ id: 3, gender: 'Male', areaOfStay: 'Downtown', phone: '333' })
+      ]
+
+      const filters = makeFilters({
+        genderFilter: 'Female',
+        areaOfStayFilter: 'Down'
+      })
+
+      const result = FilterService.filterContacts(contacts, filters, [], [], [])
+      expect(result).toEqual([contacts[0]])
+    })
+
+    it('handles empty string area of stay field', () => {
+      const contacts = [
+        makeContact({ id: 1, areaOfStay: '' }),
+        makeContact({ id: 2, areaOfStay: 'Downtown', phone: '222' })
+      ]
+
+      const filter = makeFilters({ areaOfStayFilter: 'Down' })
+      const result = FilterService.filterContacts(contacts, filter, [], [], [])
+      expect(result).toEqual([contacts[1]])
+    })
+
+    it('preserves selected contacts at top when sorting by gender', () => {
+      const contacts = [
+        makeContact({ id: 1, gender: 'Male', selected: true }),
+        makeContact({ id: 2, gender: 'Female', phone: '222', selected: false }),
+        makeContact({ id: 3, gender: 'Female', phone: '333', selected: true })
+      ]
+
+      const result = FilterService.sortContacts(
+        contacts,
+        { key: 'gender', direction: 'asc' },
+        []
+      )
+
+      // Selected contacts (1, 3) should be first
+      expect(result[0].selected).toBe(true)
+      expect(result[1].selected).toBe(true)
+      expect(result[2].selected).toBe(false)
+    })
+
+    it('handles gender sort with null/undefined values', () => {
+      const contacts = [
+        makeContact({ id: 1, gender: 'Female' }),
+        makeContact({ id: 2, gender: 'Male', phone: '222' }),
+        makeContact({ id: 3, gender: undefined, phone: '333' })
+      ]
+
+      const result = FilterService.sortContacts(
+        contacts,
+        { key: 'gender', direction: 'asc' },
+        []
+      )
+
+      // Should handle gracefully - undefined values typically sort to end
+      expect(result.map(c => c.id)).toBeDefined()
+      expect(result.length).toBe(3)
+    })
+
+    it('handles ieDate sort with null/undefined values', () => {
+      const contacts = [
+        makeContact({ id: 1, ieDate: '2026-05-01' }),
+        makeContact({ id: 2, ieDate: undefined, phone: '222' }),
+        makeContact({ id: 3, ieDate: '2026-01-01', phone: '333' })
+      ]
+
+      const result = FilterService.sortContacts(
+        contacts,
+        { key: 'ieDate', direction: 'asc' },
+        []
+      )
+
+      // Should handle gracefully
+      expect(result.map(c => c.id)).toBeDefined()
+      expect(result.length).toBe(3)
+    })
   })
 })

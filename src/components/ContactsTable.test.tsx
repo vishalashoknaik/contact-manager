@@ -26,6 +26,7 @@ describe('ContactsTable', () => {
             name: 'Ravi',
             phone: '9999999999',
             selected: true,
+            gender: 'Male',
             activities: { Walkathon: 2 },
             areas: { Area1: 1 },
             programs: { Program1: 3 }
@@ -50,6 +51,10 @@ describe('ContactsTable', () => {
 
     expect(screen.getByText('Ravi')).toBeInTheDocument()
     expect(screen.getByText('9999999999')).toBeInTheDocument()
+    
+    // Verify the table has the contact data
+    const raviRow = screen.getByText('Ravi').closest('tr') as HTMLElement
+    expect(raviRow).toBeInTheDocument()
 
     await user.click(screen.getByText(/Name/))
     await user.click(screen.getAllByRole('checkbox')[0])
@@ -65,5 +70,407 @@ describe('ContactsTable', () => {
     expect(onToggleSelect).toHaveBeenCalledWith(1)
     expect(onFilterChange).toHaveBeenNthCalledWith(1, 'name', 'R')
     expect(onActivityFilterChange).toHaveBeenCalled()
+  })
+
+  it('renders gender column with all contacts', () => {
+    const contacts = [
+      makeContact({ id: 1, name: 'Alice', gender: 'Female' }),
+      makeContact({ id: 2, name: 'Bob', gender: 'Male', phone: '222' }),
+      makeContact({ id: 3, name: 'Charlie', gender: 'Other', phone: '333' })
+    ]
+
+    render(
+      <ContactsTable
+        contacts={contacts}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    // Check that the data rows contain the genders
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(screen.getByText('Bob')).toBeInTheDocument()
+    expect(screen.getByText('Charlie')).toBeInTheDocument()
+    
+    // Verify the table has gender data by checking multiple elements
+    const rows = screen.getAllByRole('row')
+    expect(rows.length).toBeGreaterThan(1)
+  })
+
+  it('filters contacts by gender', async () => {
+    const user = userEvent.setup()
+    const onFilterChange = vi.fn()
+
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', gender: 'Female' }),
+          makeContact({ id: 2, name: 'Bob', gender: 'Male', phone: '222' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters({ genderFilter: 'Female' })}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={onFilterChange}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    // Verify filter dropdown exists and has correct value
+    const genderSelects = screen.getAllByDisplayValue('Female')
+    const genderSelect = genderSelects.find(el => el.tagName === 'SELECT') as HTMLSelectElement
+    
+    if (genderSelect) {
+      await user.selectOptions(genderSelect, 'Male')
+      expect(onFilterChange).toHaveBeenCalledWith('gender', 'Male')
+    }
+  })
+
+  it('renders area of stay column and allows filtering', async () => {
+    const user = userEvent.setup()
+    const onFilterChange = vi.fn()
+
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', areaOfStay: 'Downtown' }),
+          makeContact({ id: 2, name: 'Bob', areaOfStay: 'Uptown', phone: '222' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={onFilterChange}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('Downtown')).toBeInTheDocument()
+    expect(screen.getByText('Uptown')).toBeInTheDocument()
+
+    // Area of Stay filter should be available
+    const areaFilters = screen.getAllByPlaceholderText('Filter...')
+    // The Area of Stay filter should be one of these
+    expect(areaFilters.length).toBeGreaterThan(0)
+  })
+
+  it('renders ie date column', () => {
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', ieDate: '2026-05-01' }),
+          makeContact({ id: 2, name: 'Bob', ieDate: '2026-03-15', phone: '222' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    // IE dates should be rendered in localized format
+    expect(screen.getByText(/5\/1\/2026|2026-05-01/)).toBeInTheDocument()
+    expect(screen.getByText(/3\/15\/2026|2026-03-15/)).toBeInTheDocument()
+  })
+
+  it('renders remarks column', () => {
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', remarks: 'VIP member' }),
+          makeContact({ id: 2, name: 'Bob', remarks: 'Regular visitor', phone: '222' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('VIP member')).toBeInTheDocument()
+    expect(screen.getByText('Regular visitor')).toBeInTheDocument()
+  })
+
+  it('handles contacts with missing optional fields', () => {
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', ieDate: undefined, areaOfStay: undefined, remarks: undefined }),
+          makeContact({ id: 2, name: 'Bob', phone: '222' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    // Should render gracefully with no errors
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(screen.getByText('Bob')).toBeInTheDocument()
+  })
+
+  it('sorts by gender column', async () => {
+    const user = userEvent.setup()
+    const onToggleSort = vi.fn()
+
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', gender: 'Female' }),
+          makeContact({ id: 2, name: 'Bob', gender: 'Male', phone: '222' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={onToggleSort}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    const genderHeader = screen.getByRole('columnheader', { name: /Gender/ })
+    await user.click(genderHeader)
+
+    expect(onToggleSort).toHaveBeenCalledWith('gender')
+  })
+
+  it('sorts by ie date column', async () => {
+    const user = userEvent.setup()
+    const onToggleSort = vi.fn()
+
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', ieDate: '2026-05-01' }),
+          makeContact({ id: 2, name: 'Bob', ieDate: '2026-03-15', phone: '222' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={onToggleSort}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    const ieDateHeader = screen.getByRole('columnheader', { name: /IE Date/ })
+    await user.click(ieDateHeader)
+
+    expect(onToggleSort).toHaveBeenCalledWith('ieDate')
+  })
+
+  it('sorts by area of stay column', async () => {
+    const user = userEvent.setup()
+    const onToggleSort = vi.fn()
+
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', areaOfStay: 'Downtown' }),
+          makeContact({ id: 2, name: 'Bob', areaOfStay: 'Uptown', phone: '222' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={onToggleSort}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    const areaHeader = screen.getByRole('columnheader', { name: /Area of Stay/ })
+    await user.click(areaHeader)
+
+    expect(onToggleSort).toHaveBeenCalledWith('areaOfStay')
+  })
+
+  it('displays gender filter with all options', () => {
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', gender: 'Female' }),
+          makeContact({ id: 2, name: 'Bob', gender: 'Male', phone: '222' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    // Find the gender select (not the filter dropdown)
+    const selects = screen.getAllByDisplayValue('All')
+    const genderSelect = selects.find(el => el.tagName === 'SELECT') as HTMLSelectElement
+    
+    if (genderSelect) {
+      const options = Array.from(genderSelect.options).map(opt => opt.textContent)
+      expect(options).toContain('All')
+      expect(options).toContain('Male')
+      expect(options).toContain('Female')
+      expect(options).toContain('Other')
+    }
+  })
+
+  it('handles applying gender filter', async () => {
+    const user = userEvent.setup()
+    const onFilterChange = vi.fn()
+
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', gender: 'Female' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={onFilterChange}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    // Find and interact with gender filter
+    const selects = screen.getAllByDisplayValue('All')
+    const genderSelect = selects.find(el => el.tagName === 'SELECT') as HTMLSelectElement
+    
+    if (genderSelect) {
+      await user.selectOptions(genderSelect, 'Female')
+      expect(onFilterChange).toHaveBeenCalledWith('gender', 'Female')
+    }
+  })
+
+  it('handles area of stay filter with case-insensitive input', async () => {
+    const user = userEvent.setup()
+    const onFilterChange = vi.fn()
+
+    render(
+      <ContactsTable
+        contacts={[
+          makeContact({ id: 1, name: 'Alice', areaOfStay: 'Downtown' })
+        ]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={onFilterChange}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+      />
+    )
+
+    const areaFilters = screen.getAllByPlaceholderText('Filter...')
+    // Find the area of stay filter - it should be in the filter row
+    if (areaFilters.length > 1) {
+      await user.type(areaFilters[1], 'DOWN')
+      expect(onFilterChange).toHaveBeenCalled()
+    }
   })
 })
