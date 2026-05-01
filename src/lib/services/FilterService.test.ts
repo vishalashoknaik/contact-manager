@@ -364,11 +364,11 @@ describe('FilterService', () => {
       expect(result.map(c => c.gender)).toEqual(['Female', 'Male', 'Other'])
     })
 
-    it('sorts by ieDate chronologically', () => {
+    it('sorts by ieDate alphabetically as free text', () => {
       const contacts = [
-        makeContact({ id: 1, ieDate: '2026-03-01' }),
-        makeContact({ id: 2, ieDate: '2026-05-01', phone: '222' }),
-        makeContact({ id: 3, ieDate: '2026-01-01', phone: '333' })
+        makeContact({ id: 1, ieDate: 'Week 3' }),
+        makeContact({ id: 2, ieDate: 'Week 10', phone: '222' }),
+        makeContact({ id: 3, ieDate: 'Week 1', phone: '333' })
       ]
 
       const result = FilterService.sortContacts(
@@ -377,7 +377,7 @@ describe('FilterService', () => {
         []
       )
 
-      expect(result.map(c => c.id)).toEqual([3, 1, 2])
+      expect(result.map(c => c.id)).toEqual([3, 2, 1])
     })
 
     it('sorts by areaOfStay alphabetically', () => {

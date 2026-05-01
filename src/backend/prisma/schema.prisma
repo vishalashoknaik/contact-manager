@@ -51,7 +51,7 @@ model Contact {
   name             String
   phone            String
   gender           String?
-  ieDate           DateTime?
+  ieDate           String?
   areaOfStay       String?
   remarks          String?
   center           Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)

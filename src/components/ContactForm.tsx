@@ -123,7 +123,8 @@ export function ContactForm({ onAddContact }: ContactFormProps) {
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <label style={labelStyle}>IE Date</label>
             <input
-              type="date"
+              type="text"
+              placeholder="IE Date"
               value={ieDateInput.value}
               onChange={e => ieDateInput.setValue(e.target.value)}
               style={inputStyle}

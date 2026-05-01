@@ -101,31 +101,12 @@ function HomeContent() {
       <div style={{ 
         marginBottom: 20, 
         borderBottom: '1px solid var(--border-color, #ddd)', 
-        paddingBottom: 20,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start'
+        paddingBottom: 20
       }}>
         <div>
           <h2>📋 Contact Manager</h2>
           <p style={{ color: 'var(--text-secondary, #666)', marginTop: 5 }}>Version {VERSION}</p>
         </div>
-        <button
-          onClick={() => router.push('/attendance')}
-          style={{
-            padding: '10px 18px',
-            backgroundColor: '#198754',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: 'pointer',
-            marginTop: 4
-          }}
-        >
-          📝 Take Attendance
-        </button>
       </div>
 
       {backendError && (
@@ -143,9 +124,24 @@ function HomeContent() {
         </div>
       )}
 
-      {canManageSelectedCenter && (
-        <>
-          <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => router.push('/attendance')}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: '#198754',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          📝 Take Attendance
+        </button>
+
+        {canManageSelectedCenter && (
+          <>
             <button
               onClick={adminManager.toggleAdmin}
               style={{
@@ -193,8 +189,12 @@ function HomeContent() {
                 </button>
               </>
             )}
-          </div>
+          </>
+        )}
+      </div>
 
+      {canManageSelectedCenter && (
+        <>
           {adminManager.isAdmin && (
             <AdminPanel
               isVisible

@@ -239,7 +239,7 @@ export function ContactsTable({
             <td style={td}>{c.name}</td>
             <td style={td}>{c.phone}</td>
             <td style={tdCenter}>{c.gender}</td>
-            <td style={td}>{c.ieDate ? new Date(c.ieDate).toLocaleDateString() : ''}</td>
+            <td style={td}>{c.ieDate || ''}</td>
             <td style={td}>{c.areaOfStay || ''}</td>
             <td style={td}>{c.remarks || ''}</td>
 

@@ -36,7 +36,7 @@ router.get('/lookup', async (req: Request, res: Response) => {
         name: contact.name,
         phone: contact.phone,
         gender: contact.gender || 'Male',
-        ieDate: contact.ieDate ? contact.ieDate.toISOString().split('T')[0] : '',
+        ieDate: contact.ieDate || '',
         areaOfStay: contact.areaOfStay || ''
         // remarks intentionally omitted — fresh entry each time
       }
@@ -92,7 +92,7 @@ router.post('/submit', async (req: Request, res: Response) => {
         name,
         phone,
         gender: gender || 'Male',
-        ieDate: ieDate ? new Date(ieDate) : null,
+        ieDate: ieDate || null,
         areaOfStay: areaOfStay || null,
         remarks: remarks || null,
         centerId,
@@ -101,7 +101,7 @@ router.post('/submit', async (req: Request, res: Response) => {
       update: {
         name,
         gender: gender !== undefined ? gender : undefined,
-        ieDate: ieDate !== undefined ? (ieDate ? new Date(ieDate) : null) : undefined,
+        ieDate: ieDate !== undefined ? (ieDate || null) : undefined,
         areaOfStay: areaOfStay !== undefined ? areaOfStay : undefined,
         remarks: remarks !== undefined && remarks !== '' ? remarks : undefined,
         lastUpdated: new Date()

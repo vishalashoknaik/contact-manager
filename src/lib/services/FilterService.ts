@@ -120,9 +120,9 @@ export class FilterService {
             : (b.gender || '').localeCompare(a.gender || '')
 
         case 'ieDate':
-          const aIE = a.ieDate ? new Date(a.ieDate).getTime() : 0
-          const bIE = b.ieDate ? new Date(b.ieDate).getTime() : 0
-          return sortState.direction === 'asc' ? aIE - bIE : bIE - aIE
+          return sortState.direction === 'asc'
+            ? (a.ieDate || '').localeCompare(b.ieDate || '')
+            : (b.ieDate || '').localeCompare(a.ieDate || '')
 
         case 'areaOfStay':
           return sortState.direction === 'asc'

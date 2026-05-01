@@ -100,7 +100,7 @@ describe('ContactForm', () => {
 
     // Optional fields should now be visible
     expect(screen.getByPlaceholderText('Area of stay')).toBeInTheDocument()
-    // IE Date field should be present (it's a date input)
+    // IE Date field should be present alongside the other optional text inputs
     const dateInputs = screen.getAllByRole('textbox')
     expect(dateInputs.length).toBeGreaterThan(2)
     expect(screen.getByPlaceholderText('Remarks')).toBeInTheDocument()

@@ -206,9 +206,8 @@ describe('ContactsTable', () => {
       />
     )
 
-    // IE dates should be rendered in localized format
-    expect(screen.getByText(/5\/1\/2026|2026-05-01/)).toBeInTheDocument()
-    expect(screen.getByText(/3\/15\/2026|2026-03-15/)).toBeInTheDocument()
+    expect(screen.getByText('2026-05-01')).toBeInTheDocument()
+    expect(screen.getByText('2026-03-15')).toBeInTheDocument()
   })
 
   it('renders remarks column', () => {
