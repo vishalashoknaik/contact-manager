@@ -4,6 +4,7 @@
  */
 
 import type {
+  CenterRole,
   LoginResponse,
   ManagedUser,
   PendingApprovalResponse,
@@ -93,7 +94,7 @@ export const authApi = {
     data: {
       name?: string
       centerId?: string
-      isCenterAdmin?: boolean
+      centerRole?: CenterRole
       canAccessAllCenters?: boolean
     },
     centerId?: string
@@ -351,5 +352,143 @@ export const healthApi = {
     } catch {
       return false
     }
+  }
+}
+
+// ---- Campaign types ----
+
+export interface CampaignContact {
+  campaignContactId: string
+  status: 'PENDING' | 'COMPLETED' | 'SKIPPED'
+  contact: { id: string; name: string; phone: string }
+}
+
+export interface CampaignVolunteer {
+  phone: string
+  name: string
+}
+
+export interface Campaign {
+  id: string
+  name: string
+  centerId: string
+  createdAt: string
+  totalContacts: number
+  pendingContacts: number
+  completedContacts: number
+  skippedContacts: number
+  contacts: CampaignContact[]
+  volunteers: CampaignVolunteer[]
+}
+
+export interface CallLog {
+  id: string
+  calledAt: string
+  volunteerPhone: string
+  contact: { id: string; name: string; phone: string }
+  status: 'COMPLETED' | 'SKIPPED'
+  feedback: 'COMPLETED' | 'NO_RESPONSE' | 'CONNECT_LATER'
+  centerChange: boolean
+  doNotDisturb: boolean
+  notInterestedToVolunteer: boolean
+  remarks: string | null
+}
+
+export type NextContactResult =
+  | { done: true }
+  | {
+      done: false
+      campaignContactId: string
+      contact: { id: string; name: string; phone: string }
+    }
+
+export interface CallLogSubmit {
+  campaignContactId: string
+  feedback: 'COMPLETED' | 'NO_RESPONSE' | 'CONNECT_LATER'
+  centerChange?: boolean
+  doNotDisturb?: boolean
+  notInterestedToVolunteer?: boolean
+  remarks?: string
+  action: 'submit' | 'skip'
+}
+
+/**
+ * Campaigns API
+ */
+export const campaignsApi = {
+  create: async (name: string, contactIds: string[], centerId?: string): Promise<Campaign> => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/campaigns`, {
+      method: 'POST',
+      headers: getHeaders(resolvedCenterId),
+      body: JSON.stringify({ name, contactIds })
+    })
+    return handleResponse<Campaign>(response)
+  },
+
+  getAll: async (centerId?: string): Promise<Campaign[]> => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/campaigns`, {
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse<Campaign[]>(response)
+  },
+
+  getById: async (id: string, centerId?: string): Promise<Campaign> => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/campaigns/${id}`, {
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse<Campaign>(response)
+  },
+
+  addContacts: async (id: string, contactIds: string[], centerId?: string): Promise<Campaign> => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/campaigns/${id}/contacts`, {
+      method: 'PUT',
+      headers: getHeaders(resolvedCenterId),
+      body: JSON.stringify({ contactIds })
+    })
+    return handleResponse<Campaign>(response)
+  },
+
+  setVolunteers: async (id: string, volunteerPhones: string[], centerId?: string): Promise<Campaign> => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/campaigns/${id}/volunteers`, {
+      method: 'PUT',
+      headers: getHeaders(resolvedCenterId),
+      body: JSON.stringify({ volunteerPhones })
+    })
+    return handleResponse<Campaign>(response)
+  },
+
+  getNextContact: async (id: string, centerId?: string): Promise<NextContactResult> => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/campaigns/${id}/next-contact`, {
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse<NextContactResult>(response)
+  },
+
+  submitCallLog: async (
+    id: string,
+    data: CallLogSubmit,
+    centerId?: string
+  ): Promise<{ success: boolean; next: NextContactResult }> => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/campaigns/${id}/call-log`, {
+      method: 'POST',
+      headers: getHeaders(resolvedCenterId),
+      body: JSON.stringify(data)
+    })
+    return handleResponse(response)
+  },
+
+  getCallLogs: async (id: string, centerId?: string): Promise<CallLog[]> => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/campaigns/${id}/call-logs`, {
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse<CallLog[]>(response)
   }
 }

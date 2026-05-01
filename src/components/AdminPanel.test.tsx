@@ -14,8 +14,10 @@ const { authApiMock } = vi.hoisted(() => ({
       name: 'Managed User',
       centerId: 'center-1',
       centerName: 'Center 1',
-      isCenterAdmin: false,
-      canAccessAllCenters: false
+      centerRole: 'USER',
+      canAccessAllCenters: false,
+      isApproved: true,
+      accessStatus: 'approved'
     })),
     removeUserAccess: vi.fn(async () => ({ success: true }))
   }
@@ -27,6 +29,10 @@ vi.mock('@/lib/api/client', () => ({
     getAll: vi.fn(async () => [{ id: 'center-1', name: 'Center 1' }]),
     create: vi.fn(async (name: string) => ({ id: 'center-2', name })),
     update: vi.fn(async (id: string, name: string) => ({ id, name }))
+  },
+  contactsApi: {
+    create: vi.fn(async () => ({ contact: null })),
+    getAll: vi.fn(async () => [])
   }
 }))
 
@@ -37,11 +43,36 @@ vi.mock('@/hooks/useAuth', () => ({
       name: 'Admin User',
       canAccessAllCenters: true,
       centers: ['center-1'],
-      centerDetails: [{ id: 'center-1', name: 'Center 1', isAdmin: true }]
+      centerDetails: [{
+        id: 'center-1',
+        name: 'Center 1',
+        role: 'ADMIN',
+        capabilities: {
+          canManageAccess: true,
+          canManageCenterConfig: true,
+          canViewContacts: true,
+          canTakeAttendance: true,
+          grantableRoles: ['ADMIN', 'USER', 'ATTENDANCE_TAKER']
+        }
+      }]
     },
     selectedCenter: 'center-1',
-    selectedCenterDetails: { id: 'center-1', name: 'Center 1', isAdmin: true },
-    canManageSelectedCenter: true,
+    selectedCenterDetails: {
+      id: 'center-1',
+      name: 'Center 1',
+      role: 'ADMIN',
+      capabilities: {
+        canManageAccess: true,
+        canManageCenterConfig: true,
+        canViewContacts: true,
+        canTakeAttendance: true,
+        grantableRoles: ['ADMIN', 'USER', 'ATTENDANCE_TAKER']
+      }
+    },
+    canAccessSelectedCenterAdminMode: true,
+    canManageSelectedCenterAccess: true,
+    canManageSelectedCenterConfig: true,
+    canViewSelectedCenterContacts: true,
     refreshUser: vi.fn()
   })
 }))
@@ -230,8 +261,10 @@ describe('AdminPanel', () => {
         name: 'Existing User',
         centerId: 'center-1',
         centerName: 'Center 1',
-        isCenterAdmin: false,
-        canAccessAllCenters: false
+        centerRole: 'USER',
+        canAccessAllCenters: false,
+        isApproved: true,
+        accessStatus: 'approved'
       }
     ])
 
@@ -256,7 +289,6 @@ describe('AdminPanel', () => {
 
     await user.type(screen.getByPlaceholderText('User phone number'), '8888888888')
     await user.type(screen.getByPlaceholderText('User name (required for new user)'), 'New User')
-    await user.click(screen.getByLabelText('Center admin for this center'))
     await user.click(screen.getByRole('button', { name: 'Grant Access' }))
 
     await waitFor(() => {
@@ -264,8 +296,7 @@ describe('AdminPanel', () => {
         '8888888888',
         expect.objectContaining({
           name: 'New User',
-          isCenterAdmin: true,
-          canAccessAllCenters: false
+          centerRole: expect.stringMatching(/ADMIN|USER|ATTENDANCE_TAKER/)
         }),
         'center-1'
       )
@@ -280,7 +311,7 @@ describe('AdminPanel', () => {
         name: 'Pending User',
         centerId: 'center-1',
         centerName: 'Center 1',
-        isCenterAdmin: false,
+        centerRole: 'USER',
         canAccessAllCenters: false,
         isApproved: false,
         accessStatus: 'pending'
@@ -290,7 +321,7 @@ describe('AdminPanel', () => {
         name: 'Approved User',
         centerId: 'center-1',
         centerName: 'Center 1',
-        isCenterAdmin: false,
+        centerRole: 'USER',
         canAccessAllCenters: false,
         isApproved: true,
         accessStatus: 'approved'
@@ -323,7 +354,7 @@ describe('AdminPanel', () => {
     await waitFor(() => {
       expect(authApiMock.upsertUserAccess).toHaveBeenCalledWith(
         '7777777777',
-        expect.objectContaining({ name: 'Pending User', isCenterAdmin: false, canAccessAllCenters: false }),
+        expect.objectContaining({ name: 'Pending User', centerRole: 'USER' }),
         'center-1'
       )
     })

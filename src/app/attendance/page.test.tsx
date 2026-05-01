@@ -20,7 +20,18 @@ vi.mock('@/hooks/useAuth', () => ({
     isLoggedIn: true,
     isLoading: false,
     selectedCenter: 'center-1',
-    selectedCenterDetails: { id: 'center-1', name: 'Center One', isAdmin: true }
+    selectedCenterDetails: {
+      id: 'center-1',
+      name: 'Center One',
+      role: 'ADMIN',
+      capabilities: {
+        canManageAccess: true,
+        canManageCenterConfig: true,
+        canViewContacts: true,
+        canTakeAttendance: true,
+        grantableRoles: ['ADMIN', 'USER', 'ATTENDANCE_TAKER']
+      }
+    }
   })
 }))
 

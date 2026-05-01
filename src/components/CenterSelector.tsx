@@ -3,6 +3,12 @@ import { useAuth } from '@/hooks/useAuth'
 export function CenterSelector() {
   const { user, selectedCenter, selectedCenterDetails, selectCenter } = useAuth()
 
+  const roleLabelMap = {
+    ADMIN: 'Admin',
+    USER: 'User',
+    ATTENDANCE_TAKER: 'Attendance Taker'
+  } as const
+
   if (!user || user.centers.length <= 1) {
     return null
   }
@@ -54,7 +60,7 @@ export function CenterSelector() {
           (Admin - All Centers)
         </span>
       )}
-      {!user.canAccessAllCenters && selectedCenterDetails?.isAdmin && (
+      {!user.canAccessAllCenters && selectedCenterDetails && (
         <span
           style={{
             fontSize: '12px',
@@ -62,7 +68,7 @@ export function CenterSelector() {
             fontStyle: 'italic'
           }}
         >
-          (Admin - This Center)
+          ({roleLabelMap[selectedCenterDetails.role]} - This Center)
         </span>
       )}
     </div>

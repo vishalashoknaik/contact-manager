@@ -17,15 +17,51 @@ vi.mock('@/hooks/useAuth', () => ({
       canAccessAllCenters: true,
       centers: ['center-1', 'center-2'],
       centerDetails: [
-        { id: 'center-1', name: 'Center 1', isAdmin: true },
-        { id: 'center-2', name: 'Center 2', isAdmin: true }
+        {
+          id: 'center-1',
+          name: 'Center 1',
+          role: 'ADMIN',
+          capabilities: {
+            canManageAccess: true,
+            canManageCenterConfig: true,
+            canViewContacts: true,
+            canTakeAttendance: true,
+            grantableRoles: ['ADMIN', 'USER', 'ATTENDANCE_TAKER']
+          }
+        },
+        {
+          id: 'center-2',
+          name: 'Center 2',
+          role: 'ADMIN',
+          capabilities: {
+            canManageAccess: true,
+            canManageCenterConfig: true,
+            canViewContacts: true,
+            canTakeAttendance: true,
+            grantableRoles: ['ADMIN', 'USER', 'ATTENDANCE_TAKER']
+          }
+        }
       ]
     },
     isLoggedIn: true,
     isLoading: false,
     selectedCenter: 'center-1',
-    selectedCenterDetails: { id: 'center-1', name: 'Center 1', isAdmin: true },
-    canManageSelectedCenter: true,
+    selectedCenterDetails: {
+      id: 'center-1',
+      name: 'Center 1',
+      role: 'ADMIN',
+      capabilities: {
+        canManageAccess: true,
+        canManageCenterConfig: true,
+        canViewContacts: true,
+        canTakeAttendance: true,
+        grantableRoles: ['ADMIN', 'USER', 'ATTENDANCE_TAKER']
+      }
+    },
+    canAccessSelectedCenterAdminMode: true,
+    canManageSelectedCenterAccess: true,
+    canManageSelectedCenterConfig: true,
+    canViewSelectedCenterContacts: true,
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
@@ -62,7 +98,7 @@ vi.mock('@/lib/api/client', () => {
           name: 'Admin User',
           centerId: 'center-1',
           centerName: 'Center 1',
-          isCenterAdmin: true,
+          centerRole: 'ADMIN',
           canAccessAllCenters: true,
           isApproved: true,
           accessStatus: 'approved'
@@ -73,7 +109,7 @@ vi.mock('@/lib/api/client', () => {
         name: 'Managed User',
         centerId: 'center-1',
         centerName: 'Center 1',
-        isCenterAdmin: false,
+        centerRole: 'USER',
         canAccessAllCenters: false,
         isApproved: true,
         accessStatus: 'approved'

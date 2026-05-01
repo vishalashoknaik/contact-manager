@@ -21,7 +21,10 @@ interface AuthContextType {
   isLoading: boolean
   selectedCenter: string | null
   selectedCenterDetails: AuthUser['centerDetails'][number] | null
-  canManageSelectedCenter: boolean
+  canAccessSelectedCenterAdminMode: boolean
+  canManageSelectedCenterAccess: boolean
+  canManageSelectedCenterConfig: boolean
+  canViewSelectedCenterContacts: boolean
   login: (phone: string, password: string) => Promise<LoginResult>
   register: (data: RegisterRequest) => Promise<string>
   logout: () => void
@@ -31,6 +34,39 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+function resolveCenterCapabilities(centerDetails: unknown) {
+  const details = centerDetails as {
+    capabilities?: {
+      canManageAccess?: boolean
+      canManageCenterConfig?: boolean
+      canViewContacts?: boolean
+      canTakeAttendance?: boolean
+      grantableRoles?: Array<'ADMIN' | 'USER' | 'ATTENDANCE_TAKER'>
+    }
+    isAdmin?: boolean
+  }
+
+  if (details?.capabilities) {
+    return {
+      canManageAccess: details.capabilities.canManageAccess ?? true,
+      canManageCenterConfig: details.capabilities.canManageCenterConfig ?? !!details.isAdmin,
+      canViewContacts: details.capabilities.canViewContacts ?? true,
+      canTakeAttendance: details.capabilities.canTakeAttendance ?? true,
+      grantableRoles:
+        details.capabilities.grantableRoles ||
+        (details.isAdmin ? ['ADMIN', 'USER', 'ATTENDANCE_TAKER'] : ['USER', 'ATTENDANCE_TAKER'])
+    }
+  }
+
+  return {
+    canManageAccess: true,
+    canManageCenterConfig: !!details?.isAdmin,
+    canViewContacts: true,
+    canTakeAttendance: true,
+    grantableRoles: details?.isAdmin ? ['ADMIN', 'USER', 'ATTENDANCE_TAKER'] : ['USER', 'ATTENDANCE_TAKER']
+  }
+}
 
 function syncPersistedUser(
   nextUser: AuthUser,
@@ -168,8 +204,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const selectedCenterDetails = user?.centerDetails.find(center => center.id === selectedCenter) || null
+  const selectedCenterCapabilities = resolveCenterCapabilities(selectedCenterDetails)
 
-  const canManageSelectedCenter = !!user && !!selectedCenterDetails && (user.canAccessAllCenters || selectedCenterDetails.isAdmin)
+  const canAccessSelectedCenterAdminMode = !!user && !!selectedCenterDetails
+  const canManageSelectedCenterAccess =
+    !!user &&
+    !!selectedCenterDetails &&
+    (user.canAccessAllCenters || selectedCenterCapabilities.canManageAccess)
+  const canManageSelectedCenterConfig =
+    !!user &&
+    !!selectedCenterDetails &&
+    (user.canAccessAllCenters || selectedCenterCapabilities.canManageCenterConfig)
+  const canViewSelectedCenterContacts =
+    !!user &&
+    !!selectedCenterDetails &&
+    (user.canAccessAllCenters || selectedCenterCapabilities.canViewContacts)
 
   return createElement(
     AuthContext.Provider,
@@ -180,7 +229,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         selectedCenter,
         selectedCenterDetails,
-        canManageSelectedCenter,
+        canAccessSelectedCenterAdminMode,
+        canManageSelectedCenterAccess,
+        canManageSelectedCenterConfig,
+        canViewSelectedCenterContacts,
         login,
         register,
         logout,

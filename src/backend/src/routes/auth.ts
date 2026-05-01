@@ -4,6 +4,24 @@ import { PrismaClient } from '@prisma/client'
 const router = Router()
 const prisma = new PrismaClient()
 
+type CenterRole = 'ATTENDANCE_TAKER' | 'USER' | 'ADMIN'
+
+const CENTER_ROLES: CenterRole[] = ['ATTENDANCE_TAKER', 'USER', 'ADMIN']
+
+const CENTER_ROLE_RANK: Record<CenterRole, number> = {
+  ATTENDANCE_TAKER: 1,
+  USER: 2,
+  ADMIN: 3
+}
+
+interface CenterCapabilities {
+  canManageAccess: boolean
+  canManageCenterConfig: boolean
+  canViewContacts: boolean
+  canTakeAttendance: boolean
+  grantableRoles: CenterRole[]
+}
+
 const SCHEMA_MIGRATION_HINT =
   'Database schema is outdated. Run "cd src/backend && npx prisma migrate deploy" and restart the backend.'
 
@@ -12,7 +30,7 @@ function buildAuthErrorMessage(defaultMessage: string, error: unknown) {
 
   // Prisma/schema drift signatures we have seen in runtime environments.
   if (
-    /P2022|column.+is_admin|column.+isAdmin|Unknown argument `isAdmin`|does not exist/i.test(
+    /P2022|column.+is_admin|column.+isAdmin|column.+role|Unknown argument `isAdmin`|Unknown argument `role`|does not exist/i.test(
       rawMessage
     )
   ) {
@@ -39,6 +57,80 @@ async function loadUser(phone: string) {
   })
 }
 
+function normalizeCenterRole(value: unknown): CenterRole | null {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  return CENTER_ROLES.includes(value as CenterRole) ? (value as CenterRole) : null
+}
+
+function getMembershipRole(membership: unknown): CenterRole {
+  const role = normalizeCenterRole((membership as { role?: string }).role)
+  return role || 'USER'
+}
+
+function getGrantableRoles(role: CenterRole): CenterRole[] {
+  if (role === 'ADMIN') {
+    return ['ADMIN', 'USER', 'ATTENDANCE_TAKER']
+  }
+
+  if (role === 'USER') {
+    return ['USER', 'ATTENDANCE_TAKER']
+  }
+
+  return ['ATTENDANCE_TAKER']
+}
+
+function getCenterCapabilities(role: CenterRole): CenterCapabilities {
+  return {
+    canManageAccess: true,
+    canManageCenterConfig: role === 'ADMIN',
+    canViewContacts: role !== 'ATTENDANCE_TAKER',
+    canTakeAttendance: true,
+    grantableRoles: getGrantableRoles(role)
+  }
+}
+
+function canGrantRole(actorRole: CenterRole, targetRole: CenterRole) {
+  return (
+    CENTER_ROLE_RANK[actorRole] >= CENTER_ROLE_RANK[targetRole] &&
+    getGrantableRoles(actorRole).includes(targetRole)
+  )
+}
+
+function getApprovedMembershipForCenter(
+  user: NonNullable<Awaited<ReturnType<typeof loadUser>>>,
+  centerId: string
+) {
+  return user.centers.find(
+    membership => membership.centerId === centerId && membership.isApproved
+  )
+}
+
+function getActorCenterRole(
+  user: NonNullable<Awaited<ReturnType<typeof loadUser>>>,
+  centerId: string
+): CenterRole | null {
+  if (user.canAccessAllCenters) {
+    return 'ADMIN'
+  }
+
+  const membership = getApprovedMembershipForCenter(user, centerId)
+  return membership ? getMembershipRole(membership) : null
+}
+
+function canAccessCenter(
+  user: NonNullable<Awaited<ReturnType<typeof loadUser>>>,
+  centerId: string
+) {
+  if (user.canAccessAllCenters) {
+    return true
+  }
+
+  return !!getApprovedMembershipForCenter(user, centerId)
+}
+
 async function buildAuthUser(user: NonNullable<Awaited<ReturnType<typeof loadUser>>>) {
   if (user.canAccessAllCenters) {
     const centers = await prisma.center.findMany({
@@ -54,7 +146,8 @@ async function buildAuthUser(user: NonNullable<Awaited<ReturnType<typeof loadUse
       centerDetails: centers.map(center => ({
         id: center.id,
         name: center.name,
-        isAdmin: true
+        role: 'ADMIN' as const,
+        capabilities: getCenterCapabilities('ADMIN')
       }))
     }
   }
@@ -69,7 +162,8 @@ async function buildAuthUser(user: NonNullable<Awaited<ReturnType<typeof loadUse
     centerDetails: approvedMemberships.map(membership => ({
       id: membership.center.id,
       name: membership.center.name,
-      isAdmin: membership.isAdmin
+      role: getMembershipRole(membership),
+      capabilities: getCenterCapabilities(getMembershipRole(membership))
     }))
   }
 }
@@ -121,11 +215,7 @@ function canManageCenter(
   user: NonNullable<Awaited<ReturnType<typeof loadUser>>>,
   centerId: string
 ) {
-  if (user.canAccessAllCenters) {
-    return true
-  }
-
-  return user.centers.some(membership => membership.centerId === centerId && membership.isAdmin)
+  return canAccessCenter(user, centerId)
 }
 
 function getApprovedMemberships(user: NonNullable<Awaited<ReturnType<typeof loadUser>>>) {
@@ -219,7 +309,7 @@ router.post('/register', async (req: Request, res: Response) => {
         name,
         canAccessAllCenters: false,
         centers: {
-          create: [{ centerId, isAdmin: false, isApproved: false }]
+          create: [{ centerId, role: 'USER', isApproved: false }]
         }
       },
     })
@@ -259,7 +349,7 @@ router.get('/users', async (req: Request, res: Response) => {
     }
 
     if (!canManageCenter(actor, centerId)) {
-      return res.status(403).json({ error: 'Admin access is required for this center' })
+      return res.status(403).json({ error: 'Center access is required for this operation' })
     }
 
     const memberships = await prisma.userCenter.findMany({
@@ -277,7 +367,7 @@ router.get('/users', async (req: Request, res: Response) => {
           name: membership.user.name,
           centerId: membership.center.id,
           centerName: membership.center.name,
-          isCenterAdmin: membership.isAdmin,
+          centerRole: getMembershipRole(membership),
           canAccessAllCenters: membership.user.canAccessAllCenters,
           isApproved: membership.isApproved,
           accessStatus: membership.isApproved ? 'approved' : 'pending'
@@ -303,18 +393,40 @@ router.put('/users/:phone', async (req: Request, res: Response) => {
     }
 
     const targetPhone = req.params.phone
-    const { name, centerId, isCenterAdmin, canAccessAllCenters } = req.body
+    const { name, centerId, centerRole, isCenterAdmin, canAccessAllCenters } = req.body
+
+    const resolvedCenterRole =
+      normalizeCenterRole(centerRole) ||
+      (typeof isCenterAdmin === 'boolean' ? (isCenterAdmin ? 'ADMIN' : 'USER') : null)
+
+    if (centerRole !== undefined && !resolvedCenterRole) {
+      return res.status(400).json({ error: 'Invalid center role' })
+    }
 
     if (!targetPhone || !centerId) {
       return res.status(400).json({ error: 'Phone and center are required' })
     }
 
     if (!canManageCenter(actor, centerId)) {
-      return res.status(403).json({ error: 'Admin access is required for this center' })
+      return res.status(403).json({ error: 'Center access is required for this operation' })
     }
 
     if (typeof canAccessAllCenters === 'boolean' && !actor.canAccessAllCenters) {
       return res.status(403).json({ error: 'Only overall admins can assign overall admin access' })
+    }
+
+    const actorCenterRole = getActorCenterRole(actor, centerId)
+    if (!actor.canAccessAllCenters && !actorCenterRole) {
+      return res.status(403).json({ error: 'Center access is required for this operation' })
+    }
+
+    if (
+      resolvedCenterRole &&
+      !actor.canAccessAllCenters &&
+      actorCenterRole &&
+      !canGrantRole(actorCenterRole, resolvedCenterRole)
+    ) {
+      return res.status(403).json({ error: 'You can only grant roles within your access level' })
     }
 
     let targetUser = await prisma.user.findUnique({ where: { phone: targetPhone } })
@@ -345,6 +457,19 @@ router.put('/users/:phone', async (req: Request, res: Response) => {
       })
     }
 
+    const existingMembership = await prisma.userCenter.findUnique({
+      where: {
+        userPhone_centerId: {
+          userPhone: targetPhone,
+          centerId
+        }
+      }
+    })
+
+    const nextRole =
+      resolvedCenterRole ||
+      (existingMembership ? getMembershipRole(existingMembership) : 'USER')
+
     const membership = await prisma.userCenter.upsert({
       where: {
         userPhone_centerId: {
@@ -353,13 +478,13 @@ router.put('/users/:phone', async (req: Request, res: Response) => {
         }
       },
       update: {
-        isAdmin: !!isCenterAdmin,
+        role: nextRole,
         isApproved: true
       },
       create: {
         userPhone: targetPhone,
         centerId,
-        isAdmin: !!isCenterAdmin,
+        role: nextRole,
         isApproved: true
       },
       include: {
@@ -373,7 +498,7 @@ router.put('/users/:phone', async (req: Request, res: Response) => {
       name: membership.user.name,
       centerId: membership.center.id,
       centerName: membership.center.name,
-      isCenterAdmin: membership.isAdmin,
+      centerRole: getMembershipRole(membership),
       canAccessAllCenters: membership.user.canAccessAllCenters,
       isApproved: membership.isApproved,
       accessStatus: membership.isApproved ? 'approved' : 'pending'
@@ -396,7 +521,34 @@ router.delete('/users/:phone', async (req: Request, res: Response) => {
     }
 
     if (!canManageCenter(actor, centerId)) {
-      return res.status(403).json({ error: 'Admin access is required for this center' })
+      return res.status(403).json({ error: 'Center access is required for this operation' })
+    }
+
+    const actorCenterRole = getActorCenterRole(actor, centerId)
+    if (!actor.canAccessAllCenters && !actorCenterRole) {
+      return res.status(403).json({ error: 'Center access is required for this operation' })
+    }
+
+    const targetMembership = await prisma.userCenter.findUnique({
+      where: {
+        userPhone_centerId: {
+          userPhone: req.params.phone,
+          centerId
+        }
+      }
+    })
+
+    if (!targetMembership) {
+      return res.status(404).json({ error: 'Access entry not found' })
+    }
+
+    const targetRole = getMembershipRole(targetMembership)
+    if (
+      !actor.canAccessAllCenters &&
+      actorCenterRole &&
+      !canGrantRole(actorCenterRole, targetRole)
+    ) {
+      return res.status(403).json({ error: 'You can only remove roles within your access level' })
     }
 
     const deletedMembership = await prisma.userCenter.deleteMany({

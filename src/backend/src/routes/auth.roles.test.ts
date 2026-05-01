@@ -16,6 +16,7 @@ const mockPrisma = {
   },
   userCenter: {
     findMany: vi.fn(),
+    findUnique: vi.fn(),
     upsert: vi.fn(),
     deleteMany: vi.fn()
   }
@@ -106,7 +107,7 @@ describe('auth role and registration contract', () => {
       centers: [
         {
           centerId: 'center-1',
-          isAdmin: false,
+          role: 'USER',
           center: { id: 'center-1', name: 'Center 1' }
         }
       ]
@@ -135,7 +136,7 @@ describe('auth role and registration contract', () => {
           phone: '9999999999',
           name: 'New User',
           centers: {
-            create: [{ centerId: 'center-1', isAdmin: false, isApproved: false }]
+            create: [{ centerId: 'center-1', role: 'USER', isApproved: false }]
           }
         })
       })
@@ -150,7 +151,7 @@ describe('auth role and registration contract', () => {
       centers: [
         {
           centerId: 'center-1',
-          isAdmin: false,
+          role: 'USER',
           isApproved: false,
           center: { id: 'center-1', name: 'Center 1' }
         }
@@ -176,7 +177,7 @@ describe('auth role and registration contract', () => {
     mockPrisma.user.findUnique.mockResolvedValueOnce(null)
     mockPrisma.center.findUnique.mockResolvedValueOnce({ id: 'center-1', name: 'Center 1' })
     mockPrisma.user.create.mockRejectedValueOnce(
-      new Error('Unknown argument `isAdmin`. Available options are marked with ?.')
+      new Error('Unknown argument `role`. Available options are marked with ?.')
     )
 
     const baseUrl = await startTestServer()
@@ -207,7 +208,8 @@ describe('auth role and registration contract', () => {
         centers: [
           {
             centerId: 'center-1',
-            isAdmin: true,
+            role: 'ADMIN',
+            isApproved: true,
             center: { id: 'center-1', name: 'Center 1' }
           }
         ]
@@ -232,7 +234,7 @@ describe('auth role and registration contract', () => {
       body: JSON.stringify({
         name: 'Target User',
         centerId: 'center-1',
-        isCenterAdmin: true,
+        centerRole: 'ADMIN',
         canAccessAllCenters: true
       })
     })
@@ -245,6 +247,101 @@ describe('auth role and registration contract', () => {
     expect(mockPrisma.userCenter.upsert).not.toHaveBeenCalled()
   })
 
+  it('allows center users to grant user and attendance taker access', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        phone: '9000000001',
+        name: 'Center User',
+        canAccessAllCenters: false,
+        centers: [
+          {
+            centerId: 'center-1',
+            role: 'USER',
+            isApproved: true,
+            center: { id: 'center-1', name: 'Center 1' }
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        phone: '9000000002',
+        name: 'Target User',
+        canAccessAllCenters: false,
+        centers: []
+      })
+
+    mockPrisma.userCenter.findUnique.mockResolvedValueOnce(null)
+    mockPrisma.userCenter.upsert.mockResolvedValueOnce({
+      user: { phone: '9000000002', name: 'Target User', canAccessAllCenters: false },
+      center: { id: 'center-1', name: 'Center 1' },
+      role: 'USER',
+      isApproved: true
+    })
+
+    const token = Buffer.from('9000000001:123').toString('base64')
+    const baseUrl = await startTestServer()
+    const response = await fetch(`${baseUrl}/api/auth/users/9000000002`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Center-ID': 'center-1'
+      },
+      body: JSON.stringify({
+        name: 'Target User',
+        centerId: 'center-1',
+        centerRole: 'USER'
+      })
+    })
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        phone: '9000000002',
+        centerRole: 'USER',
+        isApproved: true,
+        accessStatus: 'approved'
+      })
+    )
+  })
+
+  it('blocks attendance takers from granting center user access', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '9000000003',
+      name: 'Attendance Taker',
+      canAccessAllCenters: false,
+      centers: [
+        {
+          centerId: 'center-1',
+          role: 'ATTENDANCE_TAKER',
+          isApproved: true,
+          center: { id: 'center-1', name: 'Center 1' }
+        }
+      ]
+    })
+
+    const token = Buffer.from('9000000003:123').toString('base64')
+
+    const baseUrl = await startTestServer()
+    const response = await fetch(`${baseUrl}/api/auth/users/9000000004`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Center-ID': 'center-1'
+      },
+      body: JSON.stringify({
+        name: 'Target User',
+        centerId: 'center-1',
+        centerRole: 'USER'
+      })
+    })
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({
+      error: 'You can only grant roles within your access level'
+    })
+  })
+
   it('removes access for the selected center', async () => {
     mockPrisma.user.findUnique.mockResolvedValueOnce({
       phone: '8765432109',
@@ -252,6 +349,7 @@ describe('auth role and registration contract', () => {
       canAccessAllCenters: true,
       centers: []
     })
+    mockPrisma.userCenter.findUnique.mockResolvedValueOnce({ role: 'USER', isApproved: true })
     mockPrisma.userCenter.deleteMany.mockResolvedValueOnce({ count: 1 })
 
     const token = Buffer.from('8765432109:123').toString('base64')

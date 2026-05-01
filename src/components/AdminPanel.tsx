@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { authApi, centersApi } from '@/lib/api/client'
+import { authApi, centersApi, contactsApi } from '@/lib/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { AdminService } from '@/lib/services/AdminService'
 import { ConfigService } from '@/lib/services/ConfigService'
 import { Contact } from '@/lib/types'
 import { useInputState } from '@/hooks/useInputState'
-import type { CenterOption, ManagedUser } from '@/lib/types/auth'
+import type { CenterOption, CenterRole, ManagedUser } from '@/lib/types/auth'
 
 interface AdminPanelProps {
   isVisible: boolean
@@ -38,12 +38,22 @@ export function AdminPanel({
   const newActivityInput = useInputState()
   const newAreaInput = useInputState()
   const newProgramInput = useInputState()
-  const { user, selectedCenter, selectedCenterDetails, canManageSelectedCenter, refreshUser } = useAuth()
+  const {
+    user,
+    selectedCenter,
+    selectedCenterDetails,
+    canManageSelectedCenterAccess,
+    canManageSelectedCenterConfig,
+    refreshUser
+  } = useAuth()
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([])
+  const [contactSearch, setContactSearch] = useState('')
+  const [searchResults, setSearchResults] = useState<Contact[]>([])
   const [userPhone, setUserPhone] = useState('')
   const [userName, setUserName] = useState('')
-  const [isCenterAdmin, setIsCenterAdmin] = useState(false)
+  const [selectedCenterRole, setSelectedCenterRole] = useState<CenterRole>('USER')
   const [isOverallAdmin, setIsOverallAdmin] = useState(false)
+  const [managedRoleDrafts, setManagedRoleDrafts] = useState<Record<string, CenterRole>>({})
   const [userError, setUserError] = useState<string | null>(null)
   const [isManagingUsers, setIsManagingUsers] = useState(false)
   const [centers, setCenters] = useState<CenterOption[]>([])
@@ -60,8 +70,28 @@ export function AdminPanel({
   const [renameInputs, setRenameInputs] = useState<Record<string, string>>({})
   const [editingItem, setEditingItem] = useState<{ type: 'activity' | 'area' | 'program'; value: string } | null>(null)
 
+  const roleLabelMap: Record<CenterRole, string> = {
+    ADMIN: 'Center Admin',
+    USER: 'Center User',
+    ATTENDANCE_TAKER: 'Attendance Taker'
+  }
+
+  const getManagedUserRole = (managedUser: ManagedUser | (ManagedUser & { isCenterAdmin?: boolean })) =>
+    managedUser.centerRole || (managedUser.isCenterAdmin ? 'ADMIN' : 'USER')
+
+  const grantableRoles =
+    selectedCenterDetails?.capabilities?.grantableRoles ||
+    ((selectedCenterDetails as { isAdmin?: boolean } | null)?.isAdmin
+      ? (['ADMIN', 'USER', 'ATTENDANCE_TAKER'] as CenterRole[])
+      : (['USER', 'ATTENDANCE_TAKER'] as CenterRole[]))
+
+  const toManagedKey = (managedUser: ManagedUser) => `${managedUser.phone}-${managedUser.centerId}`
+
+  const toExistingContactByPhone = (phone: string) =>
+    contacts.find(contact => contact.phone.trim() === phone.trim())
+
   useEffect(() => {
-    if (!isVisible || !selectedCenter || !canManageSelectedCenter || section !== 'access') {
+    if (!isVisible || !selectedCenter || !canManageSelectedCenterAccess || section !== 'access') {
       return
     }
 
@@ -76,7 +106,29 @@ export function AdminPanel({
     }
 
     loadUsers()
-  }, [canManageSelectedCenter, isVisible, section, selectedCenter])
+  }, [canManageSelectedCenterAccess, isVisible, section, selectedCenter])
+
+  useEffect(() => {
+    if (!contactSearch.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    const search = contactSearch.trim().toLowerCase()
+    setSearchResults(
+      contacts
+        .filter(
+          contact =>
+            contact.name.toLowerCase().includes(search) ||
+            contact.phone.toLowerCase().includes(search)
+        )
+        .slice(0, 6)
+    )
+  }, [contactSearch, contacts])
+
+  useEffect(() => {
+    setSelectedCenterRole(grantableRoles[0] || 'ATTENDANCE_TAKER')
+  }, [grantableRoles])
 
   useEffect(() => {
     setRenameCenterName(selectedCenterDetails?.name || '')
@@ -251,23 +303,55 @@ export function AdminPanel({
       return
     }
 
+    const trimmedPhone = userPhone.trim()
+    const trimmedName = userName.trim()
+
+    if (!trimmedPhone) {
+      setUserError('Phone is required')
+      return
+    }
+
+    if (!trimmedName) {
+      setUserError('Name is required')
+      return
+    }
+
     setIsManagingUsers(true)
     setUserError(null)
 
     try {
+      if (!toExistingContactByPhone(trimmedPhone)) {
+        const response = await contactsApi.create(
+          {
+            name: trimmedName,
+            phone: trimmedPhone,
+            gender: 'Other',
+            selected: false
+          },
+          selectedCenter
+        )
+
+        const createdContact = (response as { contact?: Contact }).contact
+        if (createdContact) {
+          onContactsChange([createdContact, ...contacts])
+        }
+      }
+
       await authApi.upsertUserAccess(
-        userPhone,
+        trimmedPhone,
         {
-          name: userName || undefined,
-          isCenterAdmin,
+          name: trimmedName || undefined,
+          centerRole: selectedCenterRole,
           canAccessAllCenters: user?.canAccessAllCenters ? isOverallAdmin : undefined
         },
         selectedCenter
       )
+      setContactSearch('')
       setUserPhone('')
       setUserName('')
-      setIsCenterAdmin(false)
+      setSearchResults([])
       setIsOverallAdmin(false)
+      setSelectedCenterRole(grantableRoles[0] || 'ATTENDANCE_TAKER')
       await reloadManagedUsers()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save user access'
@@ -277,7 +361,7 @@ export function AdminPanel({
     }
   }
 
-  const handleRoleToggle = async (managedUser: ManagedUser, updates: Partial<ManagedUser>) => {
+  const handleRoleUpdate = async (managedUser: ManagedUser, nextRole: CenterRole) => {
     if (!selectedCenter) {
       return
     }
@@ -290,9 +374,9 @@ export function AdminPanel({
         managedUser.phone,
         {
           name: managedUser.name,
-          isCenterAdmin: updates.isCenterAdmin ?? managedUser.isCenterAdmin,
+          centerRole: nextRole,
           canAccessAllCenters: user?.canAccessAllCenters
-            ? updates.canAccessAllCenters ?? managedUser.canAccessAllCenters
+            ? managedUser.canAccessAllCenters
             : undefined
         },
         selectedCenter
@@ -307,11 +391,35 @@ export function AdminPanel({
   }
 
   const handleApproveAccess = async (managedUser: ManagedUser) => {
-    await handleRoleToggle(managedUser, {
-      isCenterAdmin: managedUser.isCenterAdmin,
-      canAccessAllCenters: managedUser.canAccessAllCenters,
-      isApproved: true
-    })
+    const nextRole = managedRoleDrafts[toManagedKey(managedUser)] || managedUser.centerRole
+    await handleRoleUpdate(managedUser, nextRole)
+  }
+
+  const handleOverallAdminToggle = async (managedUser: ManagedUser) => {
+    if (!selectedCenter) {
+      return
+    }
+
+    setIsManagingUsers(true)
+    setUserError(null)
+
+    try {
+      await authApi.upsertUserAccess(
+        managedUser.phone,
+        {
+          name: managedUser.name,
+          centerRole: managedRoleDrafts[toManagedKey(managedUser)] || managedUser.centerRole,
+          canAccessAllCenters: !managedUser.canAccessAllCenters
+        },
+        selectedCenter
+      )
+      await reloadManagedUsers()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update roles'
+      setUserError(message)
+    } finally {
+      setIsManagingUsers(false)
+    }
   }
 
   const handleRemoveAccess = async (managedUser: ManagedUser) => {
@@ -430,9 +538,44 @@ export function AdminPanel({
       <div style={sectionStyle}>
         <h5>User Access</h5>
         <p style={{ color: '#555', marginTop: 0 }}>
-          Manage access for <strong>{selectedCenterDetails?.name || 'the selected center'}</strong> using phone number.
+          Search people in contacts first. If not found, add a new contact before granting access.
         </p>
         <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+          <input
+            type="text"
+            placeholder="Search contact by name or phone"
+            value={contactSearch}
+            onChange={e => setContactSearch(e.target.value)}
+            style={inputStyle}
+          />
+          {searchResults.length > 0 && (
+            <div style={{ border: '1px solid var(--border-color, #ddd)', borderRadius: 4, overflow: 'hidden' }}>
+              {searchResults.map(result => (
+                <button
+                  key={`${result.id}-${result.phone}`}
+                  type="button"
+                  onClick={() => {
+                    setUserPhone(result.phone)
+                    setUserName(result.name)
+                    setContactSearch('')
+                    setSearchResults([])
+                  }}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '8px 10px',
+                    border: 'none',
+                    borderBottom: '1px solid var(--border-color, #eee)',
+                    backgroundColor: 'var(--input-bg, #fff)',
+                    color: 'var(--text-primary, #000)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <strong>{result.name}</strong> ({result.phone})
+                </button>
+              ))}
+            </div>
+          )}
           <input
             type="tel"
             placeholder="User phone number"
@@ -447,13 +590,19 @@ export function AdminPanel({
             onChange={e => setUserName(e.target.value)}
             style={inputStyle}
           />
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={isCenterAdmin}
-              onChange={e => setIsCenterAdmin(e.target.checked)}
-            />
-            Center admin for this center
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span>Center Access Role</span>
+            <select
+              value={selectedCenterRole}
+              onChange={e => setSelectedCenterRole(e.target.value as CenterRole)}
+              style={{ ...inputStyle, marginRight: 0 }}
+            >
+              {grantableRoles.map(role => (
+                <option key={role} value={role}>
+                  {roleLabelMap[role]}
+                </option>
+              ))}
+            </select>
           </label>
           {user?.canAccessAllCenters && (
             <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -514,34 +663,51 @@ export function AdminPanel({
           <p style={{ marginBottom: 0, color: '#666' }}>No approved users assigned to this center yet.</p>
         )}
         {approvedUsers.map(managedUser => (
-          <div key={`${managedUser.phone}-${managedUser.centerId}`} style={itemStyle}>
+          <div key={toManagedKey(managedUser)} style={itemStyle}>
             <div>
               <strong>{managedUser.name}</strong> ({managedUser.phone})
               <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
                 {managedUser.canAccessAllCenters
                   ? 'Overall admin'
-                  : managedUser.isCenterAdmin
-                    ? 'Center admin'
-                    : 'Center user'}
+                  : roleLabelMap[managedUser.centerRole]}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <select
+                value={managedRoleDrafts[toManagedKey(managedUser)] || managedUser.centerRole}
+                onChange={e =>
+                  setManagedRoleDrafts(prev => ({
+                    ...prev,
+                    [toManagedKey(managedUser)]: e.target.value as CenterRole
+                  }))
+                }
+                style={{ ...inputStyle, marginRight: 0 }}
+                disabled={isManagingUsers}
+              >
+                {(user?.canAccessAllCenters
+                  ? (['ADMIN', 'USER', 'ATTENDANCE_TAKER'] as CenterRole[])
+                  : grantableRoles
+                ).map(role => (
+                  <option key={role} value={role}>
+                    {roleLabelMap[role]}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={() =>
-                  handleRoleToggle(managedUser, { isCenterAdmin: !managedUser.isCenterAdmin })
+                  handleRoleUpdate(
+                    managedUser,
+                    managedRoleDrafts[toManagedKey(managedUser)] || managedUser.centerRole
+                  )
                 }
                 style={buttonStyle}
                 disabled={isManagingUsers}
               >
-                {managedUser.isCenterAdmin ? 'Make Center User' : 'Make Center Admin'}
+                Update Role
               </button>
               {user?.canAccessAllCenters && (
                 <button
-                  onClick={() =>
-                    handleRoleToggle(managedUser, {
-                      canAccessAllCenters: !managedUser.canAccessAllCenters
-                    })
-                  }
+                  onClick={() => handleOverallAdminToggle(managedUser)}
                   style={{ ...buttonStyle, backgroundColor: '#198754' }}
                   disabled={isManagingUsers}
                 >
@@ -824,7 +990,11 @@ export function AdminPanel({
   return (
     <div style={panelStyle}>
       <h4 style={{ color: 'var(--text-primary, #000)', marginTop: 0 }}>{section === 'access' ? '🔐 Access Management' : '⚙️ Center Settings'}</h4>
-      {section === 'access' ? renderAccessSection() : renderSettingsSection()}
+      {section === 'access' ? renderAccessSection() : null}
+      {section === 'settings' && canManageSelectedCenterConfig ? renderSettingsSection() : null}
+      {section === 'settings' && !canManageSelectedCenterConfig ? (
+        <div style={{ color: '#b02a37' }}>Only center admins can manage center configuration.</div>
+      ) : null}
       
       {mergeDialog && (
         <div

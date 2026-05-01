@@ -37,7 +37,7 @@ async function main() {
       name: 'Manager Center 1',
       canAccessAllCenters: false,
       centers: {
-        create: [{ centerId: center1.id, isAdmin: true }]
+        create: [{ centerId: center1.id, role: 'ADMIN' }]
       }
     }
   })
@@ -50,7 +50,7 @@ async function main() {
       name: 'Manager Center 2',
       canAccessAllCenters: false,
       centers: {
-        create: [{ centerId: center2.id, isAdmin: true }]
+        create: [{ centerId: center2.id, role: 'ADMIN' }]
       }
     }
   })
@@ -64,9 +64,9 @@ async function main() {
       canAccessAllCenters: true,
       centers: {
         create: [
-          { centerId: center1.id, isAdmin: true },
-          { centerId: center2.id, isAdmin: true },
-          { centerId: center3.id, isAdmin: true }
+          { centerId: center1.id, role: 'ADMIN' },
+          { centerId: center2.id, role: 'ADMIN' },
+          { centerId: center3.id, role: 'ADMIN' }
         ]
       }
     }

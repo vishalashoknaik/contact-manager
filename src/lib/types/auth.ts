@@ -7,8 +7,19 @@ export interface CenterOption {
   name: string
 }
 
+export type CenterRole = 'ATTENDANCE_TAKER' | 'USER' | 'ADMIN'
+
+export interface CenterCapabilities {
+  canManageAccess: boolean
+  canManageCenterConfig: boolean
+  canViewContacts: boolean
+  canTakeAttendance: boolean
+  grantableRoles: CenterRole[]
+}
+
 export interface CenterDetail extends CenterOption {
-  isAdmin: boolean
+  role: CenterRole
+  capabilities: CenterCapabilities
 }
 
 export interface AuthUser {
@@ -59,7 +70,7 @@ export interface ManagedUser {
   name: string
   centerId: string
   centerName: string
-  isCenterAdmin: boolean
+  centerRole: CenterRole
   canAccessAllCenters: boolean
   isApproved: boolean
   accessStatus: 'approved' | 'pending'

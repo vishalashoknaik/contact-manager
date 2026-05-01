@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useContacts } from '../hooks/useContacts'
 import { useConfig } from '../hooks/useConfig'
@@ -17,16 +17,23 @@ import { CSVImport } from '@/components/CSVImport'
 import { AdminPanel } from '../components/AdminPanel'
 import { ActionBar } from '@/components/ActionBar'
 import { ContactsTable } from '@/components/ContactsTable'
+import { CampaignModal } from '@/components/CampaignModal'
 
 const VERSION = 'v2.0.0'
 
 function HomeContent() {
   const router = useRouter()
+  const [showCampaignModal, setShowCampaignModal] = useState(false)
   const contactsManager = useContacts()
   const configManager = useConfig()
   const filteringManager = useFiltering()
   const adminManager = useAdmin()
-  const { canManageSelectedCenter } = useAuth()
+  const {
+    selectedCenter,
+    canAccessSelectedCenterAdminMode,
+    canManageSelectedCenterConfig,
+    canViewSelectedCenterContacts
+  } = useAuth()
   const actionSelectors = {
     activity: useInputState(),
     area: useInputState(),
@@ -51,16 +58,24 @@ function HomeContent() {
   )
 
   const filteredContactIds = filtered.map(contact => contact.id)
+  const selectedContactIds = contactsManager.contacts
+    .filter(contact => contact.selected)
+    .map(contact => String(contact.id))
   const allSelected =
     filtered.length > 0 &&
     filtered.every(contact => contact.selected)
 
   useEffect(() => {
-    if (!canManageSelectedCenter) {
+    if (!canAccessSelectedCenterAdminMode) {
       adminManager.setIsAdmin(false)
       adminManager.setActiveView('access')
+      return
     }
-  }, [canManageSelectedCenter])
+
+    if (adminManager.activeView === 'settings' && !canManageSelectedCenterConfig) {
+      adminManager.setActiveView('access')
+    }
+  }, [canAccessSelectedCenterAdminMode, canManageSelectedCenterConfig, adminManager])
 
   const handleAddContact = (name: string, phone: string, gender: import('@/lib/types').Gender, ieDate?: string, areaOfStay?: string, remarks?: string) => {
     contactsManager.addOrUpdateContact(name, phone, gender, ieDate, areaOfStay, remarks)
@@ -126,6 +141,21 @@ function HomeContent() {
 
       <div style={{ marginBottom: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button
+          onClick={() => router.push('/campaigns')}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: '#6f42c1',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          📣 Campaigns
+        </button>
+
+        <button
           onClick={() => router.push('/attendance')}
           style={{
             padding: '10px 16px',
@@ -140,7 +170,7 @@ function HomeContent() {
           📝 Take Attendance
         </button>
 
-        {canManageSelectedCenter && (
+        {canAccessSelectedCenterAdminMode && (
           <>
             <button
               onClick={adminManager.toggleAdmin}
@@ -159,20 +189,22 @@ function HomeContent() {
 
             {adminManager.isAdmin && (
               <>
-                <button
-                  onClick={adminManager.openSettingsView}
-                  style={{
-                    marginLeft: 10,
-                    padding: '10px 16px',
-                    backgroundColor: adminManager.activeView === 'settings' ? '#0d6efd' : '#6c757d',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Center Configuration
-                </button>
+                {canManageSelectedCenterConfig && (
+                  <button
+                    onClick={adminManager.openSettingsView}
+                    style={{
+                      marginLeft: 10,
+                      padding: '10px 16px',
+                      backgroundColor: adminManager.activeView === 'settings' ? '#0d6efd' : '#6c757d',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Center Configuration
+                  </button>
+                )}
                 <button
                   onClick={adminManager.openAccessView}
                   style={{
@@ -193,7 +225,7 @@ function HomeContent() {
         )}
       </div>
 
-      {canManageSelectedCenter && (
+      {canAccessSelectedCenterAdminMode && (
         <>
           {adminManager.isAdmin && (
             <AdminPanel
@@ -212,7 +244,7 @@ function HomeContent() {
         </>
       )}
 
-      {!adminManager.isAdmin && (
+      {!adminManager.isAdmin && canViewSelectedCenterContacts && (
         <>
           {/* Contact Form & CSV Import */}
           <div style={{ 
@@ -251,6 +283,25 @@ function HomeContent() {
                 onProgramChange={actionSelectors.program.setValue}
                 onIncrement={handleIncrement}
               />
+
+              {selectedContactIds.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    onClick={() => setShowCampaignModal(true)}
+                    style={{
+                      padding: '10px 16px',
+                      backgroundColor: '#0d6efd',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    Create Campaign ({selectedContactIds.length} selected)
+                  </button>
+                </div>
+              )}
             </>
           )}
 
@@ -279,12 +330,43 @@ function HomeContent() {
           )}
         </>
       )}
+
+      {!adminManager.isAdmin && !canViewSelectedCenterContacts && (
+        <div
+          style={{
+            padding: 12,
+            border: '1px solid var(--border-color, #ddd)',
+            borderRadius: 4,
+            backgroundColor: 'var(--panel-bg, #f8f9fa)'
+          }}
+        >
+          Full contact view is restricted for your role. You can still use attendance mode.
+        </div>
+      )}
+
+      <CampaignModal
+        isOpen={showCampaignModal}
+        selectedContactIds={selectedContactIds}
+        centerId={selectedCenter || ''}
+        onClose={() => setShowCampaignModal(false)}
+        onCreated={() => {
+          setShowCampaignModal(false)
+          contactsManager.clearAllSelections()
+          router.push('/campaigns')
+        }}
+      />
     </div>
   )
 }
 
 export default function Home() {
   const { isLoggedIn, user, logout, selectedCenter, selectedCenterDetails } = useAuth()
+
+  const roleLabelMap = {
+    ADMIN: 'Center Admin',
+    USER: 'Center User',
+    ATTENDANCE_TAKER: 'Attendance Taker'
+  } as const
 
   if (!isLoggedIn) {
     return <LoginPage />
@@ -313,8 +395,10 @@ export default function Home() {
           {user?.canAccessAllCenters && (
             <span style={{ marginLeft: '12px', color: '#0d6efd' }}>Overall Admin</span>
           )}
-          {!user?.canAccessAllCenters && selectedCenterDetails?.isAdmin && (
-            <span style={{ marginLeft: '12px', color: '#0d6efd' }}>Center Admin</span>
+          {!user?.canAccessAllCenters && selectedCenterDetails && (
+            <span style={{ marginLeft: '12px', color: '#0d6efd' }}>
+              {roleLabelMap[selectedCenterDetails.role]}
+            </span>
           )}
         </div>
         <button
