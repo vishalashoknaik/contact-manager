@@ -11,6 +11,8 @@ export function useFiltering() {
   const [filters, setFilters] = useState<FilterState>({
     nameFilter: '',
     phoneFilter: '',
+    genderFilter: '',
+    areaOfStayFilter: '',
     activityFilters: {},
     areaFilters: {},
     programFilters: {},
@@ -60,6 +62,14 @@ export function useFiltering() {
     setFilters(prev => ({ ...prev, dateFilter: value }))
   }
 
+  const setGenderFilter = (value: string) => {
+    setFilters(prev => ({ ...prev, genderFilter: value }))
+  }
+
+  const setAreaOfStayFilter = (value: string) => {
+    setFilters(prev => ({ ...prev, areaOfStayFilter: value }))
+  }
+
   const toggleSort = (key: string) => {
     setSortState(prev => {
       if (prev.key === key) {
@@ -73,6 +83,8 @@ export function useFiltering() {
     filters,
     setNameFilter,
     setPhoneFilter,
+    setGenderFilter,
+    setAreaOfStayFilter,
     setActivityFilter,
     setAreaFilter,
     setProgramFilter,

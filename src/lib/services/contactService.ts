@@ -1,5 +1,6 @@
 import { Contact } from '../types'
 import { PhoneService } from './PhoneService'
+import type { Gender } from '../types'
 
 /**
  * ContactService
@@ -9,11 +10,15 @@ export class ContactService {
   /**
    * Create a new contact object
    */
-  static createContact(name: string, phone: string): Contact {
+  static createContact(name: string, phone: string, gender: Gender = 'Male', ieDate?: string, areaOfStay?: string, remarks?: string): Contact {
     return {
       id: Date.now() + Math.random(),
       name,
       phone,
+      gender,
+      ieDate,
+      areaOfStay,
+      remarks,
       activities: {},
       areas: {},
       programs: {},
@@ -29,25 +34,29 @@ export class ContactService {
   static addOrUpdateContact(
     contacts: Contact[],
     name: string,
-    phone: string
+    phone: string,
+    gender: Gender = 'Male',
+    ieDate?: string,
+    areaOfStay?: string,
+    remarks?: string
   ): { contacts: Contact[]; isNew: boolean } {
     const existing = PhoneService.findByPhone(contacts, phone)
 
     if (existing) {
       const updated = contacts.map(c =>
-        c.id === existing.id ? { ...c, name, selected: true } : c
+        c.id === existing.id ? { ...c, name, gender, ieDate, areaOfStay, remarks, selected: true } : c
       )
       return { contacts: updated, isNew: false }
     }
 
-    const newContact = this.createContact(name, phone)
+    const newContact = this.createContact(name, phone, gender, ieDate, areaOfStay, remarks)
     return { contacts: [newContact, ...contacts], isNew: true }
   }
 
   /**
    * Toggle selection of a contact
    */
-  static toggleSelect(contacts: Contact[], id: number): Contact[] {
+  static toggleSelect(contacts: Contact[], id: string | number): Contact[] {
     return contacts.map(c =>
       c.id === id ? { ...c, selected: !c.selected } : c
     )

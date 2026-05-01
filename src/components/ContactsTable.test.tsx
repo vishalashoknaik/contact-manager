@@ -11,6 +11,7 @@ describe('ContactsTable', () => {
     const user = userEvent.setup()
     const onToggleSelect = vi.fn()
     const onToggleSelectAll = vi.fn()
+    const onClearSelections = vi.fn()
     const onToggleSort = vi.fn()
     const onFilterChange = vi.fn()
     const onActivityFilterChange = vi.fn()
@@ -38,6 +39,7 @@ describe('ContactsTable', () => {
         allSelected
         onToggleSelect={onToggleSelect}
         onToggleSelectAll={onToggleSelectAll}
+        onClearSelections={onClearSelections}
         onToggleSort={onToggleSort}
         onFilterChange={onFilterChange}
         onActivityFilterChange={onActivityFilterChange}

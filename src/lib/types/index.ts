@@ -1,7 +1,13 @@
+export type Gender = 'Male' | 'Female' | 'Other'
+
 export interface Contact {
-  id: number
+  id: string | number
   name: string
   phone: string
+  gender: Gender
+  ieDate?: string
+  areaOfStay?: string
+  remarks?: string
   activities: Record<string, number>
   areas: Record<string, number>
   programs: Record<string, number>
@@ -19,6 +25,8 @@ export interface Config {
 export interface FilterState {
   nameFilter: string
   phoneFilter: string
+  genderFilter: string
+  areaOfStayFilter: string
   activityFilters: Record<string, string>
   areaFilters: Record<string, string>
   programFilters: Record<string, string>

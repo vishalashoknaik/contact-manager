@@ -18,7 +18,7 @@ describe('ContactForm', () => {
     await user.type(phoneInput, '9876543210')
     await user.click(screen.getByRole('button', { name: 'Add' }))
 
-    expect(onAddContact).toHaveBeenCalledWith('Ravi', '9876543210')
+    expect(onAddContact).toHaveBeenCalledWith('Ravi', '9876543210', 'Male', undefined, undefined, undefined)
     expect(nameInput).toHaveValue('')
     expect(phoneInput).toHaveValue('')
   })

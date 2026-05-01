@@ -1,0 +1,17 @@
+# Backend-specific ignores
+node_modules/
+dist/
+.env.local
+*.log
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Prisma
+prisma/migrations/
+*.db

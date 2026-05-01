@@ -359,9 +359,9 @@ export default function Home() {
             <th style={th}><input onChange={e=>setNameFilter(e.target.value)} /></th>
             <th style={th}><input onChange={e=>setPhoneFilter(e.target.value)} /></th>
 
-            {activities.map(a => <th key={a} style={th}><input onChange={e=>setActivityFilters(prev=>({...prev,[a]:e.target.value}))}/></th>)}
-            {areas.map(a => <th key={a} style={th}><input onChange={e=>setAreaFilters(prev=>({...prev,[a]:e.target.value}))}/></th>)}
-            {programs.map(p => <th key={p} style={th}><input onChange={e=>setProgramFilters(prev=>({...prev,[p]:e.target.value}))}/></th>)}
+            {activities.map(a => <th key={a} style={th}><input onChange={e=>setActivityFilters((prev: any)=>({...prev,[a]:e.target.value}))}/></th>)}
+            {areas.map(a => <th key={a} style={th}><input onChange={e=>setAreaFilters((prev: any)=>({...prev,[a]:e.target.value}))}/></th>)}
+            {programs.map(p => <th key={p} style={th}><input onChange={e=>setProgramFilters((prev: any)=>({...prev,[p]:e.target.value}))}/></th>)}
 
             <th style={th}><input onChange={e=>setTotalFilter(e.target.value)} /></th>
             <th style={th}><input type="date" onChange={e=>setDateFilter(e.target.value)} /></th>
@@ -396,4 +396,4 @@ const thCheckbox = { width:40, border:'1px solid #ddd', padding:6 }
 const tdCheckbox = { width:40, border:'1px solid #eee', padding:6 }
 const th = { border:'1px solid #ddd', padding:6 }
 const td = { border:'1px solid #eee', padding:6 }
-const tdCenter = { border:'1px solid #eee', padding:6, textAlign:'center' }
+const tdCenter = { border:'1px solid #eee', padding:6, textAlign:'center' as const }

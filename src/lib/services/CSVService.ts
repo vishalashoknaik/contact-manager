@@ -14,7 +14,7 @@ export class CSVService {
     const rows = csvContent.split('\n').slice(1) // Skip header
     const now = new Date().toISOString()
     const importedContacts: Contact[] = []
-    const importedIds = new Set<number>()
+    const importedIds = new Set<Contact['id']>()
 
     rows.forEach((row: string, index: number) => {
       if (!row.trim()) return
@@ -33,6 +33,7 @@ export class CSVService {
           ...existing,
           name: trimmedName,
           phone: trimmedPhone,
+          gender: existing.gender || 'Male',
           selected: true,
           lastUpdated: now,
           importOrder: index
@@ -43,6 +44,7 @@ export class CSVService {
           id: Date.now() + Math.random(),
           name: trimmedName,
           phone: trimmedPhone,
+          gender: 'Male',
           activities: {},
           areas: {},
           programs: {},

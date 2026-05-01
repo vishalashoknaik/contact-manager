@@ -1,11 +1,17 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { authApi, centersApi } from '@/lib/api/client'
+import { useAuth } from '@/hooks/useAuth'
 import { AdminService } from '@/lib/services/AdminService'
+import { ConfigService } from '@/lib/services/ConfigService'
 import { Contact } from '@/lib/types'
 import { useInputState } from '@/hooks/useInputState'
+import type { CenterOption, ManagedUser } from '@/lib/types/auth'
 
 interface AdminPanelProps {
   isVisible: boolean
+  section: 'access' | 'settings'
   activities: string[]
   areas: string[]
   programs: string[]
@@ -18,6 +24,7 @@ interface AdminPanelProps {
 
 export function AdminPanel({
   isVisible,
+  section,
   activities,
   areas,
   programs,
@@ -27,12 +34,72 @@ export function AdminPanel({
   onProgramsChange,
   onContactsChange
 }: AdminPanelProps) {
-  if (!isVisible) return null
-
   const adminService = new AdminService()
   const newActivityInput = useInputState()
   const newAreaInput = useInputState()
   const newProgramInput = useInputState()
+  const { user, selectedCenter, selectedCenterDetails, canManageSelectedCenter, refreshUser } = useAuth()
+  const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([])
+  const [userPhone, setUserPhone] = useState('')
+  const [userName, setUserName] = useState('')
+  const [isCenterAdmin, setIsCenterAdmin] = useState(false)
+  const [isOverallAdmin, setIsOverallAdmin] = useState(false)
+  const [userError, setUserError] = useState<string | null>(null)
+  const [isManagingUsers, setIsManagingUsers] = useState(false)
+  const [centers, setCenters] = useState<CenterOption[]>([])
+  const [newCenterName, setNewCenterName] = useState('')
+  const [renameCenterName, setRenameCenterName] = useState('')
+  const [centerError, setCenterError] = useState<string | null>(null)
+  const [isSavingCenter, setIsSavingCenter] = useState(false)
+  const [mergeDialog, setMergeDialog] = useState<{
+    type: 'activity' | 'area' | 'program'
+    itemToDelete: string
+    options: string[]
+  } | null>(null)
+  const [selectedMergeTarget, setSelectedMergeTarget] = useState<string | null>(null)
+  const [renameInputs, setRenameInputs] = useState<Record<string, string>>({})
+  const [editingItem, setEditingItem] = useState<{ type: 'activity' | 'area' | 'program'; value: string } | null>(null)
+
+  useEffect(() => {
+    if (!isVisible || !selectedCenter || !canManageSelectedCenter || section !== 'access') {
+      return
+    }
+
+    const loadUsers = async () => {
+      try {
+        const users = await authApi.getUsers(selectedCenter)
+        setManagedUsers(users)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to load users'
+        setUserError(message)
+      }
+    }
+
+    loadUsers()
+  }, [canManageSelectedCenter, isVisible, section, selectedCenter])
+
+  useEffect(() => {
+    setRenameCenterName(selectedCenterDetails?.name || '')
+  }, [selectedCenterDetails?.name])
+
+  useEffect(() => {
+    if (!isVisible || section !== 'access' || !user?.canAccessAllCenters) {
+      return
+    }
+
+    const loadCenters = async () => {
+      try {
+        setCenters(await centersApi.getAll())
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to load centers'
+        setCenterError(message)
+      }
+    }
+
+    loadCenters()
+  }, [isVisible, section, user?.canAccessAllCenters])
+
+  if (!isVisible) return null
 
   const handleAddActivity = () => {
     const updated = adminService.addActivity(activities, newActivityInput.value)
@@ -41,10 +108,79 @@ export function AdminPanel({
   }
 
   const handleRemoveActivity = (value: string) => {
-    const { activities: updated, contacts: updatedContacts } =
-      adminService.removeActivity(activities, contacts, value)
-    onActivitiesChange(updated)
+    const otherActivities = activities.filter(a => a !== value)
+    if (otherActivities.length > 0) {
+      setMergeDialog({ type: 'activity', itemToDelete: value, options: otherActivities })
+      setSelectedMergeTarget(null)
+    } else {
+      const { activities: updated, contacts: updatedContacts } =
+        adminService.removeActivity(activities, contacts, value)
+      onActivitiesChange(updated)
+      onContactsChange(updatedContacts)
+    }
+  }
+
+  const handleRenameItem = (type: 'activity' | 'area' | 'program', oldValue: string, newValue: string) => {
+    const items = type === 'activity' ? activities : type === 'area' ? areas : programs
+    const { items: updated, contacts: updatedContacts } = ConfigService.renameItem(
+      items,
+      contacts,
+      oldValue,
+      newValue,
+      type
+    )
+    
+    if (type === 'activity') onActivitiesChange(updated)
+    else if (type === 'area') onAreasChange(updated)
+    else onProgramsChange(updated)
     onContactsChange(updatedContacts)
+    setEditingItem(null)
+    setRenameInputs({ ...renameInputs, [oldValue]: '' })
+  }
+
+  const handleMergeAndDelete = () => {
+    if (!mergeDialog || !selectedMergeTarget) return
+
+    const items =
+      mergeDialog.type === 'activity' ? activities : mergeDialog.type === 'area' ? areas : programs
+
+    const { items: updated, contacts: updatedContacts } = ConfigService.mergeItem(
+      items,
+      contacts,
+      mergeDialog.itemToDelete,
+      selectedMergeTarget,
+      mergeDialog.type
+    )
+
+    if (mergeDialog.type === 'activity') onActivitiesChange(updated)
+    else if (mergeDialog.type === 'area') onAreasChange(updated)
+    else onProgramsChange(updated)
+    onContactsChange(updatedContacts)
+
+    setMergeDialog(null)
+    setSelectedMergeTarget(null)
+  }
+
+  const handleDeleteWithoutMerge = () => {
+    if (!mergeDialog) return
+
+    const items =
+      mergeDialog.type === 'activity' ? activities : mergeDialog.type === 'area' ? areas : programs
+
+    const { items: updated, contacts: updatedContacts } = ConfigService.removeItem(
+      items,
+      contacts,
+      mergeDialog.itemToDelete,
+      mergeDialog.type
+    )
+
+    if (mergeDialog.type === 'activity') onActivitiesChange(updated)
+    else if (mergeDialog.type === 'area') onAreasChange(updated)
+    else onProgramsChange(updated)
+    onContactsChange(updatedContacts)
+
+    setMergeDialog(null)
+    setSelectedMergeTarget(null)
   }
 
   const handleAddArea = () => {
@@ -54,13 +190,19 @@ export function AdminPanel({
   }
 
   const handleRemoveArea = (value: string) => {
-    const { areas: updated, contacts: updatedContacts } = adminService.removeArea(
-      areas,
-      contacts,
-      value
-    )
-    onAreasChange(updated)
-    onContactsChange(updatedContacts)
+    const otherAreas = areas.filter(a => a !== value)
+    if (otherAreas.length > 0) {
+      setMergeDialog({ type: 'area', itemToDelete: value, options: otherAreas })
+      setSelectedMergeTarget(null)
+    } else {
+      const { areas: updated, contacts: updatedContacts } = adminService.removeArea(
+        areas,
+        contacts,
+        value
+      )
+      onAreasChange(updated)
+      onContactsChange(updatedContacts)
+    }
   }
 
   const handleAddProgram = () => {
@@ -70,13 +212,175 @@ export function AdminPanel({
   }
 
   const handleRemoveProgram = (value: string) => {
-    const { programs: updated, contacts: updatedContacts } = adminService.removeProgram(
-      programs,
-      contacts,
-      value
-    )
-    onProgramsChange(updated)
-    onContactsChange(updatedContacts)
+    const otherPrograms = programs.filter(p => p !== value)
+    if (otherPrograms.length > 0) {
+      setMergeDialog({ type: 'program', itemToDelete: value, options: otherPrograms })
+      setSelectedMergeTarget(null)
+    } else {
+      const { programs: updated, contacts: updatedContacts } = adminService.removeProgram(
+        programs,
+        contacts,
+        value
+      )
+      onProgramsChange(updated)
+      onContactsChange(updatedContacts)
+    }
+  }
+
+  const reloadManagedUsers = async () => {
+    if (!selectedCenter) {
+      return
+    }
+
+    const users = await authApi.getUsers(selectedCenter)
+    setManagedUsers(users)
+  }
+
+  const reloadCenters = async () => {
+    if (!user?.canAccessAllCenters) {
+      return
+    }
+
+    const nextCenters = await centersApi.getAll()
+    setCenters(nextCenters)
+  }
+
+  const handleSaveUser = async () => {
+    if (!selectedCenter) {
+      setUserError('Select a center before managing users')
+      return
+    }
+
+    setIsManagingUsers(true)
+    setUserError(null)
+
+    try {
+      await authApi.upsertUserAccess(
+        userPhone,
+        {
+          name: userName || undefined,
+          isCenterAdmin,
+          canAccessAllCenters: user?.canAccessAllCenters ? isOverallAdmin : undefined
+        },
+        selectedCenter
+      )
+      setUserPhone('')
+      setUserName('')
+      setIsCenterAdmin(false)
+      setIsOverallAdmin(false)
+      await reloadManagedUsers()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save user access'
+      setUserError(message)
+    } finally {
+      setIsManagingUsers(false)
+    }
+  }
+
+  const handleRoleToggle = async (managedUser: ManagedUser, updates: Partial<ManagedUser>) => {
+    if (!selectedCenter) {
+      return
+    }
+
+    setIsManagingUsers(true)
+    setUserError(null)
+
+    try {
+      await authApi.upsertUserAccess(
+        managedUser.phone,
+        {
+          name: managedUser.name,
+          isCenterAdmin: updates.isCenterAdmin ?? managedUser.isCenterAdmin,
+          canAccessAllCenters: user?.canAccessAllCenters
+            ? updates.canAccessAllCenters ?? managedUser.canAccessAllCenters
+            : undefined
+        },
+        selectedCenter
+      )
+      await reloadManagedUsers()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update roles'
+      setUserError(message)
+    } finally {
+      setIsManagingUsers(false)
+    }
+  }
+
+  const handleApproveAccess = async (managedUser: ManagedUser) => {
+    await handleRoleToggle(managedUser, {
+      isCenterAdmin: managedUser.isCenterAdmin,
+      canAccessAllCenters: managedUser.canAccessAllCenters,
+      isApproved: true
+    })
+  }
+
+  const handleRemoveAccess = async (managedUser: ManagedUser) => {
+    if (!selectedCenter) {
+      return
+    }
+
+    setIsManagingUsers(true)
+    setUserError(null)
+
+    try {
+      await authApi.removeUserAccess(managedUser.phone, selectedCenter)
+      await reloadManagedUsers()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to remove access'
+      setUserError(message)
+    } finally {
+      setIsManagingUsers(false)
+    }
+  }
+
+  const handleCreateCenter = async () => {
+    const name = newCenterName.trim()
+    if (!name) {
+      setCenterError('Center name is required')
+      return
+    }
+
+    setIsSavingCenter(true)
+    setCenterError(null)
+
+    try {
+      await centersApi.create(name)
+      setNewCenterName('')
+      await refreshUser()
+      await reloadCenters()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create center'
+      setCenterError(message)
+    } finally {
+      setIsSavingCenter(false)
+    }
+  }
+
+  const handleRenameCenter = async () => {
+    const name = renameCenterName.trim()
+    if (!selectedCenter) {
+      setCenterError('Select a center before renaming it')
+      return
+    }
+
+    if (!name) {
+      setCenterError('Center name is required')
+      return
+    }
+
+    setIsSavingCenter(true)
+    setCenterError(null)
+
+    try {
+      await centersApi.update(selectedCenter, name)
+      await refreshUser()
+      await reloadCenters()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update center'
+      setCenterError(message)
+    } finally {
+      setIsSavingCenter(false)
+    }
   }
 
   const panelStyle = {
@@ -118,11 +422,202 @@ export function AdminPanel({
     cursor: 'pointer'
   }
 
-  return (
-    <div style={panelStyle}>
-      <h4>⚙️ Admin Settings</h4>
+  const pendingUsers = managedUsers.filter(managedUser => !managedUser.isApproved)
+  const approvedUsers = managedUsers.filter(managedUser => managedUser.isApproved)
 
-      {/* Activities */}
+  const renderAccessSection = () => (
+    <>
+      <div style={sectionStyle}>
+        <h5>User Access</h5>
+        <p style={{ color: '#555', marginTop: 0 }}>
+          Manage access for <strong>{selectedCenterDetails?.name || 'the selected center'}</strong> using phone number.
+        </p>
+        <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+          <input
+            type="tel"
+            placeholder="User phone number"
+            value={userPhone}
+            onChange={e => setUserPhone(e.target.value)}
+            style={inputStyle}
+          />
+          <input
+            type="text"
+            placeholder="User name (required for new user)"
+            value={userName}
+            onChange={e => setUserName(e.target.value)}
+            style={inputStyle}
+          />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={isCenterAdmin}
+              onChange={e => setIsCenterAdmin(e.target.checked)}
+            />
+            Center admin for this center
+          </label>
+          {user?.canAccessAllCenters && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={isOverallAdmin}
+                onChange={e => setIsOverallAdmin(e.target.checked)}
+              />
+              Overall admin for all centers
+            </label>
+          )}
+          <button
+            onClick={handleSaveUser}
+            style={{ ...buttonStyle, width: 'fit-content', backgroundColor: '#0d6efd' }}
+            disabled={isManagingUsers || !userPhone || !selectedCenter}
+          >
+            {isManagingUsers ? 'Saving...' : 'Grant Access'}
+          </button>
+        </div>
+
+        {userError && <div style={{ color: '#b02a37', marginBottom: 12 }}>{userError}</div>}
+      </div>
+
+      <div style={sectionStyle}>
+        <h5>Access Requests</h5>
+        {pendingUsers.length === 0 && (
+          <p style={{ marginBottom: 0, color: '#666' }}>No pending access requests for this center.</p>
+        )}
+        {pendingUsers.map(managedUser => (
+          <div key={`${managedUser.phone}-${managedUser.centerId}`} style={itemStyle}>
+            <div>
+              <strong>{managedUser.name}</strong> ({managedUser.phone})
+              <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>Pending approval</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => handleApproveAccess(managedUser)}
+                style={{ ...buttonStyle, backgroundColor: '#0d6efd' }}
+                disabled={isManagingUsers}
+              >
+                Approve Access
+              </button>
+              <button
+                onClick={() => handleRemoveAccess(managedUser)}
+                style={{ ...buttonStyle, backgroundColor: '#dc3545' }}
+                disabled={isManagingUsers}
+              >
+                Reject Request
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={sectionStyle}>
+        <h5>Approved Users</h5>
+        {approvedUsers.length === 0 && (
+          <p style={{ marginBottom: 0, color: '#666' }}>No approved users assigned to this center yet.</p>
+        )}
+        {approvedUsers.map(managedUser => (
+          <div key={`${managedUser.phone}-${managedUser.centerId}`} style={itemStyle}>
+            <div>
+              <strong>{managedUser.name}</strong> ({managedUser.phone})
+              <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                {managedUser.canAccessAllCenters
+                  ? 'Overall admin'
+                  : managedUser.isCenterAdmin
+                    ? 'Center admin'
+                    : 'Center user'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() =>
+                  handleRoleToggle(managedUser, { isCenterAdmin: !managedUser.isCenterAdmin })
+                }
+                style={buttonStyle}
+                disabled={isManagingUsers}
+              >
+                {managedUser.isCenterAdmin ? 'Make Center User' : 'Make Center Admin'}
+              </button>
+              {user?.canAccessAllCenters && (
+                <button
+                  onClick={() =>
+                    handleRoleToggle(managedUser, {
+                      canAccessAllCenters: !managedUser.canAccessAllCenters
+                    })
+                  }
+                  style={{ ...buttonStyle, backgroundColor: '#198754' }}
+                  disabled={isManagingUsers}
+                >
+                  {managedUser.canAccessAllCenters
+                    ? 'Remove Overall Admin'
+                    : 'Make Overall Admin'}
+                </button>
+              )}
+              <button
+                onClick={() => handleRemoveAccess(managedUser)}
+                style={{ ...buttonStyle, backgroundColor: '#dc3545' }}
+                disabled={isManagingUsers}
+              >
+                Remove Access
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {user?.canAccessAllCenters && (
+        <div style={sectionStyle}>
+          <h5>Centers</h5>
+          <p style={{ color: '#555', marginTop: 0 }}>
+            Overall admins can add new centers and rename the selected center.
+          </p>
+          <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+            <input
+              type="text"
+              placeholder="New center name"
+              value={newCenterName}
+              onChange={e => setNewCenterName(e.target.value)}
+              style={inputStyle}
+            />
+            <button
+              onClick={handleCreateCenter}
+              style={{ ...buttonStyle, width: 'fit-content', backgroundColor: '#0d6efd' }}
+              disabled={isSavingCenter}
+            >
+              {isSavingCenter ? 'Saving...' : 'Add Center'}
+            </button>
+            <input
+              type="text"
+              placeholder="Rename selected center"
+              value={renameCenterName}
+              onChange={e => setRenameCenterName(e.target.value)}
+              style={inputStyle}
+            />
+            <button
+              onClick={handleRenameCenter}
+              style={{ ...buttonStyle, width: 'fit-content', backgroundColor: '#198754' }}
+              disabled={isSavingCenter || !selectedCenter}
+            >
+              {isSavingCenter ? 'Saving...' : 'Update Center Name'}
+            </button>
+          </div>
+
+          {centerError && <div style={{ color: '#b02a37', marginBottom: 12 }}>{centerError}</div>}
+
+          <div>
+            {centers.map(center => (
+              <div key={center.id} style={itemStyle}>
+                <span>
+                  <strong>{center.name}</strong>
+                  {center.id === selectedCenter ? ' (selected)' : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  )
+
+  const renderSettingsSection = () => (
+    <>
       <div style={sectionStyle}>
         <h5>Activities</h5>
         <div style={{ marginBottom: 10 }}>
@@ -139,15 +634,57 @@ export function AdminPanel({
         </div>
         {activities.map(a => (
           <div key={a} style={itemStyle}>
-            <span>{a}</span>
-            <button onClick={() => handleRemoveActivity(a)} style={buttonStyle}>
-              Delete
-            </button>
+            {editingItem?.type === 'activity' && editingItem?.value === a ? (
+              <input
+                type="text"
+                value={renameInputs[a] || ''}
+                onChange={e => setRenameInputs({ ...renameInputs, [a]: e.target.value })}
+                style={{ ...inputStyle, marginRight: 8 }}
+                autoFocus
+              />
+            ) : (
+              <span>{a}</span>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {editingItem?.type === 'activity' && editingItem?.value === a ? (
+                <>
+                  <button
+                    onClick={() => handleRenameItem('activity', a, renameInputs[a] || '')}
+                    style={{ ...buttonStyle, backgroundColor: '#0d6efd' }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingItem(null)
+                      setRenameInputs({ ...renameInputs, [a]: '' })
+                    }}
+                    style={buttonStyle}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingItem({ type: 'activity', value: a })
+                      setRenameInputs({ ...renameInputs, [a]: a })
+                    }}
+                    style={{ ...buttonStyle, backgroundColor: '#198754' }}
+                  >
+                    Rename
+                  </button>
+                  <button onClick={() => handleRemoveActivity(a)} style={{ ...buttonStyle, backgroundColor: '#dc3545' }}>
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Areas */}
       <div style={sectionStyle}>
         <h5>Areas</h5>
         <div style={{ marginBottom: 10 }}>
@@ -164,15 +701,57 @@ export function AdminPanel({
         </div>
         {areas.map(a => (
           <div key={a} style={itemStyle}>
-            <span>{a}</span>
-            <button onClick={() => handleRemoveArea(a)} style={buttonStyle}>
-              Delete
-            </button>
+            {editingItem?.type === 'area' && editingItem?.value === a ? (
+              <input
+                type="text"
+                value={renameInputs[a] || ''}
+                onChange={e => setRenameInputs({ ...renameInputs, [a]: e.target.value })}
+                style={{ ...inputStyle, marginRight: 8 }}
+                autoFocus
+              />
+            ) : (
+              <span>{a}</span>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {editingItem?.type === 'area' && editingItem?.value === a ? (
+                <>
+                  <button
+                    onClick={() => handleRenameItem('area', a, renameInputs[a] || '')}
+                    style={{ ...buttonStyle, backgroundColor: '#0d6efd' }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingItem(null)
+                      setRenameInputs({ ...renameInputs, [a]: '' })
+                    }}
+                    style={buttonStyle}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingItem({ type: 'area', value: a })
+                      setRenameInputs({ ...renameInputs, [a]: a })
+                    }}
+                    style={{ ...buttonStyle, backgroundColor: '#198754' }}
+                  >
+                    Rename
+                  </button>
+                  <button onClick={() => handleRemoveArea(a)} style={{ ...buttonStyle, backgroundColor: '#dc3545' }}>
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Programs */}
       <div style={sectionStyle}>
         <h5>Programs</h5>
         <div style={{ marginBottom: 10 }}>
@@ -189,13 +768,134 @@ export function AdminPanel({
         </div>
         {programs.map(p => (
           <div key={p} style={itemStyle}>
-            <span>{p}</span>
-            <button onClick={() => handleRemoveProgram(p)} style={buttonStyle}>
-              Delete
-            </button>
+            {editingItem?.type === 'program' && editingItem?.value === p ? (
+              <input
+                type="text"
+                value={renameInputs[p] || ''}
+                onChange={e => setRenameInputs({ ...renameInputs, [p]: e.target.value })}
+                style={{ ...inputStyle, marginRight: 8 }}
+                autoFocus
+              />
+            ) : (
+              <span>{p}</span>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {editingItem?.type === 'program' && editingItem?.value === p ? (
+                <>
+                  <button
+                    onClick={() => handleRenameItem('program', p, renameInputs[p] || '')}
+                    style={{ ...buttonStyle, backgroundColor: '#0d6efd' }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingItem(null)
+                      setRenameInputs({ ...renameInputs, [p]: '' })
+                    }}
+                    style={buttonStyle}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingItem({ type: 'program', value: p })
+                      setRenameInputs({ ...renameInputs, [p]: p })
+                    }}
+                    style={{ ...buttonStyle, backgroundColor: '#198754' }}
+                  >
+                    Rename
+                  </button>
+                  <button onClick={() => handleRemoveProgram(p)} style={{ ...buttonStyle, backgroundColor: '#dc3545' }}>
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div>
+    </>
+  )
+
+  return (
+    <div style={panelStyle}>
+      <h4 style={{ color: 'var(--text-primary, #000)', marginTop: 0 }}>{section === 'access' ? '🔐 Access Management' : '⚙️ Center Settings'}</h4>
+      {section === 'access' ? renderAccessSection() : renderSettingsSection()}
+      
+      {mergeDialog && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setMergeDialog(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-primary, #ffffff)',
+              color: 'var(--text-primary, #000000)',
+              padding: 20,
+              borderRadius: 8,
+              maxWidth: 400,
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              border: '1px solid var(--border-color, #ddd)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h5 style={{ marginTop: 0, color: 'var(--text-primary, #000)' }}>Merge {mergeDialog.type}</h5>
+            <p style={{ marginBottom: 15, color: 'var(--text-secondary, #666)' }}>
+              Select which {mergeDialog.type} to merge "{mergeDialog.itemToDelete}" into. Counts will be added.
+            </p>
+            <div style={{ marginBottom: 15 }}>
+              {mergeDialog.options.map(option => (
+                <label key={option} style={{ display: 'block', marginBottom: 10, color: 'var(--text-primary, #000)', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="merge-target"
+                    value={option}
+                    checked={selectedMergeTarget === option}
+                    onChange={() => setSelectedMergeTarget(option)}
+                  />
+                  {' '}{option}
+                </label>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                onClick={handleMergeAndDelete}
+                style={{ ...buttonStyle, flex: 1, backgroundColor: '#0d6efd', minWidth: 'fit-content' }}
+                disabled={!selectedMergeTarget}
+              >
+                Merge
+              </button>
+              <button
+                onClick={handleDeleteWithoutMerge}
+                style={{ ...buttonStyle, flex: 1, backgroundColor: '#dc3545', minWidth: 'fit-content' }}
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setMergeDialog(null)}
+                style={{ ...buttonStyle, flex: 1, minWidth: 'fit-content' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

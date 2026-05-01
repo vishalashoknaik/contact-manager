@@ -12,8 +12,9 @@ interface ContactsTableProps {
   filters: FilterState
   sortState: SortState
   allSelected: boolean
-  onToggleSelect: (id: number) => void
+  onToggleSelect: (id: string | number) => void
   onToggleSelectAll: () => void
+  onClearSelections: () => void
   onToggleSort: (key: string) => void
   onFilterChange: (filterName: string, value: string) => void
   onActivityFilterChange: (activity: string, value: string) => void
@@ -31,6 +32,7 @@ export function ContactsTable({
   allSelected,
   onToggleSelect,
   onToggleSelectAll,
+  onClearSelections,
   onToggleSort,
   onFilterChange,
   onActivityFilterChange,
@@ -67,6 +69,18 @@ export function ContactsTable({
           <th style={th} onClick={() => onToggleSort('phone')}>
             Phone{getSortIndicator('phone')}
           </th>
+          <th style={th} onClick={() => onToggleSort('gender')}>
+            Gender{getSortIndicator('gender')}
+          </th>
+          <th style={th} onClick={() => onToggleSort('ieDate')}>
+            IE Date{getSortIndicator('ieDate')}
+          </th>
+          <th style={th} onClick={() => onToggleSort('areaOfStay')}>
+            Area of Stay{getSortIndicator('areaOfStay')}
+          </th>
+          <th style={th}>
+            Remarks
+          </th>
 
           {activities.map(a => (
             <th key={a} style={th} onClick={() => onToggleSort(a)}>
@@ -75,13 +89,15 @@ export function ContactsTable({
             </th>
           ))}
           {areas.map(a => (
-            <th key={a} style={th}>
+            <th key={a} style={th} onClick={() => onToggleSort(a)}>
               {a}
+              {getSortIndicator(a)}
             </th>
           ))}
           {programs.map(p => (
-            <th key={p} style={th}>
+            <th key={p} style={th} onClick={() => onToggleSort(p)}>
               {p}
+              {getSortIndicator(p)}
             </th>
           ))}
 
@@ -95,7 +111,24 @@ export function ContactsTable({
 
         {/* Filter Row */}
         <tr>
-          <th style={thCheckbox}></th>
+          <th style={thCheckbox}>
+            <button
+              onClick={onClearSelections}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 'bold'
+              }}
+              title="Clear all selections"
+            >
+              Clear
+            </button>
+          </th>
           <th style={th}>
             <input
               type="text"
@@ -114,6 +147,29 @@ export function ContactsTable({
               style={inputStyle}
             />
           </th>
+          <th style={th}>
+            <select
+              value={filters.genderFilter}
+              onChange={e => onFilterChange('gender', e.target.value)}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+            >
+              <option value="">All</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </th>
+          <th style={th}></th>
+          <th style={th}>
+            <input
+              type="text"
+              placeholder="Filter..."
+              value={filters.areaOfStayFilter}
+              onChange={e => onFilterChange('areaOfStay', e.target.value)}
+              style={inputStyle}
+            />
+          </th>
+          <th style={th}></th>
 
           {activities.map(a => (
             <th key={a} style={th}>
@@ -182,6 +238,10 @@ export function ContactsTable({
 
             <td style={td}>{c.name}</td>
             <td style={td}>{c.phone}</td>
+            <td style={tdCenter}>{c.gender}</td>
+            <td style={td}>{c.ieDate ? new Date(c.ieDate).toLocaleDateString() : ''}</td>
+            <td style={td}>{c.areaOfStay || ''}</td>
+            <td style={td}>{c.remarks || ''}</td>
 
             {activities.map(a => (
               <td key={`act-${c.id}-${a}`} style={tdCenter}>

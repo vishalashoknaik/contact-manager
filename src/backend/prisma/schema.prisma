@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  phone              String  @id
+  name               String
+  canAccessAllCenters Boolean @default(false)
+  createdAt          DateTime @default(now())
+
+  centers            UserCenter[]
+
+  @@map("users")
+}
+
+model Center {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  users     UserCenter[]
+  contacts  Contact[]
+  activities Activity[]
+  areas     Area[]
+  programs  Program[]
+
+  @@map("centers")
+}
+
+model UserCenter {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userPhone], references: [phone], onDelete: Cascade)
+  userPhone String
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  centerId  String
+  isAdmin   Boolean  @default(false)
+  isApproved Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userPhone, centerId])
+  @@map("user_centers")
+}
+
+model Contact {
+  id               String   @id @default(uuid())
+  name             String
+  phone            String
+  gender           String?
+  ieDate           DateTime?
+  areaOfStay       String?
+  remarks          String?
+  center           Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  centerId         String
+  selected         Boolean  @default(false)
+  lastUpdated      DateTime @default(now()) @updatedAt
+  importOrder      Int?
+  createdAt        DateTime @default(now())
+
+  activities       ContactActivity[]
+  areas            ContactArea[]
+  programs         ContactProgram[]
+
+  @@unique([phone, centerId])
+  @@map("contacts")
+}
+
+model Activity {
+  id       String   @id @default(uuid())
+  name     String
+  center   Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  centerId String
+  contacts ContactActivity[]
+  createdAt DateTime @default(now())
+
+  @@unique([name, centerId])
+  @@map("activities")
+}
+
+model Area {
+  id       String   @id @default(uuid())
+  name     String
+  center   Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  centerId String
+  contacts ContactArea[]
+  createdAt DateTime @default(now())
+
+  @@unique([name, centerId])
+  @@map("areas")
+}
+
+model Program {
+  id       String   @id @default(uuid())
+  name     String
+  center   Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  centerId String
+  contacts ContactProgram[]
+  createdAt DateTime @default(now())
+
+  @@unique([name, centerId])
+  @@map("programs")
+}
+
+model ContactActivity {
+  id         String   @id @default(uuid())
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId  String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  activityId String
+  count      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([contactId, activityId])
+  @@map("contact_activities")
+}
+
+model ContactArea {
+  id        String   @id @default(uuid())
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId String
+  area      Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  areaId    String
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, areaId])
+  @@map("contact_areas")
+}
+
+model ContactProgram {
+  id        String   @id @default(uuid())
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId String
+  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  programId String
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, programId])
+  @@map("contact_programs")
+}

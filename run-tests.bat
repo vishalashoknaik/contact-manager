@@ -1,6 +1,20 @@
 @echo off
 setlocal
 
+set "NODE_HOME=G:\Softwares\node-v24.15.0-win-x64"
+
+if not exist "%NODE_HOME%\node.exe" (
+  echo Node executable not found at %NODE_HOME%\node.exe
+  exit /b 1
+)
+
+if not exist "%NODE_HOME%\npm.cmd" (
+  echo npm executable not found at %NODE_HOME%\npm.cmd
+  exit /b 1
+)
+
+set "PATH=%NODE_HOME%;%PATH%"
+
 where node >nul 2>nul
 if errorlevel 1 (
   echo Node.js is not installed or not available on PATH.

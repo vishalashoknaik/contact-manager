@@ -27,6 +27,16 @@ export class FilterService {
         return false
       }
 
+      // Gender filter
+      if (filters.genderFilter && contact.gender !== filters.genderFilter) {
+        return false
+      }
+
+      // Area of stay filter
+      if (filters.areaOfStayFilter && !(contact.areaOfStay || '').toLowerCase().includes(filters.areaOfStayFilter.toLowerCase())) {
+        return false
+      }
+
       // Date filter
       if (filters.dateFilter) {
         const filterDate = new Date(filters.dateFilter)
@@ -77,32 +87,22 @@ export class FilterService {
   }
 
   /**
-   * Sort contacts by importOrder first, then by the specified sort key
+   * Sort contacts with selected rows first, then by the specified sort key
    */
   static sortContacts(
     contacts: Contact[],
     sortState: SortState,
-    activities: string[]
+    activities: string[],
+    areas: string[] = [],
+    programs: string[] = []
   ): Contact[] {
     const sorted = [...contacts].sort((a, b) => {
-      // Prioritize imported contacts (those with importOrder)
-      const aImported = typeof a.importOrder === 'number'
-      const bImported = typeof b.importOrder === 'number'
-
-      if (aImported && bImported) {
-        // Both imported: sort by importOrder (lower = more recent)
-        return (a.importOrder as number) - (b.importOrder as number)
-      }
-      if (aImported) {
-        // Only a is imported: a comes first
-        return -1
-      }
-      if (bImported) {
-        // Only b is imported: b comes first
-        return 1
+      // Keep selected contacts pinned at the top regardless of import source.
+      if (a.selected !== b.selected) {
+        return a.selected ? -1 : 1
       }
 
-      // Neither imported: apply normal sort
+      // Apply normal sort within selected and unselected groups.
       switch (sortState.key) {
         case 'name':
           return sortState.direction === 'asc'
@@ -114,7 +114,23 @@ export class FilterService {
             ? a.phone.localeCompare(b.phone)
             : b.phone.localeCompare(a.phone)
 
+        case 'gender':
+          return sortState.direction === 'asc'
+            ? (a.gender || '').localeCompare(b.gender || '')
+            : (b.gender || '').localeCompare(a.gender || '')
+
+        case 'ieDate':
+          const aIE = a.ieDate ? new Date(a.ieDate).getTime() : 0
+          const bIE = b.ieDate ? new Date(b.ieDate).getTime() : 0
+          return sortState.direction === 'asc' ? aIE - bIE : bIE - aIE
+
+        case 'areaOfStay':
+          return sortState.direction === 'asc'
+            ? (a.areaOfStay || '').localeCompare(b.areaOfStay || '')
+            : (b.areaOfStay || '').localeCompare(a.areaOfStay || '')
+
         case 'date':
+        case 'lastUpdated':
           return sortState.direction === 'asc'
             ? new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime()
             : new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime()
@@ -125,6 +141,24 @@ export class FilterService {
           return sortState.direction === 'asc' ? aTot - bTot : bTot - aTot
 
         default:
+          if (activities.includes(sortState.key)) {
+            const aCount = a.activities[sortState.key] || 0
+            const bCount = b.activities[sortState.key] || 0
+            return sortState.direction === 'asc' ? aCount - bCount : bCount - aCount
+          }
+
+          if (areas.includes(sortState.key)) {
+            const aCount = a.areas[sortState.key] || 0
+            const bCount = b.areas[sortState.key] || 0
+            return sortState.direction === 'asc' ? aCount - bCount : bCount - aCount
+          }
+
+          if (programs.includes(sortState.key)) {
+            const aCount = a.programs[sortState.key] || 0
+            const bCount = b.programs[sortState.key] || 0
+            return sortState.direction === 'asc' ? aCount - bCount : bCount - aCount
+          }
+
           return 0
       }
     })
