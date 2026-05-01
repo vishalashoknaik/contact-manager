@@ -7,6 +7,7 @@ import activitiesRouter from './routes/activities.js'
 import areasRouter from './routes/areas.js'
 import programsRouter from './routes/programs.js'
 import authRouter from './routes/auth.js'
+import attendanceRouter from './routes/attendance.js'
 
 const app = express()
 const prisma = new PrismaClient()
@@ -27,6 +28,7 @@ app.use('/api/contacts', contactsRouter)
 app.use('/api/activities', activitiesRouter)
 app.use('/api/areas', areasRouter)
 app.use('/api/programs', programsRouter)
+app.use('/api/attendance', attendanceRouter)
 
 // Health check
 app.get('/api/health', (req, res) => {

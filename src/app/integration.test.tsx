@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Home from './page'
 import { ContactService } from '@/lib/services/ContactService'
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() })
+}))
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: {

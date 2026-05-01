@@ -302,6 +302,46 @@ export const programsApi = {
 }
 
 /**
+ * Attendance API
+ */
+export const attendanceApi = {
+  lookup: async (phone: string, centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(
+      `${API_BASE_URL}/attendance/lookup?phone=${encodeURIComponent(phone)}`,
+      { headers: getHeaders(resolvedCenterId) }
+    )
+    return handleResponse<
+      | { found: false }
+      | { found: true; contact: { id: string; name: string; phone: string; gender: string; ieDate: string; areaOfStay: string } }
+    >(response)
+  },
+
+  submit: async (
+    data: {
+      name: string
+      phone: string
+      gender?: string
+      ieDate?: string
+      areaOfStay?: string
+      remarks?: string
+      activities?: string[]
+      areas?: string[]
+      programs?: string[]
+    },
+    centerId?: string
+  ) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/attendance/submit`, {
+      method: 'POST',
+      headers: getHeaders(resolvedCenterId),
+      body: JSON.stringify(data)
+    })
+    return handleResponse<{ success: true; contactId: string }>(response)
+  }
+}
+
+/**
  * Health check
  */
 export const healthApi = {

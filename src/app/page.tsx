@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useContacts } from '../hooks/useContacts'
 import { useConfig } from '../hooks/useConfig'
 import { useFiltering } from '@/hooks/useFiltering'
@@ -20,6 +21,7 @@ import { ContactsTable } from '@/components/ContactsTable'
 const VERSION = 'v2.0.0'
 
 function HomeContent() {
+  const router = useRouter()
   const contactsManager = useContacts()
   const configManager = useConfig()
   const filteringManager = useFiltering()
@@ -99,10 +101,31 @@ function HomeContent() {
       <div style={{ 
         marginBottom: 20, 
         borderBottom: '1px solid var(--border-color, #ddd)', 
-        paddingBottom: 20 
+        paddingBottom: 20,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start'
       }}>
-        <h2>📋 Contact Manager</h2>
-        <p style={{ color: 'var(--text-secondary, #666)', marginTop: 5 }}>Version {VERSION}</p>
+        <div>
+          <h2>📋 Contact Manager</h2>
+          <p style={{ color: 'var(--text-secondary, #666)', marginTop: 5 }}>Version {VERSION}</p>
+        </div>
+        <button
+          onClick={() => router.push('/attendance')}
+          style={{
+            padding: '10px 18px',
+            backgroundColor: '#198754',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: 'pointer',
+            marginTop: 4
+          }}
+        >
+          📝 Take Attendance
+        </button>
       </div>
 
       {backendError && (
