@@ -21,6 +21,8 @@ model User {
 
   centers            UserCenter[]
   volunteerCampaigns CampaignVolunteer[]
+  attendanceSessionsCreated AttendanceSession[] @relation("AttendanceSessionCreator")
+  attendanceSessionParticipations AttendanceSessionVolunteer[]
 
   @@map("users")
 }
@@ -36,6 +38,7 @@ model Center {
   areas     Area[]
   programs  Program[]
   campaigns Campaign[]
+  attendanceSessions AttendanceSession[]
 
   @@map("centers")
 }
@@ -187,7 +190,7 @@ model CampaignContact {
   status     CampaignContactStatus @default(PENDING)
   createdAt  DateTime              @default(now())
 
-  callLogs   CampaignCallLog[]
+  callLog    CampaignCallLog?
 
   @@unique([campaignId, contactId])
   @@map("campaign_contacts")
@@ -208,7 +211,7 @@ model CampaignVolunteer {
 model CampaignCallLog {
   id                       String          @id @default(uuid())
   campaignContact          CampaignContact @relation(fields: [campaignContactId], references: [id], onDelete: Cascade)
-  campaignContactId        String
+  campaignContactId        String          @unique
   volunteerPhone           String
   feedback                 CallFeedback
   centerChange             Boolean         @default(false)
@@ -218,4 +221,35 @@ model CampaignCallLog {
   calledAt                 DateTime        @default(now())
 
   @@map("campaign_call_logs")
+}
+
+model AttendanceSession {
+  id            String   @id @default(uuid())
+  name          String
+  center        Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  centerId      String
+  createdBy     User     @relation("AttendanceSessionCreator", fields: [createdByPhone], references: [phone], onDelete: Cascade)
+  createdByPhone String
+  activities    String[] @default([])
+  areas         String[] @default([])
+  programs      String[] @default([])
+  endedAt       DateTime?
+  createdAt     DateTime @default(now())
+
+  volunteers    AttendanceSessionVolunteer[]
+
+  @@map("attendance_sessions")
+}
+
+model AttendanceSessionVolunteer {
+  id             String            @id @default(uuid())
+  session        AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId      String
+  volunteer      User              @relation(fields: [volunteerPhone], references: [phone], onDelete: Cascade)
+  volunteerPhone String
+  grantedByPhone String
+  createdAt      DateTime          @default(now())
+
+  @@unique([sessionId, volunteerPhone])
+  @@map("attendance_session_volunteers")
 }

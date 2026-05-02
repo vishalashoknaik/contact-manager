@@ -304,6 +304,114 @@ describe('auth role and registration contract', () => {
     )
   })
 
+  it('allows attendance takers to grant attendance taker access to a new user', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        phone: '9000000003',
+        name: 'Attendance Taker',
+        canAccessAllCenters: false,
+        centers: [
+          {
+            centerId: 'center-1',
+            role: 'ATTENDANCE_TAKER',
+            isApproved: true,
+            center: { id: 'center-1', name: 'Center 1' }
+          }
+        ]
+      })
+      .mockResolvedValueOnce(null)
+
+    mockPrisma.user.create.mockResolvedValueOnce({
+      phone: '9000000005',
+      name: 'New Attendance Taker',
+      canAccessAllCenters: false
+    })
+    mockPrisma.userCenter.findUnique.mockResolvedValueOnce(null)
+    mockPrisma.userCenter.upsert.mockResolvedValueOnce({
+      user: { phone: '9000000005', name: 'New Attendance Taker', canAccessAllCenters: false },
+      center: { id: 'center-1', name: 'Center 1' },
+      role: 'ATTENDANCE_TAKER',
+      isApproved: true
+    })
+
+    const token = Buffer.from('9000000003:123').toString('base64')
+    const baseUrl = await startTestServer()
+    const response = await fetch(`${baseUrl}/api/auth/users/9000000005`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Center-ID': 'center-1'
+      },
+      body: JSON.stringify({
+        name: 'New Attendance Taker',
+        centerId: 'center-1',
+        centerRole: 'ATTENDANCE_TAKER'
+      })
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockPrisma.user.create).toHaveBeenCalledWith({
+      data: {
+        phone: '9000000005',
+        name: 'New Attendance Taker',
+        canAccessAllCenters: false
+      }
+    })
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        phone: '9000000005',
+        centerRole: 'ATTENDANCE_TAKER',
+        isApproved: true
+      })
+    )
+  })
+
+  it('blocks center users from granting admin access inside the center', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        phone: '9000000001',
+        name: 'Center User',
+        canAccessAllCenters: false,
+        centers: [
+          {
+            centerId: 'center-1',
+            role: 'USER',
+            isApproved: true,
+            center: { id: 'center-1', name: 'Center 1' }
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        phone: '9000000002',
+        name: 'Target User',
+        canAccessAllCenters: false,
+        centers: []
+      })
+
+    const token = Buffer.from('9000000001:123').toString('base64')
+    const baseUrl = await startTestServer()
+    const response = await fetch(`${baseUrl}/api/auth/users/9000000002`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Center-ID': 'center-1'
+      },
+      body: JSON.stringify({
+        name: 'Target User',
+        centerId: 'center-1',
+        centerRole: 'ADMIN'
+      })
+    })
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({
+      error: 'You can only grant roles within your access level'
+    })
+    expect(mockPrisma.userCenter.upsert).not.toHaveBeenCalled()
+  })
+
   it('blocks attendance takers from granting center user access', async () => {
     mockPrisma.user.findUnique.mockResolvedValueOnce({
       phone: '9000000003',

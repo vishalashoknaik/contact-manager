@@ -65,10 +65,12 @@ export function LoginPage() {
   const formStyle = {
     width: '100%',
     padding: '12px',
-    border: '1px solid #ddd',
+    border: '1px solid var(--border-color, #ddd)',
     borderRadius: '4px',
     fontSize: '16px',
-    boxSizing: 'border-box' as const
+    boxSizing: 'border-box' as const,
+    backgroundColor: 'var(--input-bg, #fff)',
+    color: 'var(--text-primary, #000)'
   }
 
   return (
@@ -78,12 +80,12 @@ export function LoginPage() {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f5f5f5'
+        backgroundColor: 'var(--background, #f5f5f5)'
       }}
     >
       <div
         style={{
-          backgroundColor: 'white',
+          backgroundColor: 'var(--bg-primary, #fff)',
           padding: '40px',
           borderRadius: '8px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
@@ -91,7 +93,7 @@ export function LoginPage() {
           maxWidth: '440px'
         }}
       >
-        <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '30px', color: 'var(--text-primary, #333)' }}>
           Contact Manager Login
         </h1>
 
@@ -102,7 +104,7 @@ export function LoginPage() {
                 display: 'block',
                 marginBottom: '8px',
                 fontWeight: 'bold',
-                color: '#333'
+                color: 'var(--text-primary, #333)'
               }}
             >
               Phone Number
@@ -128,7 +130,7 @@ export function LoginPage() {
                 display: 'block',
                 marginBottom: '8px',
                 fontWeight: 'bold',
-                color: '#333'
+                color: 'var(--text-primary, #333)'
               }}
             >
               Password (same as phone number)
@@ -146,7 +148,7 @@ export function LoginPage() {
               style={formStyle}
               required
             />
-            <p style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+            <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary, #666)' }}>
               Tip: Your password is the same as your phone number
             </p>
           </div>
@@ -155,9 +157,9 @@ export function LoginPage() {
             <>
               <div
                 style={{
-                  backgroundColor: '#eef6ff',
-                  border: '1px solid #cfe3ff',
-                  color: '#1f4b7a',
+                  backgroundColor: 'var(--panel-bg, #eef6ff)',
+                  border: '1px solid var(--border-color, #cfe3ff)',
+                  color: 'var(--text-primary, #1f4b7a)',
                   padding: '12px',
                   borderRadius: '4px',
                   marginBottom: '20px'
@@ -172,7 +174,7 @@ export function LoginPage() {
                     display: 'block',
                     marginBottom: '8px',
                     fontWeight: 'bold',
-                    color: '#333'
+                    color: 'var(--text-primary, #333)'
                   }}
                 >
                   Name
@@ -194,7 +196,7 @@ export function LoginPage() {
                     display: 'block',
                     marginBottom: '8px',
                     fontWeight: 'bold',
-                    color: '#333'
+                    color: 'var(--text-primary, #333)'
                   }}
                 >
                   Center
@@ -219,8 +221,8 @@ export function LoginPage() {
           {error && (
             <div
               style={{
-                backgroundColor: '#fee',
-                border: '1px solid #fcc',
+                backgroundColor: 'var(--panel-bg, #fee)',
+                border: '1px solid var(--border-color, #fcc)',
                 color: '#c33',
                 padding: '12px',
                 borderRadius: '4px',
@@ -234,8 +236,8 @@ export function LoginPage() {
           {successMessage && (
             <div
               style={{
-                backgroundColor: '#e9f7ef',
-                border: '1px solid #badbcc',
+                backgroundColor: 'var(--panel-bg, #e9f7ef)',
+                border: '1px solid var(--border-color, #badbcc)',
                 color: '#146c43',
                 padding: '12px',
                 borderRadius: '4px',
@@ -270,10 +272,10 @@ export function LoginPage() {
           style={{
             marginTop: '30px',
             padding: '20px',
-            backgroundColor: '#f9f9f9',
+            backgroundColor: 'var(--panel-bg, #f9f9f9)',
             borderRadius: '4px',
             fontSize: '14px',
-            color: '#666'
+            color: 'var(--text-secondary, #666)'
           }}
         >
           <p>

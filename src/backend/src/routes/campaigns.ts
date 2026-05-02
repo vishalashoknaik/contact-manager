@@ -252,6 +252,26 @@ router.put('/:id/volunteers', async (req: Request, res: Response) => {
       )
     ])
 
+    // Auto-grant center access (ATTENDANCE_TAKER, no approval required) for any new volunteers
+    for (const volunteerPhone of volunteerPhones) {
+      const targetUser = await prisma.user.findUnique({
+        where: { phone: volunteerPhone },
+        include: { centers: true }
+      })
+      if (!targetUser) continue
+      const existing = targetUser.centers.find(m => m.centerId === centerId)
+      if (!existing) {
+        await prisma.userCenter.create({
+          data: { userPhone: volunteerPhone, centerId, role: 'ATTENDANCE_TAKER', isApproved: true }
+        })
+      } else if (!existing.isApproved) {
+        await prisma.userCenter.update({
+          where: { userPhone_centerId: { userPhone: volunteerPhone, centerId } },
+          data: { isApproved: true }
+        })
+      }
+    }
+
     const updated = await prisma.campaign.findFirst({
       where: { id: campaign.id },
       include: {
@@ -291,8 +311,10 @@ router.get('/:id/next-contact', async (req: Request, res: Response) => {
     })
     if (!campaign) return res.status(404).json({ error: 'Campaign not found or not assigned' })
 
+    const mode = (req.query.mode as string) === 'skipped' ? 'SKIPPED' : 'PENDING'
+
     const next = await prisma.campaignContact.findFirst({
-      where: { campaignId: campaign.id, status: 'PENDING' },
+      where: { campaignId: campaign.id, status: mode },
       include: { contact: true },
       orderBy: { createdAt: 'asc' }
     })
@@ -341,7 +363,8 @@ router.post('/:id/call-log', async (req: Request, res: Response) => {
       doNotDisturb = false,
       notInterestedToVolunteer = false,
       remarks,
-      action
+      action,
+      mode: callMode = 'pending'
     } = req.body as {
       campaignContactId: string
       feedback: 'COMPLETED' | 'NO_RESPONSE' | 'CONNECT_LATER'
@@ -350,6 +373,7 @@ router.post('/:id/call-log', async (req: Request, res: Response) => {
       notInterestedToVolunteer?: boolean
       remarks?: string
       action: 'submit' | 'skip'
+      mode?: 'pending' | 'skipped'
     }
 
     if (!campaignContactId) return res.status(400).json({ error: 'campaignContactId is required' })
@@ -368,8 +392,9 @@ router.post('/:id/call-log', async (req: Request, res: Response) => {
     const newStatus = action === 'skip' ? 'SKIPPED' : 'COMPLETED'
 
     await prisma.$transaction([
-      prisma.campaignCallLog.create({
-        data: {
+      prisma.campaignCallLog.upsert({
+        where: { campaignContactId },
+        create: {
           campaignContactId,
           volunteerPhone: actor.phone,
           feedback,
@@ -377,6 +402,15 @@ router.post('/:id/call-log', async (req: Request, res: Response) => {
           doNotDisturb,
           notInterestedToVolunteer,
           remarks: remarks || null
+        },
+        update: {
+          volunteerPhone: actor.phone,
+          feedback,
+          centerChange,
+          doNotDisturb,
+          notInterestedToVolunteer,
+          remarks: remarks || null,
+          calledAt: new Date()
         }
       }),
       prisma.campaignContact.update({
@@ -385,11 +419,25 @@ router.post('/:id/call-log', async (req: Request, res: Response) => {
       })
     ])
 
-    // Find the next PENDING contact
+    // Find the next contact in the same mode.
+    // For skipped revisit mode, move forward from the current contact to avoid returning the same row again.
+    const nextStatus = callMode === 'skipped' ? 'SKIPPED' : 'PENDING'
+    const nextWhere =
+      callMode === 'skipped'
+        ? {
+            campaignId: campaign.id,
+            status: nextStatus,
+            OR: [
+              { createdAt: { gt: campaignContact.createdAt } },
+              { createdAt: campaignContact.createdAt, id: { gt: campaignContact.id } }
+            ]
+          }
+        : { campaignId: campaign.id, status: nextStatus }
+
     const next = await prisma.campaignContact.findFirst({
-      where: { campaignId: campaign.id, status: 'PENDING' },
+      where: nextWhere,
       include: { contact: true },
-      orderBy: { createdAt: 'asc' }
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
     })
 
     return res.json({
@@ -428,9 +476,15 @@ router.get('/:id/call-logs', async (req: Request, res: Response) => {
     })
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' })
 
+    const membership = actor.centers.find(m => m.centerId === centerId)
+    const isAdminOrUser = actor.canAccessAllCenters ||
+      (membership as any)?.role === 'ADMIN' ||
+      (membership as any)?.role === 'USER'
+
     const logs = await prisma.campaignCallLog.findMany({
       where: {
-        campaignContact: { campaignId: campaign.id }
+        campaignContact: { campaignId: campaign.id },
+        ...(isAdminOrUser ? {} : { volunteerPhone: actor.phone })
       },
       include: {
         campaignContact: { include: { contact: true } }

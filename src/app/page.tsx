@@ -381,14 +381,14 @@ export default function Home() {
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '10px 20px',
-          backgroundColor: '#f5f5f5',
-          borderBottom: '1px solid #ddd'
+          backgroundColor: 'var(--panel-bg, #f5f5f5)',
+          borderBottom: '1px solid var(--border-color, #ddd)'
         }}
       >
-        <div style={{ fontSize: '14px', color: '#666' }}>
-          Logged in as: <strong>{user?.name}</strong> ({user?.phone})
+        <div style={{ fontSize: '14px', color: 'var(--text-secondary, #666)' }}>
+          Logged in as: <strong style={{ color: 'var(--text-primary, #333)' }}>{user?.name}</strong> ({user?.phone})
           {selectedCenter && (
-            <span style={{ marginLeft: '20px', color: '#333' }}>
+            <span style={{ marginLeft: '20px', color: 'var(--text-primary, #333)' }}>
               📍 Center: <strong>{selectedCenterDetails?.name}</strong>
             </span>
           )}

@@ -15,6 +15,7 @@ interface CampaignCallScreenProps {
   campaignId: string
   centerId: string
   initialNext: CurrentContact | { done: true }
+  mode: 'pending' | 'skipped'
   onDone: () => void
 }
 
@@ -24,7 +25,7 @@ const feedbackOptions: { value: Feedback; label: string }[] = [
   { value: 'CONNECT_LATER', label: 'Connect Later' }
 ]
 
-export function CampaignCallScreen({ campaignId, centerId, initialNext, onDone }: CampaignCallScreenProps) {
+export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, onDone }: CampaignCallScreenProps) {
   const [current, setCurrent] = useState<CurrentContact | { done: true }>(initialNext)
   const [feedback, setFeedback] = useState<Feedback>('COMPLETED')
   const [centerChange, setCenterChange] = useState(false)
@@ -54,7 +55,8 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, onDone }
       doNotDisturb,
       notInterestedToVolunteer: notInterested,
       remarks: remarks.trim() || undefined,
-      action
+      action,
+      mode
     }
 
     setIsSubmitting(true)
@@ -93,8 +95,12 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, onDone }
       <div style={card}>
         <div style={{ textAlign: 'center', padding: '24px 0' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-          <h3>All done!</h3>
-          <p style={{ color: 'var(--text-secondary, #666)' }}>All contacts in this campaign have been called.</p>
+          <h3>{mode === 'skipped' ? 'All skipped contacts revisited!' : 'All done!'}</h3>
+          <p style={{ color: 'var(--text-secondary, #666)' }}>
+            {mode === 'skipped'
+              ? 'No more skipped contacts to revisit in this campaign.'
+              : 'All new contacts in this campaign have been called.'}
+          </p>
           <button
             onClick={onDone}
             style={{

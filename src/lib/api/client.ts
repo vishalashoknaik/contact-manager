@@ -306,6 +306,54 @@ export const programsApi = {
  * Attendance API
  */
 export const attendanceApi = {
+  listSessions: async (centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/attendance/sessions`, {
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse<AttendanceSession[]>(response)
+  },
+
+  getActiveSession: async (centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/attendance/sessions/active`, {
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse<{ active: false } | { active: true; session: AttendanceSession }>(response)
+  },
+
+  startSession: async (
+    data: { name: string; activities?: string[]; areas?: string[]; programs?: string[] },
+    centerId?: string
+  ) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/attendance/sessions/start`, {
+      method: 'POST',
+      headers: getHeaders(resolvedCenterId),
+      body: JSON.stringify(data)
+    })
+    return handleResponse<AttendanceSession>(response)
+  },
+
+  addSessionVolunteer: async (sessionId: string, volunteerPhone: string, centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/attendance/sessions/${encodeURIComponent(sessionId)}/volunteers`, {
+      method: 'POST',
+      headers: getHeaders(resolvedCenterId),
+      body: JSON.stringify({ volunteerPhone })
+    })
+    return handleResponse<AttendanceSession>(response)
+  },
+
+  endSession: async (sessionId: string, centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/attendance/sessions/${encodeURIComponent(sessionId)}/end`, {
+      method: 'POST',
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse<{ success: true }>(response)
+  },
+
   lookup: async (phone: string, centerId?: string) => {
     const resolvedCenterId = resolveCenterId(centerId)
     const response = await fetch(
@@ -339,6 +387,18 @@ export const attendanceApi = {
     })
     return handleResponse<{ success: true; contactId: string }>(response)
   }
+}
+
+export interface AttendanceSession {
+  id: string
+  name: string
+  centerId: string
+  activities: string[]
+  areas: string[]
+  programs: string[]
+  createdAt: string
+  endedAt: string | null
+  volunteers: Array<{ phone: string; name: string }>
 }
 
 /**
@@ -410,6 +470,7 @@ export interface CallLogSubmit {
   notInterestedToVolunteer?: boolean
   remarks?: string
   action: 'submit' | 'skip'
+  mode?: 'pending' | 'skipped'
 }
 
 /**
@@ -462,9 +523,10 @@ export const campaignsApi = {
     return handleResponse<Campaign>(response)
   },
 
-  getNextContact: async (id: string, centerId?: string): Promise<NextContactResult> => {
+  getNextContact: async (id: string, centerId?: string, mode?: 'pending' | 'skipped'): Promise<NextContactResult> => {
     const resolvedCenterId = resolveCenterId(centerId)
-    const response = await fetch(`${API_BASE_URL}/campaigns/${id}/next-contact`, {
+    const url = `${API_BASE_URL}/campaigns/${id}/next-contact${mode ? `?mode=${mode}` : ''}`
+    const response = await fetch(url, {
       headers: getHeaders(resolvedCenterId)
     })
     return handleResponse<NextContactResult>(response)

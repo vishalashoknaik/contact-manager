@@ -17,7 +17,13 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
   const [callLogs, setCallLogs] = useState<CallLog[]>([])
-  const [nextContact, setNextContact] = useState<NextContactResult | null>(null)
+  const [nextPending, setNextPending] = useState<NextContactResult | null>(null)
+  const [nextSkipped, setNextSkipped] = useState<NextContactResult | null>(null)
+  const [callMode, setCallMode] = useState<'pending' | 'skipped'>('pending')
+  const [showFilters, setShowFilters] = useState(false)
+  const [campaignQuery, setCampaignQuery] = useState('')
+  const [campaignStateFilter, setCampaignStateFilter] = useState('')
+  const [campaignVolunteerFilter, setCampaignVolunteerFilter] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -51,12 +57,14 @@ export default function CampaignsPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const [logs, next] = await Promise.all([
+      const [logs, pending, skipped] = await Promise.all([
         campaignsApi.getCallLogs(campaign.id, selectedCenter),
-        campaignsApi.getNextContact(campaign.id, selectedCenter).catch(() => ({ done: true } as NextContactResult))
+        campaignsApi.getNextContact(campaign.id, selectedCenter, 'pending').catch(() => null),
+        campaignsApi.getNextContact(campaign.id, selectedCenter, 'skipped').catch(() => null)
       ])
       setCallLogs(logs)
-      setNextContact(next)
+      setNextPending(pending)
+      setNextSkipped(skipped)
       setSelectedCampaign(campaign)
       setView('detail')
     } catch (err) {
@@ -66,22 +74,24 @@ export default function CampaignsPage() {
     }
   }
 
-  const startCalling = () => {
-    if (!nextContact) return
+  const startCalling = (mode: 'pending' | 'skipped') => {
+    setCallMode(mode)
     setView('call')
   }
 
   const refreshCampaign = async () => {
     if (!selectedCampaign || !selectedCenter) return
     try {
-      const [updated, logs, next] = await Promise.all([
+      const [updated, logs, pending, skipped] = await Promise.all([
         campaignsApi.getById(selectedCampaign.id, selectedCenter),
         campaignsApi.getCallLogs(selectedCampaign.id, selectedCenter),
-        campaignsApi.getNextContact(selectedCampaign.id, selectedCenter).catch(() => ({ done: true } as NextContactResult))
+        campaignsApi.getNextContact(selectedCampaign.id, selectedCenter, 'pending').catch(() => null),
+        campaignsApi.getNextContact(selectedCampaign.id, selectedCenter, 'skipped').catch(() => null)
       ])
       setSelectedCampaign(updated)
       setCallLogs(logs)
-      setNextContact(next)
+      setNextPending(pending)
+      setNextSkipped(skipped)
     } catch {
       // silent refresh failure
     }
@@ -112,6 +122,30 @@ export default function CampaignsPage() {
     </span>
   )
 
+  const filteredCampaigns = campaigns.filter(c =>
+    (!campaignQuery.trim() || c.name.toLowerCase().includes(campaignQuery.trim().toLowerCase())) &&
+    (!campaignVolunteerFilter.trim() ||
+      c.volunteers.some(v =>
+        `${v.name} ${v.phone}`.toLowerCase().includes(campaignVolunteerFilter.trim().toLowerCase())
+      )) &&
+    (!campaignStateFilter ||
+      (campaignStateFilter === 'HAS_PENDING' && c.pendingContacts > 0) ||
+      (campaignStateFilter === 'HAS_SKIPPED' && c.skippedContacts > 0) ||
+      (campaignStateFilter === 'ALL_COMPLETED' && c.pendingContacts === 0))
+  )
+
+  const filterInput: React.CSSProperties = {
+    padding: '6px 10px', borderRadius: 4,
+    border: '1px solid var(--border-color, #ddd)',
+    backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)'
+  }
+
+  const clearFilters = () => {
+    setCampaignQuery('')
+    setCampaignStateFilter('')
+    setCampaignVolunteerFilter('')
+  }
+
   if (!isLoggedIn) return null
 
   return (
@@ -120,7 +154,71 @@ export default function CampaignsPage() {
       <div style={{ marginBottom: 20, borderBottom: '1px solid var(--border-color, #ddd)', paddingBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
         <button onClick={() => router.push('/')} style={backBtn}>← Home</button>
         <h2 style={{ margin: 0 }}>📣 Campaigns</h2>
+        <button
+          onClick={() => setShowFilters(v => !v)}
+          style={{
+            marginLeft: 'auto',
+            padding: '4px 10px',
+            borderRadius: 14,
+            border: '1px solid var(--border-color, #ddd)',
+            backgroundColor: 'transparent',
+            color: 'var(--text-primary, #000)',
+            cursor: 'pointer',
+            fontSize: 12
+          }}
+        >
+          {showFilters ? 'Hide Filters' : 'Show Filters'}
+        </button>
       </div>
+
+      {showFilters && view === 'list' && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 12,
+            border: '1px solid var(--border-color, #ddd)',
+            borderRadius: 8,
+            backgroundColor: 'var(--panel-bg, #f8f9fa)'
+          }}
+        >
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Campaign name"
+              value={campaignQuery}
+              onChange={e => setCampaignQuery(e.target.value)}
+              style={filterInput}
+            />
+            <select
+              value={campaignStateFilter}
+              onChange={e => setCampaignStateFilter(e.target.value)}
+              style={filterInput}
+            >
+              <option value="">All campaign states</option>
+              <option value="HAS_PENDING">Has Pending</option>
+              <option value="HAS_SKIPPED">Has Skipped</option>
+              <option value="ALL_COMPLETED">All Pending Done</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Volunteer name/phone"
+              value={campaignVolunteerFilter}
+              onChange={e => setCampaignVolunteerFilter(e.target.value)}
+              style={filterInput}
+            />
+
+            <button
+              onClick={clearFilters}
+              style={{ ...filterInput, cursor: 'pointer', color: '#dc3545' }}
+            >
+              Clear
+            </button>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary, #666)' }}>
+              {`${filteredCampaigns.length} of ${campaigns.length} campaigns`}
+            </span>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div style={{ backgroundColor: '#fff3cd', border: '1px solid #ffeeba', color: '#856404', padding: '10px 12px', borderRadius: 4, marginBottom: 16 }}>
@@ -129,7 +227,7 @@ export default function CampaignsPage() {
       )}
 
       {/* CALL VIEW */}
-      {view === 'call' && selectedCampaign && nextContact && (
+      {view === 'call' && selectedCampaign && (
         <div>
           <button
             onClick={() => { setView('detail'); refreshCampaign() }}
@@ -141,7 +239,8 @@ export default function CampaignsPage() {
           <CampaignCallScreen
             campaignId={selectedCampaign.id}
             centerId={selectedCenter!}
-            initialNext={nextContact as any}
+            initialNext={(callMode === 'pending' ? nextPending : nextSkipped) as any}
+            mode={callMode}
             onDone={() => { setView('detail'); refreshCampaign() }}
           />
         </div>
@@ -169,27 +268,47 @@ export default function CampaignsPage() {
             />
           </div>
 
-          {/* Start calling button */}
-          {nextContact && !nextContact.done && (
-            <div style={{ marginBottom: 24 }}>
+          {/* Call buttons */}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
+            {nextPending && !nextPending.done && (
               <button
-                onClick={startCalling}
+                onClick={() => startCalling('pending')}
                 style={{
                   padding: '12px 24px', borderRadius: 4, cursor: 'pointer',
                   border: 'none', backgroundColor: '#198754', color: '#fff',
                   fontWeight: 'bold', fontSize: 15
                 }}
               >
-                📞 Start Calling
+                📞 Call New Contacts
               </button>
-            </div>
-          )}
-          {nextContact?.done && (
+            )}
+            {nextSkipped && !nextSkipped.done && (
+              <button
+                onClick={() => startCalling('skipped')}
+                style={{
+                  padding: '12px 24px', borderRadius: 4, cursor: 'pointer',
+                  border: 'none', backgroundColor: '#fd7e14', color: '#fff',
+                  fontWeight: 'bold', fontSize: 15
+                }}
+              >
+                🔄 Revisit Skipped ({selectedCampaign.skippedContacts})
+              </button>
+            )}
+          </div>
+          {nextPending?.done && (!nextSkipped || nextSkipped.done) && (
             <div style={{
               padding: '12px 16px', borderRadius: 4, marginBottom: 24,
               backgroundColor: '#d4edda', color: '#155724', fontWeight: 500
             }}>
               ✅ All contacts have been called in this campaign.
+            </div>
+          )}
+          {nextPending?.done && nextSkipped && !nextSkipped.done && (
+            <div style={{
+              padding: '12px 16px', borderRadius: 4, marginBottom: 24,
+              backgroundColor: '#fff3cd', color: '#856404', fontWeight: 500
+            }}>
+              ✅ All new contacts called. Use “Revisit Skipped” to follow up on skipped contacts.
             </div>
           )}
 
@@ -205,12 +324,14 @@ export default function CampaignsPage() {
       {view === 'list' && (
         <div>
           {isLoading && <p>Loading campaigns...</p>}
-          {!isLoading && campaigns.length === 0 && (
+          {!isLoading && filteredCampaigns.length === 0 && (
             <p style={{ color: 'var(--text-secondary, #888)' }}>
-              No campaigns yet. Select contacts on the home page and click &ldquo;Create Campaign&rdquo;.
+              {campaigns.length === 0
+                ? 'No campaigns yet. Select contacts on the home page and click “Create Campaign”.'
+                : 'No campaigns match the current filters.'}
             </p>
           )}
-          {campaigns.map(c => (
+          {filteredCampaigns.map(c => (
             <div
               key={c.id}
               style={card}

@@ -3,8 +3,14 @@ import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const mockPrisma = {
+  user: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn()
+  },
   contact: {
     findUnique: vi.fn(),
+    findFirst: vi.fn(),
     upsert: vi.fn()
   },
   activity: {
@@ -27,6 +33,20 @@ const mockPrisma = {
   },
   contactProgram: {
     upsert: vi.fn()
+  },
+  attendanceSession: {
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn()
+  },
+  attendanceSessionVolunteer: {
+    create: vi.fn()
+  },
+  userCenter: {
+    create: vi.fn(),
+    update: vi.fn()
   }
 }
 
@@ -35,6 +55,11 @@ vi.mock('@prisma/client', () => ({
 }))
 
 const servers: Array<{ close: () => void }> = []
+
+function authHeaderFor(phone: string) {
+  const token = Buffer.from(`${phone}:password`).toString('base64')
+  return { Authorization: `Bearer ${token}` }
+}
 
 async function startTestServer() {
   const { default: attendanceRouter } = await import('./attendance')
@@ -196,5 +221,366 @@ describe('attendance route', () => {
       create: { contactId: 'contact-2', programId: 'program-1', count: 1 },
       update: { count: { increment: 1 } }
     })
+  })
+
+  it('starts an attendance session for a volunteer with attendance access', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce(null)
+    mockPrisma.attendanceSession.create.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Morning Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        }
+      ]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/start`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      },
+      body: JSON.stringify({ name: 'Morning Session', activities: ['Walkathon'], areas: ['Downtown'], programs: ['Youth Program'] })
+    })
+
+    expect(response.status).toBe(201)
+    const data = await response.json() as { id: string; name: string; volunteers: Array<{ phone: string }> }
+    expect(data.id).toBe('session-1')
+    expect(data.name).toBe('Morning Session')
+    expect(data.volunteers).toHaveLength(1)
+    expect(data.volunteers[0].phone).toBe('1111111111')
+  })
+
+  it('allows a session volunteer to add a second volunteer for the same session', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        phone: '1111111111',
+        canAccessAllCenters: false,
+        centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+      })
+      .mockResolvedValueOnce({
+        phone: '2222222222',
+        canAccessAllCenters: false,
+        centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+      })
+
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Morning Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        }
+      ]
+    })
+
+    mockPrisma.attendanceSessionVolunteer.create.mockResolvedValueOnce({ id: 'join-1' })
+
+    mockPrisma.attendanceSession.findUnique.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Morning Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        },
+        {
+          volunteerPhone: '2222222222',
+          volunteer: { phone: '2222222222', name: 'Volunteer Two' }
+        }
+      ]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/volunteers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      },
+      body: JSON.stringify({ volunteerPhone: '2222222222' })
+    })
+
+    expect(response.status).toBe(200)
+    const data = await response.json() as { volunteers: Array<{ phone: string }> }
+    expect(data.volunteers).toHaveLength(2)
+    expect(data.volunteers.map(v => v.phone)).toContain('2222222222')
+  })
+
+  it('matches an existing volunteer by normalized phone and reuses the stored phone value', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        phone: '1111111111',
+        canAccessAllCenters: false,
+        centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+      })
+      .mockResolvedValueOnce(null)
+
+    mockPrisma.user.findMany.mockResolvedValueOnce([
+      {
+        phone: '222-222-2222',
+        canAccessAllCenters: false,
+        centers: []
+      }
+    ])
+
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Morning Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        }
+      ]
+    })
+    mockPrisma.userCenter.create.mockResolvedValueOnce({ id: 'membership-1' })
+    mockPrisma.attendanceSessionVolunteer.create.mockResolvedValueOnce({ id: 'join-2' })
+    mockPrisma.attendanceSession.findUnique.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Morning Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        },
+        {
+          volunteerPhone: '222-222-2222',
+          volunteer: { phone: '222-222-2222', name: 'Volunteer Two' }
+        }
+      ]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/volunteers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      },
+      body: JSON.stringify({ volunteerPhone: '(222) 222-2222' })
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockPrisma.user.findMany).toHaveBeenCalledWith({ include: { centers: true } })
+    expect(mockPrisma.userCenter.create).toHaveBeenCalledWith({
+      data: {
+        userPhone: '222-222-2222',
+        centerId,
+        role: 'ATTENDANCE_TAKER',
+        isApproved: true
+      }
+    })
+    expect(mockPrisma.attendanceSessionVolunteer.create).toHaveBeenCalledWith({
+      data: {
+        sessionId: 'session-1',
+        volunteerPhone: '222-222-2222',
+        grantedByPhone: '1111111111'
+      }
+    })
+  })
+
+  it('creates a user from an existing contact before granting attendance access', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        phone: '1111111111',
+        canAccessAllCenters: false,
+        centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+      })
+      .mockResolvedValueOnce(null)
+    mockPrisma.user.findMany.mockResolvedValueOnce([])
+    mockPrisma.contact.findFirst.mockResolvedValueOnce({
+      id: 'contact-9',
+      name: 'Contact Volunteer',
+      phone: '3333333333',
+      centerId
+    })
+    mockPrisma.user.create.mockResolvedValueOnce({
+      phone: '3333333333',
+      name: 'Contact Volunteer',
+      canAccessAllCenters: false,
+      centers: []
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Morning Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        }
+      ]
+    })
+    mockPrisma.userCenter.create.mockResolvedValueOnce({ id: 'membership-2' })
+    mockPrisma.attendanceSessionVolunteer.create.mockResolvedValueOnce({ id: 'join-3' })
+    mockPrisma.attendanceSession.findUnique.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Morning Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        },
+        {
+          volunteerPhone: '3333333333',
+          volunteer: { phone: '3333333333', name: 'Contact Volunteer' }
+        }
+      ]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/volunteers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      },
+      body: JSON.stringify({ volunteerPhone: '3333333333' })
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockPrisma.contact.findFirst).toHaveBeenCalledWith({
+      where: { centerId, phone: { in: ['3333333333', '3333333333'] } }
+    })
+    expect(mockPrisma.user.create).toHaveBeenCalledWith({
+      data: { phone: '3333333333', name: 'Contact Volunteer' },
+      include: { centers: true }
+    })
+  })
+
+  it('approves pending center membership and does not duplicate an existing session volunteer', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        phone: '1111111111',
+        canAccessAllCenters: false,
+        centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+      })
+      .mockResolvedValueOnce(null)
+    mockPrisma.user.findMany.mockResolvedValueOnce([
+      {
+        phone: '444-444-4444',
+        canAccessAllCenters: false,
+        centers: [{ centerId, isApproved: false, role: 'ATTENDANCE_TAKER' }]
+      }
+    ])
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Morning Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        },
+        {
+          volunteerPhone: '444-444-4444',
+          volunteer: { phone: '444-444-4444', name: 'Volunteer Four' }
+        }
+      ]
+    })
+    mockPrisma.userCenter.update.mockResolvedValueOnce({ id: 'membership-4' })
+    mockPrisma.attendanceSession.findUnique.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Morning Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        },
+        {
+          volunteerPhone: '444-444-4444',
+          volunteer: { phone: '444-444-4444', name: 'Volunteer Four' }
+        }
+      ]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/volunteers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      },
+      body: JSON.stringify({ volunteerPhone: '4444444444' })
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockPrisma.userCenter.update).toHaveBeenCalledWith({
+      where: { userPhone_centerId: { userPhone: '444-444-4444', centerId } },
+      data: { isApproved: true }
+    })
+    expect(mockPrisma.attendanceSessionVolunteer.create).not.toHaveBeenCalled()
   })
 })

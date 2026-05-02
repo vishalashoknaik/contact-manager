@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useConfig } from '@/hooks/useConfig'
 import { attendanceApi } from '@/lib/api/client'
+import type { AttendanceSession } from '@/lib/api/client'
 import type { Gender } from '@/lib/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SessionConfig = {
+  name: string
   activities: string[]
   areas: string[]
   programs: string[]
@@ -92,14 +94,19 @@ function SetupScreen({
   activities,
   areas,
   programs,
-  onStart
+  sessions,
+  onStart,
+  onResume
 }: {
   activities: string[]
   areas: string[]
   programs: string[]
-  onStart: (config: SessionConfig) => void
+  sessions: AttendanceSession[]
+  onStart: (config: SessionConfig) => void | Promise<void>
+  onResume: (session: AttendanceSession) => void
 }) {
   const [selected, setSelected] = useState<SessionConfig>({
+    name: 'Attendance Session',
     activities: [],
     areas: [],
     programs: []
@@ -137,9 +144,12 @@ function SetupScreen({
       <div style={{ marginBottom: 24 }}>
         <h3 style={{ margin: '0 0 10px', fontSize: 15, color: 'var(--text-primary, #000)' }}>{label}</h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {items.map(item => (
+          {items.map(item => {
+            const inputId = `${category}-${item}`
+            return (
             <label
               key={item}
+              htmlFor={inputId}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -155,6 +165,7 @@ function SetupScreen({
               }}
             >
               <input
+                id={inputId}
                 type="checkbox"
                 checked={selected[category].includes(item)}
                 onChange={e => toggle(category, item, e.target.checked)}
@@ -162,7 +173,7 @@ function SetupScreen({
               />
               {item}
             </label>
-          ))}
+          )})}
         </div>
       </div>
     )
@@ -171,9 +182,32 @@ function SetupScreen({
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 20px' }}>
       <h2 style={{ marginBottom: 8 }}>📋 Attendance Session Setup</h2>
-      <p style={{ color: 'var(--text-secondary, #666)', marginBottom: 32 }}>
-        Choose which programs, areas, or activities to track attendance for.
+      <p style={{ color: 'var(--text-secondary, #666)', marginBottom: 16 }}>
+        Give a session name and choose which programs, areas, or activities to track attendance for.
       </p>
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', fontWeight: 600, marginBottom: 6 }} htmlFor="attendance-session-name">
+          Session Name
+        </label>
+        <input
+          id="attendance-session-name"
+          type="text"
+          value={selected.name}
+          onChange={e => setSelected(prev => ({ ...prev, name: e.target.value }))}
+          placeholder="e.g. Morning Walkathon"
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: '1px solid var(--border-color, #ced4da)',
+            borderRadius: 6,
+            fontSize: 15,
+            boxSizing: 'border-box',
+            backgroundColor: 'var(--input-bg, #fff)',
+            color: 'var(--text-primary, #000)'
+          }}
+        />
+      </div>
 
       <CheckGroup label="Programs" items={programs} category="programs" />
       <CheckGroup label="Areas" items={areas} category="areas" />
@@ -185,9 +219,11 @@ function SetupScreen({
         </p>
       )}
 
-      <div style={{ marginTop: 32, display: 'flex', gap: 12 }}>
+      <div style={{ marginTop: 32, display: 'flex', gap: 12, marginBottom: 24 }}>
         <button
-          onClick={() => onStart(selected)}
+          onClick={() => {
+            void onStart(selected)
+          }}
           disabled={noneSelected}
           style={{
             padding: '12px 28px',
@@ -203,6 +239,51 @@ function SetupScreen({
           ▶ Start Attendance
         </button>
       </div>
+
+      {sessions.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <h3 style={{ margin: '0 0 10px', fontSize: 15, color: 'var(--text-primary, #000)' }}>
+            Your Available Sessions
+          </h3>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {sessions.map(session => (
+              <div
+                key={session.id}
+                style={{
+                  border: '1px solid var(--border-color, #ddd)',
+                  borderRadius: 8,
+                  padding: 12,
+                  backgroundColor: 'var(--panel-bg, #fff)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{session.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginTop: 2 }}>
+                      {new Date(session.createdAt).toLocaleString()} · {session.volunteers.length} volunteer{session.volunteers.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onResume(session)}
+                    style={{
+                      padding: '8px 12px',
+                      border: 'none',
+                      borderRadius: 6,
+                      backgroundColor: '#0d6efd',
+                      color: '#fff',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -212,10 +293,14 @@ function SetupScreen({
 function AttendanceEntry({
   session,
   storageKey,
+  volunteers,
+  onAddVolunteer,
   onEndSession
 }: {
   session: SessionConfig
   storageKey: string
+  volunteers: Array<{ phone: string; name: string }>
+  onAddVolunteer: (phone: string) => Promise<void>
   onEndSession: () => void
 }) {
   const [form, setForm] = useState<AttendeeForm>(EMPTY_FORM)
@@ -229,6 +314,10 @@ function AttendanceEntry({
   })
   const [persistEnabled, setPersistEnabled] = useState(true)
   const [showSessionAttendees, setShowSessionAttendees] = useState(false)
+  const [showAddVolunteer, setShowAddVolunteer] = useState(false)
+  const [newVolunteerPhone, setNewVolunteerPhone] = useState('')
+  const [addingVolunteer, setAddingVolunteer] = useState(false)
+  const [sessionAccessError, setSessionAccessError] = useState<string | null>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const lookupRequestRef = useRef<Promise<'found' | 'new' | undefined> | null>(null)
@@ -453,6 +542,20 @@ function AttendanceEntry({
     boxShadow: '0 10px 30px rgba(0, 0, 0, 0.06)'
   }
 
+  async function handleAddVolunteer() {
+    if (!newVolunteerPhone.trim()) return
+    setAddingVolunteer(true)
+    setSessionAccessError(null)
+    try {
+      await onAddVolunteer(newVolunteerPhone.trim())
+      setNewVolunteerPhone('')
+    } catch (err: any) {
+      setSessionAccessError(err?.message || 'Failed to add volunteer to this attendance session')
+    } finally {
+      setAddingVolunteer(false)
+    }
+  }
+
   return (
     <div
       style={{
@@ -469,7 +572,7 @@ function AttendanceEntry({
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 20 }}>📝 Taking Attendance</h2>
+            <h2 style={{ margin: 0, fontSize: 20 }}>📝 {session.name || 'Taking Attendance'}</h2>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
               {sessionTags.map(tag => (
                 <span
@@ -487,6 +590,93 @@ function AttendanceEntry({
                 </span>
               ))}
             </div>
+            <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-secondary, #666)' }}>
+              Volunteers: {volunteers.length} assigned
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => setShowAddVolunteer(value => !value)}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: 4,
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--text-secondary, #888)',
+                  cursor: 'pointer',
+                  fontSize: 12
+                }}
+              >
+                {showAddVolunteer ? '▲ hide volunteers' : '+ volunteers'}
+              </button>
+            </div>
+            {showAddVolunteer && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 12,
+                  backgroundColor: 'var(--panel-bg, #f8f9fa)',
+                  border: '1px solid var(--border-color, #dee2e6)',
+                  borderRadius: 6
+                }}
+              >
+                <div style={{ marginBottom: 12 }}>
+                  <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #000)' }}>
+                    Assigned Volunteers
+                  </h4>
+                  {volunteers.length === 0 ? (
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)' }}>
+                      No volunteers assigned yet
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {volunteers.map(v => (
+                        <div key={v.phone} style={{ fontSize: 12, color: 'var(--text-primary, #000)' }}>
+                          <strong>{v.name}</strong> · {v.phone}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color, #dee2e6)', paddingTop: 12, marginTop: 12 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-primary, #000)' }}>
+                    Add Volunteer by Phone
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="tel"
+                      placeholder="Volunteer phone"
+                      value={newVolunteerPhone}
+                      onChange={e => setNewVolunteerPhone(e.target.value)}
+                      style={{ ...inputStyle, maxWidth: 180, flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddVolunteer}
+                      disabled={addingVolunteer || !newVolunteerPhone.trim()}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: 6,
+                        border: 'none',
+                        backgroundColor: addingVolunteer || !newVolunteerPhone.trim() ? '#adb5bd' : '#198754',
+                        color: '#fff',
+                        cursor: addingVolunteer || !newVolunteerPhone.trim() ? 'not-allowed' : 'pointer',
+                        fontWeight: 600,
+                        fontSize: 13,
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {addingVolunteer ? 'Adding…' : '+ Add'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {sessionAccessError && (
+              <div style={{ marginTop: 8, color: '#842029', fontSize: 12 }}>
+                {sessionAccessError}
+              </div>
+            )}
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 28, fontWeight: 700, color: '#198754' }}>{count}</div>
@@ -791,14 +981,39 @@ export default function AttendancePage() {
   const { activities, areas, programs } = useConfig()
   const centerLabel = selectedCenterDetails?.name || selectedCenter || 'Unknown Center'
   const storageKey = selectedCenter ? getStorageKey(selectedCenter) : ''
-  const [session, setSession] = useState<SessionConfig | null>(() => {
-    if (!selectedCenter) return null
-    return loadPersistedAttendanceState(getStorageKey(selectedCenter))?.session || null
-  })
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionVolunteers, setSessionVolunteers] = useState<Array<{ phone: string; name: string }>>([])
+  const [availableSessions, setAvailableSessions] = useState<AttendanceSession[]>([])
+  const [sessionError, setSessionError] = useState<string | null>(null)
+  const [session, setSession] = useState<SessionConfig | null>(null)
 
   useEffect(() => {
     if (!selectedCenter) return
-    setSession(loadPersistedAttendanceState(getStorageKey(selectedCenter))?.session || null)
+    let cancelled = false
+
+    const initializeSession = async () => {
+      try {
+        const sessions = await attendanceApi.listSessions(selectedCenter)
+        if (cancelled) return
+
+        setAvailableSessions(sessions)
+        setSession(null)
+        setSessionId(null)
+        setSessionVolunteers([])
+      } catch {
+        if (cancelled) return
+        setAvailableSessions([])
+        setSession(null)
+        setSessionId(null)
+        setSessionVolunteers([])
+      }
+    }
+
+    initializeSession()
+
+    return () => {
+      cancelled = true
+    }
   }, [selectedCenter])
 
   useEffect(() => {
@@ -872,20 +1087,76 @@ export default function AttendancePage() {
         <AttendanceEntry
           session={session}
           storageKey={storageKey}
-          onEndSession={() => router.push('/')}
+          volunteers={sessionVolunteers}
+          onAddVolunteer={async volunteerPhone => {
+            if (!selectedCenter || !sessionId) {
+              throw new Error('Attendance session is not ready yet. Please try again.')
+            }
+            const updated = await attendanceApi.addSessionVolunteer(sessionId, volunteerPhone, selectedCenter)
+            setSessionVolunteers(updated.volunteers)
+          }}
+          onEndSession={async () => {
+            if (selectedCenter && sessionId) {
+              await attendanceApi.endSession(sessionId, selectedCenter)
+            }
+            setAvailableSessions(prev => prev.filter(item => item.id !== sessionId))
+            setSession(null)
+            setSessionId(null)
+            setSessionVolunteers([])
+            setSessionError(null)
+            router.push('/')
+          }}
         />
       ) : (
         <SetupScreen
           activities={activities}
           areas={areas}
           programs={programs}
-          onStart={cfg => {
-            setSession(cfg)
-            if (storageKey) {
-              savePersistedAttendanceState(storageKey, { session: cfg, records: [] })
+          sessions={availableSessions}
+          onResume={selected => {
+            const resumedSession = {
+              name: selected.name,
+              activities: selected.activities,
+              areas: selected.areas,
+              programs: selected.programs
+            }
+            setSession(resumedSession)
+            setSessionId(selected.id)
+            setSessionVolunteers(selected.volunteers)
+          }}
+          onStart={async cfg => {
+            if (!selectedCenter) return
+            setSessionError(null)
+            try {
+              const started = await attendanceApi.startSession({
+                name: cfg.name,
+                activities: cfg.activities,
+                areas: cfg.areas,
+                programs: cfg.programs
+              }, selectedCenter)
+              const nextSession = {
+                name: started.name,
+                activities: started.activities,
+                areas: started.areas,
+                programs: started.programs
+              }
+              setSession(nextSession)
+              setSessionId(started.id)
+              setSessionVolunteers(started.volunteers)
+              setAvailableSessions(prev => [started, ...prev.filter(item => item.id !== started.id)])
+              if (storageKey) {
+                savePersistedAttendanceState(storageKey, { session: nextSession, records: [] })
+              }
+            } catch (err: any) {
+              setSessionError(err?.message || 'Failed to start attendance session')
             }
           }}
         />
+      )}
+      {sessionError && (
+        <div style={{ padding: '0 20px 20px', color: '#842029', fontSize: 14 }}>
+          {sessionError}
+        </div>
       )}
     </div>
   )

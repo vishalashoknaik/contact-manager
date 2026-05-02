@@ -7,6 +7,11 @@ import AttendancePage from './page'
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
+  listSessions: vi.fn(),
+  getActiveSession: vi.fn(),
+  startSession: vi.fn(),
+  addSessionVolunteer: vi.fn(),
+  endSession: vi.fn(),
   lookup: vi.fn(),
   submit: vi.fn()
 }))
@@ -45,19 +50,78 @@ vi.mock('@/hooks/useConfig', () => ({
 
 vi.mock('@/lib/api/client', () => ({
   attendanceApi: {
+    listSessions: mocks.listSessions,
+    getActiveSession: mocks.getActiveSession,
+    startSession: mocks.startSession,
+    addSessionVolunteer: mocks.addSessionVolunteer,
+    endSession: mocks.endSession,
     lookup: mocks.lookup,
     submit: mocks.submit
   }
 }))
+
+function createSession(id = 'session-1', name = 'Test Session') {
+  return {
+    id,
+    name,
+    centerId: 'center-1',
+    activities: ['Walkathon'],
+    areas: ['Downtown'],
+    programs: ['Youth Program'],
+    createdAt: new Date('2026-05-02T10:00:00.000Z').toISOString(),
+    endedAt: null,
+    volunteers: [{ phone: '1111111111', name: 'Primary Volunteer' }]
+  }
+}
+
+async function renderAndResumeSession(user: ReturnType<typeof userEvent.setup>) {
+  mocks.listSessions.mockResolvedValueOnce([createSession()])
+  render(<AttendancePage />)
+  await user.click(await screen.findByRole('button', { name: /continue/i }))
+  await waitFor(() => expect(screen.getByPlaceholderText('Enter phone and press Enter')).toBeInTheDocument())
+}
 
 describe('AttendancePage', () => {
   beforeEach(() => {
     localStorage.clear()
     mocks.push.mockReset()
     mocks.replace.mockReset()
+    mocks.listSessions.mockReset()
+    mocks.getActiveSession.mockReset()
+    mocks.startSession.mockReset()
+    mocks.addSessionVolunteer.mockReset()
+    mocks.endSession.mockReset()
     mocks.lookup.mockReset()
     mocks.submit.mockReset()
-    vi.restoreAllMocks()
+
+    mocks.listSessions.mockResolvedValue([])
+    mocks.getActiveSession.mockResolvedValue({ active: false })
+    mocks.startSession.mockResolvedValue({
+      id: 'session-1',
+      name: 'Test Session',
+      centerId: 'center-1',
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z').toISOString(),
+      endedAt: null,
+      volunteers: [{ phone: '1111111111', name: 'Primary Volunteer' }]
+    })
+    mocks.addSessionVolunteer.mockResolvedValue({
+      id: 'session-1',
+      name: 'Test Session',
+      centerId: 'center-1',
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z').toISOString(),
+      endedAt: null,
+      volunteers: [
+        { phone: '1111111111', name: 'Primary Volunteer' },
+        { phone: '2222222222', name: 'Second Volunteer' }
+      ]
+    })
+    mocks.endSession.mockResolvedValue({ success: true })
   })
 
   it('shows the selected center name on the attendance page', () => {
@@ -69,10 +133,7 @@ describe('AttendancePage', () => {
   it('uses the IE Date placeholder and does not render helper copy under session attendees', async () => {
     const user = userEvent.setup()
 
-    render(<AttendancePage />)
-
-    await user.click(screen.getByLabelText('Walkathon'))
-    await user.click(screen.getByRole('button', { name: /start attendance/i }))
+    await renderAndResumeSession(user)
 
     expect(screen.getByPlaceholderText('IE Date')).toBeInTheDocument()
     expect(screen.queryByText('Remarks')).not.toBeInTheDocument()
@@ -86,10 +147,7 @@ describe('AttendancePage', () => {
 
     mocks.lookup.mockResolvedValueOnce({ found: false })
 
-    render(<AttendancePage />)
-
-    await user.click(screen.getByLabelText('Walkathon'))
-    await user.click(screen.getByRole('button', { name: /start attendance/i }))
+    await renderAndResumeSession(user)
 
     await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '8888888888')
     await user.type(screen.getByPlaceholderText('Full name'), 'New Contact')
@@ -108,10 +166,7 @@ describe('AttendancePage', () => {
     mocks.lookup.mockResolvedValueOnce({ found: false })
     mocks.submit.mockResolvedValueOnce({ success: true, contactId: 'contact-1' })
 
-    render(<AttendancePage />)
-
-    await user.click(screen.getByLabelText('Walkathon'))
-    await user.click(screen.getByRole('button', { name: /start attendance/i }))
+    await renderAndResumeSession(user)
 
     expect(screen.queryByText('No attendance recorded in this session yet.')).not.toBeInTheDocument()
 
@@ -138,10 +193,7 @@ describe('AttendancePage', () => {
     mocks.lookup.mockResolvedValueOnce({ found: false })
     mocks.submit.mockResolvedValueOnce({ success: true, contactId: 'contact-1' })
 
-    render(<AttendancePage />)
-
-    await user.click(screen.getByLabelText('Walkathon'))
-    await user.click(screen.getByRole('button', { name: /start attendance/i }))
+    await renderAndResumeSession(user)
 
     await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9999999999')
     await user.type(screen.getByPlaceholderText('Full name'), 'Alice')
@@ -167,10 +219,7 @@ describe('AttendancePage', () => {
     mocks.lookup.mockResolvedValueOnce({ found: false })
     mocks.submit.mockRejectedValue(new Error('Network error'))
 
-    render(<AttendancePage />)
-
-    await user.click(screen.getByLabelText('Walkathon'))
-    await user.click(screen.getByRole('button', { name: /start attendance/i }))
+    await renderAndResumeSession(user)
 
     await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '7777777777')
     await user.type(screen.getByPlaceholderText('Full name'), 'Pending Person')
@@ -196,6 +245,20 @@ describe('AttendancePage', () => {
   })
 
   it('restores a persisted session with attendee records from local storage', async () => {
+    mocks.listSessions.mockResolvedValueOnce([
+      {
+        id: 'session-1',
+        name: 'Saved Session',
+        centerId: 'center-1',
+        activities: ['Walkathon'],
+        areas: ['Downtown'],
+        programs: ['Youth Program'],
+        createdAt: new Date('2026-05-02T10:00:00.000Z').toISOString(),
+        endedAt: null,
+        volunteers: [{ phone: '1111111111', name: 'Primary Volunteer' }]
+      }
+    ])
+
     localStorage.setItem(
       'attendance-session:center-1',
       JSON.stringify({
@@ -229,7 +292,11 @@ describe('AttendancePage', () => {
 
     render(<AttendancePage />)
 
-    expect(screen.getByText('Taking Attendance - Center One')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Taking Attendance - Center One')).toBeInTheDocument()
+    })
     expect(screen.getByText('1')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /session attendees/i }))
@@ -241,6 +308,20 @@ describe('AttendancePage', () => {
 
   it('retries pending records and clears persisted session when ending succeeds', async () => {
     const user = userEvent.setup()
+
+    mocks.listSessions.mockResolvedValueOnce([
+      {
+        id: 'session-1',
+        name: 'Saved Session',
+        centerId: 'center-1',
+        activities: ['Walkathon'],
+        areas: ['Downtown'],
+        programs: ['Youth Program'],
+        createdAt: new Date('2026-05-02T10:00:00.000Z').toISOString(),
+        endedAt: null,
+        volunteers: [{ phone: '1111111111', name: 'Primary Volunteer' }]
+      }
+    ])
 
     localStorage.setItem(
       'attendance-session:center-1',
@@ -276,6 +357,12 @@ describe('AttendancePage', () => {
 
     render(<AttendancePage />)
 
+    await user.click(await screen.findByRole('button', { name: /continue/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Taking Attendance - Center One')).toBeInTheDocument()
+    })
+
     await user.click(screen.getByRole('button', { name: /end session/i }))
 
     await waitFor(() => {
@@ -297,6 +384,20 @@ describe('AttendancePage', () => {
 
   it('retries pending records from the retry button and updates their status', async () => {
     const user = userEvent.setup()
+
+    mocks.listSessions.mockResolvedValueOnce([
+      {
+        id: 'session-1',
+        name: 'Saved Session',
+        centerId: 'center-1',
+        activities: ['Walkathon'],
+        areas: ['Downtown'],
+        programs: ['Youth Program'],
+        createdAt: new Date('2026-05-02T10:00:00.000Z').toISOString(),
+        endedAt: null,
+        volunteers: [{ phone: '1111111111', name: 'Primary Volunteer' }]
+      }
+    ])
 
     localStorage.setItem(
       'attendance-session:center-1',
@@ -332,6 +433,12 @@ describe('AttendancePage', () => {
     mocks.submit.mockResolvedValueOnce({ success: true, contactId: 'contact-1' })
 
     render(<AttendancePage />)
+
+    await user.click(await screen.findByRole('button', { name: /continue/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Taking Attendance - Center One')).toBeInTheDocument()
+    })
 
     await user.click(screen.getByRole('button', { name: /retry pending sync/i }))
 

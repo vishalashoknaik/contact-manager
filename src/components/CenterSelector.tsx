@@ -20,14 +20,14 @@ export function CenterSelector() {
         alignItems: 'center',
         gap: '10px',
         padding: '10px',
-        backgroundColor: '#f5f5f5',
-        borderBottom: '1px solid #ddd'
+        backgroundColor: 'var(--panel-bg, #f5f5f5)',
+        borderBottom: '1px solid var(--border-color, #ddd)'
       }}
     >
       <label
         style={{
           fontWeight: 'bold',
-          color: '#333'
+          color: 'var(--text-primary, #333)'
         }}
       >
         Center:
@@ -38,8 +38,9 @@ export function CenterSelector() {
         style={{
           padding: '8px',
           borderRadius: '4px',
-          border: '1px solid #ddd',
-          backgroundColor: 'white',
+          border: '1px solid var(--border-color, #ddd)',
+          backgroundColor: 'var(--input-bg, #fff)',
+          color: 'var(--text-primary, #000)',
           cursor: 'pointer'
         }}
       >
@@ -53,7 +54,7 @@ export function CenterSelector() {
         <span
           style={{
             fontSize: '12px',
-            color: '#666',
+            color: 'var(--text-secondary, #666)',
             fontStyle: 'italic'
           }}
         >
@@ -64,7 +65,7 @@ export function CenterSelector() {
         <span
           style={{
             fontSize: '12px',
-            color: '#666',
+            color: 'var(--text-secondary, #666)',
             fontStyle: 'italic'
           }}
         >

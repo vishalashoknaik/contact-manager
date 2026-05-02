@@ -6,6 +6,10 @@ const mockPrisma = {
   user: {
     findUnique: vi.fn()
   },
+  userCenter: {
+    create: vi.fn(),
+    update: vi.fn()
+  },
   campaign: {
     create: vi.fn(),
     findMany: vi.fn(),
@@ -21,7 +25,7 @@ const mockPrisma = {
     create: vi.fn()
   },
   campaignCallLog: {
-    create: vi.fn(),
+    upsert: vi.fn(),
     findMany: vi.fn()
   },
   $transaction: vi.fn(async (ops: Array<Promise<unknown>>) => Promise.all(ops))
@@ -186,7 +190,7 @@ describe('campaign routes', () => {
         contact: { id: 'contact-2', name: 'Bob', phone: '9000000002' }
       })
 
-    mockPrisma.campaignCallLog.create.mockResolvedValueOnce({ id: 'log-1' })
+    mockPrisma.campaignCallLog.upsert.mockResolvedValueOnce({ id: 'log-1' })
     mockPrisma.campaignContact.update.mockResolvedValueOnce({ id: 'cc-1', status: 'SKIPPED' })
 
     const baseUrl = await startTestServer()
@@ -258,5 +262,110 @@ describe('campaign routes', () => {
     expect(data[0].contact.name).toBe('Alice')
     expect(data[0].feedback).toBe('COMPLETED')
     expect(data[0].doNotDisturb).toBe(true)
+  })
+
+  it('allows a user to assign volunteers and auto-grants attendance taker access for new center members', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        phone: '6666666666',
+        canAccessAllCenters: false,
+        centers: [{ centerId: 'center-1', isApproved: true, role: 'USER' }]
+      })
+      .mockResolvedValueOnce({
+        phone: '9000000001',
+        canAccessAllCenters: false,
+        centers: []
+      })
+
+    mockPrisma.campaign.findFirst
+      .mockResolvedValueOnce({ id: 'campaign-1', centerId: 'center-1' })
+      .mockResolvedValueOnce({
+        id: 'campaign-1',
+        name: 'Week 1 Outreach',
+        centerId: 'center-1',
+        createdAt: new Date('2026-05-02T10:00:00.000Z'),
+        contacts: [],
+        volunteers: [
+          {
+            volunteerPhone: '9000000001',
+            volunteer: { phone: '9000000001', name: 'Volunteer One' }
+          }
+        ]
+      })
+    mockPrisma.campaignVolunteer.deleteMany.mockResolvedValueOnce({ count: 0 })
+    mockPrisma.campaignVolunteer.create.mockResolvedValueOnce({ id: 'cv-1' })
+    mockPrisma.userCenter.create.mockResolvedValueOnce({ id: 'membership-1' })
+
+    const baseUrl = await startTestServer()
+    const response = await fetch(`${baseUrl}/api/campaigns/campaign-1/volunteers`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': 'center-1',
+        ...authHeaderFor('6666666666')
+      },
+      body: JSON.stringify({ volunteerPhones: ['9000000001'] })
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockPrisma.userCenter.create).toHaveBeenCalledWith({
+      data: {
+        userPhone: '9000000001',
+        centerId: 'center-1',
+        role: 'ATTENDANCE_TAKER',
+        isApproved: true
+      }
+    })
+  })
+
+  it('approves pending center access instead of creating a duplicate membership when assigning campaign volunteers', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        phone: '7777777777',
+        canAccessAllCenters: false,
+        centers: [{ centerId: 'center-1', isApproved: true, role: 'ADMIN' }]
+      })
+      .mockResolvedValueOnce({
+        phone: '9000000002',
+        canAccessAllCenters: false,
+        centers: [{ centerId: 'center-1', isApproved: false, role: 'USER' }]
+      })
+
+    mockPrisma.campaign.findFirst
+      .mockResolvedValueOnce({ id: 'campaign-1', centerId: 'center-1' })
+      .mockResolvedValueOnce({
+        id: 'campaign-1',
+        name: 'Week 1 Outreach',
+        centerId: 'center-1',
+        createdAt: new Date('2026-05-02T10:00:00.000Z'),
+        contacts: [],
+        volunteers: [
+          {
+            volunteerPhone: '9000000002',
+            volunteer: { phone: '9000000002', name: 'Volunteer Two' }
+          }
+        ]
+      })
+    mockPrisma.campaignVolunteer.deleteMany.mockResolvedValueOnce({ count: 0 })
+    mockPrisma.campaignVolunteer.create.mockResolvedValueOnce({ id: 'cv-2' })
+    mockPrisma.userCenter.update.mockResolvedValueOnce({ id: 'membership-2' })
+
+    const baseUrl = await startTestServer()
+    const response = await fetch(`${baseUrl}/api/campaigns/campaign-1/volunteers`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': 'center-1',
+        ...authHeaderFor('7777777777')
+      },
+      body: JSON.stringify({ volunteerPhones: ['9000000002'] })
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockPrisma.userCenter.update).toHaveBeenCalledWith({
+      where: { userPhone_centerId: { userPhone: '9000000002', centerId: 'center-1' } },
+      data: { isApproved: true }
+    })
+    expect(mockPrisma.userCenter.create).not.toHaveBeenCalled()
   })
 })
