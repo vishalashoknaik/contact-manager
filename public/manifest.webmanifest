@@ -1,0 +1,9 @@
+{
+  "name": "Contact Manager",
+  "short_name": "Contacts",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#198754",
+  "description": "Manage contacts, attendance, and campaigns by center."
+}

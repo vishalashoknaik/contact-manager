@@ -143,13 +143,14 @@ function HomeContent() {
         <button
           onClick={() => router.push('/campaigns')}
           style={{
-            padding: '10px 16px',
+            padding: '12px 16px',
             backgroundColor: '#6f42c1',
             color: 'white',
             border: 'none',
             borderRadius: 4,
             cursor: 'pointer',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            flex: '1 1 180px'
           }}
         >
           📣 Campaigns
@@ -158,13 +159,14 @@ function HomeContent() {
         <button
           onClick={() => router.push('/attendance')}
           style={{
-            padding: '10px 16px',
+            padding: '12px 16px',
             backgroundColor: '#198754',
             color: 'white',
             border: 'none',
             borderRadius: 4,
             cursor: 'pointer',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            flex: '1 1 180px'
           }}
         >
           📝 Take Attendance
@@ -175,13 +177,14 @@ function HomeContent() {
             <button
               onClick={adminManager.toggleAdmin}
               style={{
-                padding: '10px 16px',
+                padding: '12px 16px',
                 backgroundColor: adminManager.isAdmin ? '#dc3545' : '#007bff',
                 color: 'white',
                 border: 'none',
                 borderRadius: 4,
                 cursor: 'pointer',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                flex: '1 1 180px'
               }}
             >
               {adminManager.isAdmin ? '👤 User Mode' : '⚙️ Admin Mode'}
@@ -193,13 +196,13 @@ function HomeContent() {
                   <button
                     onClick={adminManager.openSettingsView}
                     style={{
-                      marginLeft: 10,
-                      padding: '10px 16px',
+                      padding: '12px 16px',
                       backgroundColor: adminManager.activeView === 'settings' ? '#0d6efd' : '#6c757d',
                       color: 'white',
                       border: 'none',
                       borderRadius: 4,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      flex: '1 1 180px'
                     }}
                   >
                     Center Configuration
@@ -208,13 +211,13 @@ function HomeContent() {
                 <button
                   onClick={adminManager.openAccessView}
                   style={{
-                    marginLeft: 10,
-                    padding: '10px 16px',
+                    padding: '12px 16px',
                     backgroundColor: adminManager.activeView === 'access' ? '#0d6efd' : '#6c757d',
                     color: 'white',
                     border: 'none',
                     borderRadius: 4,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    flex: '1 1 180px'
                   }}
                 >
                   Access Control
@@ -289,13 +292,15 @@ function HomeContent() {
                   <button
                     onClick={() => setShowCampaignModal(true)}
                     style={{
-                      padding: '10px 16px',
+                        padding: '12px 16px',
                       backgroundColor: '#0d6efd',
                       color: 'white',
                       border: 'none',
                       borderRadius: 4,
                       cursor: 'pointer',
-                      fontWeight: 'bold'
+                        fontWeight: 'bold',
+                        width: '100%',
+                        maxWidth: 320
                     }}
                   >
                     Create Campaign ({selectedContactIds.length} selected)
@@ -380,15 +385,17 @@ export default function Home() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
           padding: '10px 20px',
           backgroundColor: 'var(--panel-bg, #f5f5f5)',
           borderBottom: '1px solid var(--border-color, #ddd)'
         }}
       >
-        <div style={{ fontSize: '14px', color: 'var(--text-secondary, #666)' }}>
+        <div style={{ fontSize: '14px', color: 'var(--text-secondary, #666)', flex: '1 1 280px' }}>
           Logged in as: <strong style={{ color: 'var(--text-primary, #333)' }}>{user?.name}</strong> ({user?.phone})
           {selectedCenter && (
-            <span style={{ marginLeft: '20px', color: 'var(--text-primary, #333)' }}>
+            <span style={{ marginLeft: '12px', color: 'var(--text-primary, #333)' }}>
               📍 Center: <strong>{selectedCenterDetails?.name}</strong>
             </span>
           )}
@@ -407,13 +414,14 @@ export default function Home() {
             window.location.href = '/'
           }}
           style={{
-            padding: '8px 16px',
+            padding: '10px 16px',
             backgroundColor: '#dc3545',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
             cursor: 'pointer',
-            fontSize: '14px'
+            fontSize: '14px',
+            minWidth: 120
           }}
         >
           Logout

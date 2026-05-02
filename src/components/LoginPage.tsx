@@ -76,17 +76,18 @@ export function LoginPage() {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'var(--background, #f5f5f5)'
+        backgroundColor: 'var(--background, #f5f5f5)',
+        padding: '16px'
       }}
     >
       <div
         style={{
           backgroundColor: 'var(--bg-primary, #fff)',
-          padding: '40px',
+          padding: 'clamp(20px, 5vw, 40px)',
           borderRadius: '8px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           width: '100%',
@@ -253,7 +254,7 @@ export function LoginPage() {
             disabled={isLoading}
             style={{
               width: '100%',
-              padding: '12px',
+              padding: '14px 16px',
               backgroundColor: registrationRequired ? '#0d6efd' : '#4CAF50',
               color: 'white',
               border: 'none',

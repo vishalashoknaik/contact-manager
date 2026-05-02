@@ -1,0 +1,8 @@
+node_modules
+.next
+coverage
+dist
+src/backend/node_modules
+src/backend/dist
+.git
+*.log

@@ -98,9 +98,9 @@ export default function CampaignsPage() {
   }
 
   const container: React.CSSProperties = {
-    padding: 20, fontFamily: 'system-ui, -apple-system, sans-serif',
+    padding: 'clamp(12px, 3vw, 20px)', fontFamily: 'system-ui, -apple-system, sans-serif',
     backgroundColor: 'var(--bg-primary, #fff)', color: 'var(--text-primary, #000)',
-    minHeight: '100vh'
+    minHeight: '100dvh'
   }
   const backBtn: React.CSSProperties = {
     padding: '8px 16px', borderRadius: 4, cursor: 'pointer',
@@ -135,9 +135,10 @@ export default function CampaignsPage() {
   )
 
   const filterInput: React.CSSProperties = {
-    padding: '6px 10px', borderRadius: 4,
+    padding: '10px 12px', borderRadius: 4,
     border: '1px solid var(--border-color, #ddd)',
-    backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)'
+    backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)',
+    flex: '1 1 180px'
   }
 
   const clearFilters = () => {
@@ -151,14 +152,14 @@ export default function CampaignsPage() {
   return (
     <div style={container}>
       {/* Header */}
-      <div style={{ marginBottom: 20, borderBottom: '1px solid var(--border-color, #ddd)', paddingBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ marginBottom: 20, borderBottom: '1px solid var(--border-color, #ddd)', paddingBottom: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button onClick={() => router.push('/')} style={backBtn}>← Home</button>
         <h2 style={{ margin: 0 }}>📣 Campaigns</h2>
         <button
           onClick={() => setShowFilters(v => !v)}
           style={{
             marginLeft: 'auto',
-            padding: '4px 10px',
+            padding: '10px 12px',
             borderRadius: 14,
             border: '1px solid var(--border-color, #ddd)',
             backgroundColor: 'transparent',
@@ -274,9 +275,10 @@ export default function CampaignsPage() {
               <button
                 onClick={() => startCalling('pending')}
                 style={{
-                  padding: '12px 24px', borderRadius: 4, cursor: 'pointer',
+                  padding: '14px 18px', borderRadius: 4, cursor: 'pointer',
                   border: 'none', backgroundColor: '#198754', color: '#fff',
-                  fontWeight: 'bold', fontSize: 15
+                  fontWeight: 'bold', fontSize: 15,
+                  flex: '1 1 220px'
                 }}
               >
                 📞 Call New Contacts
@@ -286,9 +288,10 @@ export default function CampaignsPage() {
               <button
                 onClick={() => startCalling('skipped')}
                 style={{
-                  padding: '12px 24px', borderRadius: 4, cursor: 'pointer',
+                  padding: '14px 18px', borderRadius: 4, cursor: 'pointer',
                   border: 'none', backgroundColor: '#fd7e14', color: '#fff',
-                  fontWeight: 'bold', fontSize: 15
+                  fontWeight: 'bold', fontSize: 15,
+                  flex: '1 1 220px'
                 }}
               >
                 🔄 Revisit Skipped ({selectedCampaign.skippedContacts})

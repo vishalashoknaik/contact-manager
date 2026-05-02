@@ -180,7 +180,7 @@ function SetupScreen({
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 20px' }}>
+    <div style={{ maxWidth: 600, margin: '0 auto', padding: '32px 16px' }}>
       <h2 style={{ marginBottom: 8 }}>📋 Attendance Session Setup</h2>
       <p style={{ color: 'var(--text-secondary, #666)', marginBottom: 16 }}>
         Give a session name and choose which programs, areas, or activities to track attendance for.
@@ -226,14 +226,15 @@ function SetupScreen({
           }}
           disabled={noneSelected}
           style={{
-            padding: '12px 28px',
+            padding: '14px 20px',
             backgroundColor: noneSelected ? '#adb5bd' : '#198754',
             color: '#fff',
             border: 'none',
             borderRadius: 6,
             fontSize: 15,
             fontWeight: 600,
-            cursor: noneSelected ? 'not-allowed' : 'pointer'
+            cursor: noneSelected ? 'not-allowed' : 'pointer',
+            width: '100%'
           }}
         >
           ▶ Start Attendance
@@ -256,7 +257,7 @@ function SetupScreen({
                   backgroundColor: 'var(--panel-bg, #fff)'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div>
                     <div style={{ fontWeight: 700 }}>{session.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginTop: 2 }}>
@@ -267,7 +268,7 @@ function SetupScreen({
                     type="button"
                     onClick={() => onResume(session)}
                     style={{
-                      padding: '8px 12px',
+                      padding: '10px 16px',
                       border: 'none',
                       borderRadius: 6,
                       backgroundColor: '#0d6efd',
@@ -1047,7 +1048,7 @@ export default function AttendancePage() {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         backgroundColor: 'var(--background, #f8f9fa)',
         color: 'var(--text-primary, #000)',
         fontFamily: 'system-ui, -apple-system, sans-serif'
@@ -1058,10 +1059,14 @@ export default function AttendancePage() {
         style={{
           backgroundColor: 'var(--bg-primary, #fff)',
           borderBottom: '1px solid var(--border-color, #dee2e6)',
-          padding: '12px 20px',
+          padding: '12px 16px',
           display: 'flex',
           alignItems: 'center',
-          gap: 12
+          gap: 12,
+          flexWrap: 'wrap',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10
         }}
       >
         <button
@@ -1078,7 +1083,7 @@ export default function AttendancePage() {
         >
           ←
         </button>
-        <span style={{ fontWeight: 600, fontSize: 16 }}>
+        <span style={{ fontWeight: 600, fontSize: 16, flex: '1 1 260px' }}>
           {(session ? 'Taking Attendance' : 'Attendance Setup') + ` - ${centerLabel}`}
         </span>
       </div>

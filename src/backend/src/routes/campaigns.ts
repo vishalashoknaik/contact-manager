@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -421,8 +421,8 @@ router.post('/:id/call-log', async (req: Request, res: Response) => {
 
     // Find the next contact in the same mode.
     // For skipped revisit mode, move forward from the current contact to avoid returning the same row again.
-    const nextStatus = callMode === 'skipped' ? 'SKIPPED' : 'PENDING'
-    const nextWhere =
+    const nextStatus: 'SKIPPED' | 'PENDING' = callMode === 'skipped' ? 'SKIPPED' : 'PENDING'
+    const nextWhere: Prisma.CampaignContactWhereInput =
       callMode === 'skipped'
         ? {
             campaignId: campaign.id,

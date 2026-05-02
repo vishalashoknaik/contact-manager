@@ -52,12 +52,12 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
   }
 
   const inputStyle: React.CSSProperties = {
-    padding: '7px 10px', borderRadius: 4,
+    padding: '10px 12px', borderRadius: 4,
     border: '1px solid var(--border-color, #ddd)',
     backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)'
   }
   const btn = (color: string): React.CSSProperties => ({
-    padding: '6px 12px', borderRadius: 4, cursor: 'pointer',
+    padding: '10px 14px', borderRadius: 4, cursor: 'pointer',
     border: 'none', backgroundColor: color, color: '#fff', fontSize: 13
   })
 
@@ -72,8 +72,8 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px 0' }}>
           {campaign.volunteers.map((v: CampaignVolunteer) => (
-            <li key={v.phone} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ flex: 1 }}>{v.name} ({v.phone})</span>
+            <li key={v.phone} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+              <span style={{ flex: '1 1 220px' }}>{v.name} ({v.phone})</span>
               <button
                 onClick={() => handleRemoveVolunteer(v.phone)}
                 disabled={isLoading}
@@ -86,12 +86,12 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
         </ul>
       )}
 
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <input
           value={addPhone}
           onChange={e => setAddPhone(e.target.value)}
           placeholder="Volunteer phone number"
-          style={{ ...inputStyle, flex: 1 }}
+          style={{ ...inputStyle, flex: '1 1 220px' }}
           onKeyDown={e => e.key === 'Enter' && handleAddVolunteer()}
         />
         <button onClick={handleAddVolunteer} disabled={isLoading} style={btn('#0d6efd')}>

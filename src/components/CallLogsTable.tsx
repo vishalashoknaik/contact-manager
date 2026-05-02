@@ -80,6 +80,9 @@ export function CallLogsTable({ logs }: CallLogsTableProps) {
 
   return (
     <div style={{ overflowX: 'auto' }}>
+      <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--text-secondary, #666)' }}>
+        On phones, swipe horizontally to review the full call log table.
+      </div>
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
         <thead>
           <tr>

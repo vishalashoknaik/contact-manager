@@ -79,7 +79,7 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, on
   const card: React.CSSProperties = {
     backgroundColor: 'var(--panel-bg, #f8f9fa)',
     border: '1px solid var(--border-color, #ddd)',
-    borderRadius: 8, padding: 24, maxWidth: 540, margin: '0 auto'
+    borderRadius: 8, padding: 'clamp(16px, 4vw, 24px)', maxWidth: 540, margin: '0 auto'
   }
   const label: React.CSSProperties = { display: 'block', fontWeight: 600, marginBottom: 6 }
   const inputStyle: React.CSSProperties = {
@@ -88,7 +88,7 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, on
     backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)',
     boxSizing: 'border-box'
   }
-  const checkboxRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }
+  const checkboxRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }
 
   if (current.done) {
     return (
@@ -128,7 +128,9 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, on
       }}>
         <div style={{ fontSize: 13, color: 'var(--text-secondary, #666)', marginBottom: 4 }}>Contact</div>
         <div style={{ fontWeight: 'bold', fontSize: 18 }}>{cc.contact.name}</div>
-        <div style={{ fontSize: 16, color: 'var(--text-secondary, #555)', marginTop: 4 }}>{cc.contact.phone}</div>
+        <a href={`tel:${cc.contact.phone}`} style={{ fontSize: 16, color: '#0d6efd', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
+          {cc.contact.phone}
+        </a>
       </div>
 
       {/* Feedback */}
@@ -193,12 +195,12 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, on
       )}
 
       {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button
           onClick={() => submit('submit')}
           disabled={isSubmitting}
           style={{
-            flex: 1, padding: '12px 0', borderRadius: 4, cursor: isSubmitting ? 'not-allowed' : 'pointer',
+            flex: '1 1 220px', padding: '14px 0', borderRadius: 4, cursor: isSubmitting ? 'not-allowed' : 'pointer',
             border: 'none', backgroundColor: '#198754', color: '#fff',
             fontWeight: 'bold', fontSize: 15, opacity: isSubmitting ? 0.7 : 1
           }}
@@ -209,7 +211,7 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, on
           onClick={() => submit('skip')}
           disabled={isSubmitting}
           style={{
-            flex: 1, padding: '12px 0', borderRadius: 4, cursor: isSubmitting ? 'not-allowed' : 'pointer',
+            flex: '1 1 220px', padding: '14px 0', borderRadius: 4, cursor: isSubmitting ? 'not-allowed' : 'pointer',
             border: '1px solid var(--border-color, #ddd)',
             backgroundColor: 'transparent', color: 'var(--text-primary, #000)',
             fontWeight: 'bold', fontSize: 15, opacity: isSubmitting ? 0.7 : 1
