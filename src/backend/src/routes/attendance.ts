@@ -74,6 +74,10 @@ function formatSession(
   }
 }
 
+function normalizePhone(phone: string) {
+  return phone.trim().replace(/\D/g, '')
+}
+
 router.get('/sessions', async (req: Request, res: Response) => {
   try {
     const centerId = req.headers['x-center-id'] as string | undefined
@@ -88,7 +92,6 @@ router.get('/sessions', async (req: Request, res: Response) => {
     const sessions = await prisma.attendanceSession.findMany({
       where: {
         centerId,
-        endedAt: null,
         volunteers: { some: { volunteerPhone: actor.phone } }
       },
       include: {
@@ -340,6 +343,132 @@ router.post('/sessions/:id/end', async (req: Request, res: Response) => {
   }
 })
 
+router.post('/sessions/:id/reopen', async (req: Request, res: Response) => {
+  try {
+    const centerId = req.headers['x-center-id'] as string | undefined
+    if (!centerId) return res.status(400).json({ error: 'Center ID is required' })
+
+    const actor = await getActor(req, res)
+    if (!actor) return
+    if (!canTakeAttendance(actor, centerId)) {
+      return res.status(403).json({ error: 'Attendance access is required' })
+    }
+
+    const session = await prisma.attendanceSession.findFirst({
+      where: { id: req.params.id, centerId },
+      include: {
+        volunteers: {
+          include: { volunteer: true },
+          orderBy: { createdAt: 'asc' }
+        }
+      }
+    })
+
+    if (!session) {
+      return res.status(404).json({ error: 'Attendance session not found' })
+    }
+
+    const actorInSession = session.volunteers.some(v => v.volunteerPhone === actor.phone)
+    if (!actorInSession) {
+      return res.status(403).json({ error: 'Only session volunteers can reopen this attendance session' })
+    }
+
+    const reopened = await prisma.attendanceSession.update({
+      where: { id: session.id },
+      data: { endedAt: null },
+      include: {
+        volunteers: {
+          include: { volunteer: true },
+          orderBy: { createdAt: 'asc' }
+        }
+      }
+    })
+
+    return res.json(formatSession(reopened))
+  } catch (err) {
+    console.error('Reopen attendance session error:', err)
+    return res.status(500).json({ error: 'Failed to reopen attendance session' })
+  }
+})
+
+router.delete('/sessions/:id', async (req: Request, res: Response) => {
+  try {
+    const centerId = req.headers['x-center-id'] as string | undefined
+    if (!centerId) return res.status(400).json({ error: 'Center ID is required' })
+
+    const actor = await getActor(req, res)
+    if (!actor) return
+    if (!canTakeAttendance(actor, centerId)) {
+      return res.status(403).json({ error: 'Attendance access is required' })
+    }
+
+    const session = await prisma.attendanceSession.findFirst({
+      where: { id: req.params.id, centerId },
+      include: { volunteers: true }
+    })
+
+    if (!session) {
+      return res.status(404).json({ error: 'Attendance session not found' })
+    }
+
+    const actorInSession = session.volunteers.some(v => v.volunteerPhone === actor.phone)
+    if (!actorInSession) {
+      return res.status(403).json({ error: 'Only session volunteers can delete this attendance session' })
+    }
+
+    await prisma.attendanceSession.delete({
+      where: { id: session.id }
+    })
+
+    return res.json({ success: true })
+  } catch (err) {
+    console.error('Delete attendance session error:', err)
+    return res.status(500).json({ error: 'Failed to delete attendance session' })
+  }
+})
+
+router.get('/sessions/:id/attendees', async (req: Request, res: Response) => {
+  try {
+    const centerId = req.headers['x-center-id'] as string | undefined
+    if (!centerId) return res.status(400).json({ error: 'Center ID is required' })
+
+    const actor = await getActor(req, res)
+    if (!actor) return
+    if (!canTakeAttendance(actor, centerId)) {
+      return res.status(403).json({ error: 'Attendance access is required' })
+    }
+
+    const session = await prisma.attendanceSession.findFirst({
+      where: { id: req.params.id, centerId },
+      include: { volunteers: true }
+    })
+
+    if (!session) {
+      return res.status(404).json({ error: 'Attendance session not found' })
+    }
+
+    const actorInSession = session.volunteers.some(v => v.volunteerPhone === actor.phone)
+    if (!actorInSession) {
+      return res.status(403).json({ error: 'Only session volunteers can view attendees for this attendance session' })
+    }
+
+    const attendees = await prisma.attendanceSessionEntry.findMany({
+      where: { sessionId: session.id },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    return res.json(attendees.map(entry => ({
+      id: entry.id,
+      name: entry.contactName,
+      phone: entry.contactPhone,
+      submittedAt: entry.createdAt.toISOString()
+    })))
+  } catch (err) {
+    console.error('List attendance session attendees error:', err)
+    return res.status(500).json({ error: 'Failed to list attendance session attendees' })
+  }
+})
+
 /**
  * GET /api/attendance/lookup?phone=xxx
  * Look up a contact by phone number for a center.
@@ -409,7 +538,8 @@ router.post('/submit', async (req: Request, res: Response) => {
       areaOfStay,
       activities = [],
       areas = [],
-      programs = []
+      programs = [],
+      sessionId
     } = req.body
 
     if (!name || !phone) {
@@ -417,6 +547,33 @@ router.post('/submit', async (req: Request, res: Response) => {
     }
     if (!centerId) {
       return res.status(400).json({ error: 'Center ID is required' })
+    }
+
+    let activeSession: { id: string; volunteers: Array<{ volunteerPhone: string }> } | null = null
+    let sessionActorPhone: string | null = null
+
+    if (sessionId) {
+      const actor = await getActor(req, res)
+      if (!actor) return
+      if (!canTakeAttendance(actor, centerId)) {
+        return res.status(403).json({ error: 'Attendance access is required' })
+      }
+
+      activeSession = await prisma.attendanceSession.findFirst({
+        where: { id: sessionId, centerId, endedAt: null },
+        include: { volunteers: true }
+      })
+
+      if (!activeSession) {
+        return res.status(404).json({ error: 'Active attendance session not found' })
+      }
+
+      const actorInSession = activeSession.volunteers.some(v => v.volunteerPhone === actor.phone)
+      if (!actorInSession) {
+        return res.status(403).json({ error: 'Only session volunteers can submit attendance for this session' })
+      }
+
+      sessionActorPhone = actor.phone
     }
 
     const existingContact = await prisma.contact.findUnique({
@@ -498,6 +655,18 @@ router.post('/submit', async (req: Request, res: Response) => {
         where: { contactId_programId: { contactId: contact.id, programId: program.id } },
         create: { contactId: contact.id, programId: program.id, count: 1 },
         update: { count: { increment: 1 } }
+      })
+    }
+
+    if (activeSession) {
+      await prisma.attendanceSessionEntry.create({
+        data: {
+          sessionId: activeSession.id,
+          contactId: contact.id,
+          contactName: contact.name,
+          contactPhone: normalizePhone(contact.phone),
+          submittedByPhone: sessionActorPhone
+        }
       })
     }
 

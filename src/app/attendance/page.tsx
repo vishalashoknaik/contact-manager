@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useConfig } from '@/hooks/useConfig'
 import { attendanceApi } from '@/lib/api/client'
 import type { AttendanceSession } from '@/lib/api/client'
+import type { AttendanceSessionAttendee } from '@/lib/api/client'
 import type { Gender } from '@/lib/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -96,7 +97,9 @@ function SetupScreen({
   programs,
   sessions,
   onStart,
-  onResume
+  onResume,
+  onReopen,
+  onDelete
 }: {
   activities: string[]
   areas: string[]
@@ -104,6 +107,8 @@ function SetupScreen({
   sessions: AttendanceSession[]
   onStart: (config: SessionConfig) => void | Promise<void>
   onResume: (session: AttendanceSession) => void
+  onReopen: (session: AttendanceSession) => void | Promise<void>
+  onDelete: (session: AttendanceSession) => void | Promise<void>
 }) {
   const [selected, setSelected] = useState<SessionConfig>({
     name: 'Attendance Session',
@@ -261,24 +266,63 @@ function SetupScreen({
                   <div>
                     <div style={{ fontWeight: 700 }}>{session.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginTop: 2 }}>
-                      {new Date(session.createdAt).toLocaleString()} · {session.volunteers.length} volunteer{session.volunteers.length !== 1 ? 's' : ''}
+                      {new Date(session.createdAt).toLocaleString()} · {session.volunteers.length} volunteer{session.volunteers.length !== 1 ? 's' : ''} · {session.endedAt ? 'Ended' : 'Active'}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => onResume(session)}
-                    style={{
-                      padding: '10px 16px',
-                      border: 'none',
-                      borderRadius: 6,
-                      backgroundColor: '#0d6efd',
-                      color: '#fff',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Continue
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {session.endedAt ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void onReopen(session)
+                        }}
+                        style={{
+                          padding: '10px 16px',
+                          border: 'none',
+                          borderRadius: 6,
+                          backgroundColor: '#198754',
+                          color: '#fff',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Reopen
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onResume(session)}
+                        style={{
+                          padding: '10px 16px',
+                          border: 'none',
+                          borderRadius: 6,
+                          backgroundColor: '#0d6efd',
+                          color: '#fff',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Continue
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void onDelete(session)
+                      }}
+                      style={{
+                        padding: '10px 16px',
+                        border: 'none',
+                        borderRadius: 6,
+                        backgroundColor: '#dc3545',
+                        color: '#fff',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -292,17 +336,21 @@ function SetupScreen({
 // ─── Attendance Entry Screen ───────────────────────────────────────────────────
 
 function AttendanceEntry({
+  sessionId,
+  centerId,
   session,
   storageKey,
   volunteers,
   onAddVolunteer,
   onEndSession
 }: {
+  sessionId: string
+  centerId: string
   session: SessionConfig
   storageKey: string
   volunteers: Array<{ phone: string; name: string }>
   onAddVolunteer: (phone: string) => Promise<void>
-  onEndSession: () => void
+  onEndSession: () => Promise<void>
 }) {
   const [form, setForm] = useState<AttendeeForm>(EMPTY_FORM)
   const [lookupStatus, setLookupStatus] = useState<'idle' | 'loading' | 'found' | 'new'>('idle')
@@ -319,13 +367,18 @@ function AttendanceEntry({
   const [newVolunteerPhone, setNewVolunteerPhone] = useState('')
   const [addingVolunteer, setAddingVolunteer] = useState(false)
   const [sessionAccessError, setSessionAccessError] = useState<string | null>(null)
+  const [serverAttendees, setServerAttendees] = useState<AttendanceSessionAttendee[]>([])
   const phoneRef = useRef<HTMLInputElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const lookupRequestRef = useRef<Promise<'found' | 'new' | undefined> | null>(null)
   const lastLookupPhoneRef = useRef('')
 
-  const count = records.length
-  const sessionAttendees = records
+  const pendingRecords = records.filter(record => record.status === 'pending')
+  const count = serverAttendees.length + pendingRecords.length
+  const sessionAttendees: Array<SessionAttendee | PersistedAttendanceRecord> = [
+    ...pendingRecords,
+    ...serverAttendees
+  ]
   const pendingCount = records.filter(record => record.status === 'pending').length
 
   // Focus phone field on mount and after each submission
@@ -339,6 +392,34 @@ function AttendanceEntry({
     }
     savePersistedAttendanceState(storageKey, { session, records })
   }, [persistEnabled, records, session, storageKey])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadAttendees = async () => {
+      try {
+        const attendees = await attendanceApi.listSessionAttendees(sessionId, centerId)
+        if (!cancelled) {
+          setServerAttendees(attendees)
+          setSessionAccessError(null)
+        }
+      } catch {
+        if (!cancelled) {
+          setSessionAccessError('Unable to refresh attendee list right now. Retrying...')
+        }
+      }
+    }
+
+    void loadAttendees()
+    const interval = window.setInterval(() => {
+      void loadAttendees()
+    }, 3000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [centerId, sessionId])
 
   function setField<K extends keyof AttendeeForm>(key: K, value: AttendeeForm[K]) {
     setForm(prev => ({ ...prev, [key]: value }))
@@ -444,13 +525,11 @@ function AttendanceEntry({
 
       setRecords(prev => [optimisticRecord, ...prev])
 
-      await attendanceApi.submit(payload)
+      await attendanceApi.submit({ ...payload, sessionId }, centerId)
 
-      setRecords(prev => prev.map(record => (
-        record.id === recordId
-          ? { ...record, status: 'synced', error: undefined }
-          : record
-      )))
+      setRecords(prev => prev.filter(record => record.id !== recordId))
+      const attendees = await attendanceApi.listSessionAttendees(sessionId, centerId)
+      setServerAttendees(attendees)
 
       setLastSubmitted(form.name.trim())
       setForm(EMPTY_FORM)
@@ -475,10 +554,8 @@ function AttendanceEntry({
 
     for (const record of records.filter(item => item.status === 'pending')) {
       try {
-        await attendanceApi.submit(record.payload)
-        setRecords(prev => prev.map(item => (
-          item.id === record.id ? { ...item, status: 'synced', error: undefined } : item
-        )))
+        await attendanceApi.submit({ ...record.payload, sessionId }, centerId)
+        setRecords(prev => prev.filter(item => item.id !== record.id))
       } catch (err: any) {
         hasFailure = true
         const message = err?.message || 'Failed to record attendance'
@@ -486,6 +563,13 @@ function AttendanceEntry({
           item.id === record.id ? { ...item, error: message } : item
         )))
       }
+    }
+
+    try {
+      const attendees = await attendanceApi.listSessionAttendees(sessionId, centerId)
+      setServerAttendees(attendees)
+    } catch {
+      // Best effort refresh
     }
 
     return !hasFailure
@@ -505,7 +589,7 @@ function AttendanceEntry({
 
       setPersistEnabled(false)
       clearPersistedAttendanceState(storageKey)
-      onEndSession()
+      await onEndSession()
     } finally {
       setSubmitting(false)
     }
@@ -961,7 +1045,12 @@ function AttendanceEntry({
                       )}
                     </div>
                     <div style={{ color: 'var(--text-secondary, #666)', fontSize: 12, whiteSpace: 'nowrap' }}>
-                      {attendee.submittedAt}
+                      {'status' in attendee
+                        ? attendee.submittedAt
+                        : new Date(attendee.submittedAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
                     </div>
                   </div>
                 ))
@@ -1088,8 +1177,10 @@ export default function AttendancePage() {
         </span>
       </div>
 
-      {session ? (
+      {session && sessionId ? (
         <AttendanceEntry
+          sessionId={sessionId}
+          centerId={selectedCenter}
           session={session}
           storageKey={storageKey}
           volunteers={sessionVolunteers}
@@ -1104,12 +1195,13 @@ export default function AttendancePage() {
             if (selectedCenter && sessionId) {
               await attendanceApi.endSession(sessionId, selectedCenter)
             }
-            setAvailableSessions(prev => prev.filter(item => item.id !== sessionId))
+            setAvailableSessions(prev => prev.map(item => (
+              item.id === sessionId ? { ...item, endedAt: new Date().toISOString() } : item
+            )))
             setSession(null)
             setSessionId(null)
             setSessionVolunteers([])
             setSessionError(null)
-            router.push('/')
           }}
         />
       ) : (
@@ -1128,6 +1220,47 @@ export default function AttendancePage() {
             setSession(resumedSession)
             setSessionId(selected.id)
             setSessionVolunteers(selected.volunteers)
+          }}
+          onReopen={async selected => {
+            if (!selectedCenter) return
+            setSessionError(null)
+            try {
+              const reopened = await attendanceApi.reopenSession(selected.id, selectedCenter)
+              const reopenedSession = {
+                name: reopened.name,
+                activities: reopened.activities,
+                areas: reopened.areas,
+                programs: reopened.programs
+              }
+              setSession(reopenedSession)
+              setSessionId(reopened.id)
+              setSessionVolunteers(reopened.volunteers)
+              setAvailableSessions(prev => [reopened, ...prev.filter(item => item.id !== reopened.id)])
+              if (storageKey) {
+                savePersistedAttendanceState(storageKey, { session: reopenedSession, records: [] })
+              }
+            } catch (err: any) {
+              setSessionError(err?.message || 'Failed to reopen attendance session')
+            }
+          }}
+          onDelete={async selected => {
+            if (!selectedCenter) return
+            const shouldDelete = window.confirm(`Delete attendance session \"${selected.name}\"? This cannot be undone.`)
+            if (!shouldDelete) return
+
+            setSessionError(null)
+            try {
+              await attendanceApi.deleteSession(selected.id, selectedCenter)
+              setAvailableSessions(prev => prev.filter(item => item.id !== selected.id))
+              if (sessionId === selected.id) {
+                clearPersistedAttendanceState(storageKey)
+                setSession(null)
+                setSessionId(null)
+                setSessionVolunteers([])
+              }
+            } catch (err: any) {
+              setSessionError(err?.message || 'Failed to delete attendance session')
+            }
           }}
           onStart={async cfg => {
             if (!selectedCenter) return

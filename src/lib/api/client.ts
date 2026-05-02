@@ -354,6 +354,32 @@ export const attendanceApi = {
     return handleResponse<{ success: true }>(response)
   },
 
+  reopenSession: async (sessionId: string, centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/attendance/sessions/${encodeURIComponent(sessionId)}/reopen`, {
+      method: 'POST',
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse<AttendanceSession>(response)
+  },
+
+  deleteSession: async (sessionId: string, centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/attendance/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse<{ success: true }>(response)
+  },
+
+  listSessionAttendees: async (sessionId: string, centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/attendance/sessions/${encodeURIComponent(sessionId)}/attendees`, {
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse<AttendanceSessionAttendee[]>(response)
+  },
+
   lookup: async (phone: string, centerId?: string) => {
     const resolvedCenterId = resolveCenterId(centerId)
     const response = await fetch(
@@ -376,6 +402,7 @@ export const attendanceApi = {
       activities?: string[]
       areas?: string[]
       programs?: string[]
+      sessionId?: string
     },
     centerId?: string
   ) => {
@@ -399,6 +426,13 @@ export interface AttendanceSession {
   createdAt: string
   endedAt: string | null
   volunteers: Array<{ phone: string; name: string }>
+}
+
+export interface AttendanceSessionAttendee {
+  id: string
+  name: string
+  phone: string
+  submittedAt: string
 }
 
 /**

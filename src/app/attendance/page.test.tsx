@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   startSession: vi.fn(),
   addSessionVolunteer: vi.fn(),
   endSession: vi.fn(),
+  reopenSession: vi.fn(),
+  deleteSession: vi.fn(),
+  listSessionAttendees: vi.fn(),
   lookup: vi.fn(),
   submit: vi.fn()
 }))
@@ -55,6 +58,9 @@ vi.mock('@/lib/api/client', () => ({
     startSession: mocks.startSession,
     addSessionVolunteer: mocks.addSessionVolunteer,
     endSession: mocks.endSession,
+    reopenSession: mocks.reopenSession,
+    deleteSession: mocks.deleteSession,
+    listSessionAttendees: mocks.listSessionAttendees,
     lookup: mocks.lookup,
     submit: mocks.submit
   }
@@ -91,11 +97,15 @@ describe('AttendancePage', () => {
     mocks.startSession.mockReset()
     mocks.addSessionVolunteer.mockReset()
     mocks.endSession.mockReset()
+    mocks.reopenSession.mockReset()
+    mocks.deleteSession.mockReset()
+    mocks.listSessionAttendees.mockReset()
     mocks.lookup.mockReset()
     mocks.submit.mockReset()
 
     mocks.listSessions.mockResolvedValue([])
     mocks.getActiveSession.mockResolvedValue({ active: false })
+    mocks.listSessionAttendees.mockResolvedValue([])
     mocks.startSession.mockResolvedValue({
       id: 'session-1',
       name: 'Test Session',
@@ -122,6 +132,8 @@ describe('AttendancePage', () => {
       ]
     })
     mocks.endSession.mockResolvedValue({ success: true })
+    mocks.reopenSession.mockResolvedValue(createSession())
+    mocks.deleteSession.mockResolvedValue({ success: true })
   })
 
   it('shows the selected center name on the attendance page', () => {
@@ -165,6 +177,16 @@ describe('AttendancePage', () => {
 
     mocks.lookup.mockResolvedValueOnce({ found: false })
     mocks.submit.mockResolvedValueOnce({ success: true, contactId: 'contact-1' })
+    mocks.listSessionAttendees
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: 'entry-1',
+          name: 'Alice',
+          phone: '9999999999',
+          submittedAt: new Date('2026-05-02T10:05:00.000Z').toISOString()
+        }
+      ])
 
     await renderAndResumeSession(user)
 
@@ -192,6 +214,16 @@ describe('AttendancePage', () => {
 
     mocks.lookup.mockResolvedValueOnce({ found: false })
     mocks.submit.mockResolvedValueOnce({ success: true, contactId: 'contact-1' })
+    mocks.listSessionAttendees
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: 'entry-1',
+          name: 'Alice',
+          phone: '9999999999',
+          submittedAt: new Date('2026-05-02T10:05:00.000Z').toISOString()
+        }
+      ])
 
     await renderAndResumeSession(user)
 
@@ -374,12 +406,13 @@ describe('AttendancePage', () => {
         areaOfStay: 'Downtown',
         activities: ['Walkathon'],
         areas: ['Downtown'],
-        programs: ['Youth Program']
-      })
+        programs: ['Youth Program'],
+        sessionId: 'session-1'
+      }, 'center-1')
     })
 
     expect(localStorage.getItem('attendance-session:center-1')).toBeNull()
-    expect(mocks.push).toHaveBeenCalledWith('/')
+    expect(screen.getByText('Attendance Setup - Center One')).toBeInTheDocument()
   })
 
   it('retries pending records from the retry button and updates their status', async () => {
@@ -447,5 +480,48 @@ describe('AttendancePage', () => {
     await user.click(screen.getByRole('button', { name: /session attendees/i }))
 
     expect(screen.queryByText(/Pending sync:/)).not.toBeInTheDocument()
+  })
+
+  it('reopens an ended session from setup', async () => {
+    const user = userEvent.setup()
+
+    mocks.listSessions.mockResolvedValueOnce([
+      {
+        ...createSession('session-ended', 'Ended Session'),
+        endedAt: new Date('2026-05-02T11:00:00.000Z').toISOString()
+      }
+    ])
+    mocks.reopenSession.mockResolvedValueOnce(
+      createSession('session-ended', 'Ended Session')
+    )
+
+    render(<AttendancePage />)
+
+    await user.click(await screen.findByRole('button', { name: /reopen/i }))
+
+    await waitFor(() => {
+      expect(mocks.reopenSession).toHaveBeenCalledWith('session-ended', 'center-1')
+    })
+    expect(screen.getByText('Taking Attendance - Center One')).toBeInTheDocument()
+  })
+
+  it('deletes a session from setup after confirmation', async () => {
+    const user = userEvent.setup()
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    mocks.listSessions.mockResolvedValueOnce([
+      createSession('session-delete', 'Delete Me')
+    ])
+
+    render(<AttendancePage />)
+
+    await user.click(await screen.findByRole('button', { name: /delete/i }))
+
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalled()
+      expect(mocks.deleteSession).toHaveBeenCalledWith('session-delete', 'center-1')
+    })
+
+    expect(screen.queryByText('Delete Me')).not.toBeInTheDocument()
   })
 })

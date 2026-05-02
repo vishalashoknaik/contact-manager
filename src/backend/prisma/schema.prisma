@@ -76,6 +76,7 @@ model Contact {
   areas            ContactArea[]
   programs         ContactProgram[]
   campaignContacts CampaignContact[]
+  attendanceEntries AttendanceSessionEntry[]
 
   @@unique([phone, centerId])
   @@map("contacts")
@@ -237,8 +238,23 @@ model AttendanceSession {
   createdAt     DateTime @default(now())
 
   volunteers    AttendanceSessionVolunteer[]
+  entries       AttendanceSessionEntry[]
 
   @@map("attendance_sessions")
+}
+
+model AttendanceSessionEntry {
+  id              String            @id @default(uuid())
+  session         AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId       String
+  contact         Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId       String
+  contactName     String
+  contactPhone    String
+  submittedByPhone String?
+  createdAt       DateTime          @default(now())
+
+  @@map("attendance_session_entries")
 }
 
 model AttendanceSessionVolunteer {

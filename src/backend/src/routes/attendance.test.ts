@@ -39,7 +39,12 @@ const mockPrisma = {
     findFirst: vi.fn(),
     create: vi.fn(),
     findUnique: vi.fn(),
-    update: vi.fn()
+    update: vi.fn(),
+    delete: vi.fn()
+  },
+  attendanceSessionEntry: {
+    findMany: vi.fn(),
+    create: vi.fn()
   },
   attendanceSessionVolunteer: {
     create: vi.fn()
@@ -582,5 +587,310 @@ describe('attendance route', () => {
       data: { isApproved: true }
     })
     expect(mockPrisma.attendanceSessionVolunteer.create).not.toHaveBeenCalled()
+  })
+
+  it('allows a session volunteer to reopen an ended attendance session', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Ended Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: new Date('2026-05-02T11:00:00.000Z'),
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        }
+      ]
+    })
+    mockPrisma.attendanceSession.update.mockResolvedValueOnce({
+      id: 'session-1',
+      name: 'Ended Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [
+        {
+          volunteerPhone: '1111111111',
+          volunteer: { phone: '1111111111', name: 'Volunteer One' }
+        }
+      ]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/reopen`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      }
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockPrisma.attendanceSession.update).toHaveBeenCalledWith({
+      where: { id: 'session-1' },
+      data: { endedAt: null },
+      include: {
+        volunteers: {
+          include: { volunteer: true },
+          orderBy: { createdAt: 'asc' }
+        }
+      }
+    })
+  })
+
+  it('allows a session volunteer to delete an attendance session', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      volunteers: [{ volunteerPhone: '1111111111' }]
+    })
+    mockPrisma.attendanceSession.delete.mockResolvedValueOnce({ id: 'session-1' })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      }
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockPrisma.attendanceSession.delete).toHaveBeenCalledWith({
+      where: { id: 'session-1' }
+    })
+  })
+
+  it('returns shared session attendees for volunteers', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      volunteers: [{ volunteerPhone: '1111111111' }]
+    })
+    mockPrisma.attendanceSessionEntry.findMany.mockResolvedValueOnce([
+      {
+        id: 'entry-1',
+        contactName: 'Synced Person',
+        contactPhone: '9999999999',
+        createdAt: new Date('2026-05-02T10:05:00.000Z')
+      }
+    ])
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/attendees`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      }
+    })
+
+    expect(response.status).toBe(200)
+    const data = await response.json() as Array<{ name: string; phone: string }>
+    expect(data).toHaveLength(1)
+    expect(data[0].name).toBe('Synced Person')
+    expect(data[0].phone).toBe('9999999999')
+  })
+
+  it('stores a session attendee entry when attendance is submitted with an active session id', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      volunteers: [{ volunteerPhone: '1111111111' }]
+    })
+    mockPrisma.contact.findUnique.mockResolvedValueOnce(null)
+    mockPrisma.contact.upsert.mockResolvedValueOnce({
+      id: 'contact-22',
+      name: 'Session Person',
+      phone: '1231231234'
+    })
+    mockPrisma.attendanceSessionEntry.create.mockResolvedValueOnce({ id: 'entry-22' })
+
+    const response = await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      },
+      body: JSON.stringify({
+        name: 'Session Person',
+        phone: '1231231234',
+        gender: 'Female',
+        ieDate: '2026 Batch',
+        areaOfStay: 'Downtown',
+        sessionId: 'session-1',
+        activities: [],
+        areas: [],
+        programs: []
+      })
+    })
+
+    expect(response.status).toBe(201)
+    expect(mockPrisma.attendanceSessionEntry.create).toHaveBeenCalledWith({
+      data: {
+        sessionId: 'session-1',
+        contactId: 'contact-22',
+        contactName: 'Session Person',
+        contactPhone: '1231231234',
+        submittedByPhone: '1111111111'
+      }
+    })
+  })
+
+  it('rejects reopening a session when actor is not in session volunteers', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      volunteers: [
+        {
+          volunteerPhone: '2222222222',
+          volunteer: { phone: '2222222222', name: 'Other Volunteer' }
+        }
+      ]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/reopen`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      }
+    })
+
+    expect(response.status).toBe(403)
+    expect(mockPrisma.attendanceSession.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects deleting a session when actor is not in session volunteers', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      volunteers: [{ volunteerPhone: '3333333333' }]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      }
+    })
+
+    expect(response.status).toBe(403)
+    expect(mockPrisma.attendanceSession.delete).not.toHaveBeenCalled()
+  })
+
+  it('rejects attendee listing when actor is not in session volunteers', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      volunteers: [{ volunteerPhone: '4444444444' }]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/attendees`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      }
+    })
+
+    expect(response.status).toBe(403)
+    expect(mockPrisma.attendanceSessionEntry.findMany).not.toHaveBeenCalled()
+  })
+
+  it('rejects attendance submit when session id is not active', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce(null)
+
+    const response = await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': centerId,
+        ...authHeaderFor('1111111111')
+      },
+      body: JSON.stringify({
+        name: 'Session Person',
+        phone: '1231231234',
+        gender: 'Female',
+        ieDate: '2026 Batch',
+        areaOfStay: 'Downtown',
+        sessionId: 'missing-session',
+        activities: [],
+        areas: [],
+        programs: []
+      })
+    })
+
+    expect(response.status).toBe(404)
+    expect(mockPrisma.contact.upsert).not.toHaveBeenCalled()
+    expect(mockPrisma.attendanceSessionEntry.create).not.toHaveBeenCalled()
   })
 })
