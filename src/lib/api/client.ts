@@ -446,6 +446,8 @@ export interface AttendanceSession {
   programs: string[]
   createdAt: string
   endedAt: string | null
+  attendanceTakerCount?: number
+  attendeeCount?: number
   volunteers: Array<{ phone: string; name: string }>
 }
 

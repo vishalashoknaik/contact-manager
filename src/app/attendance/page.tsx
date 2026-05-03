@@ -211,7 +211,7 @@ function SetupScreen({
                   <div>
                     <div style={{ fontWeight: 700 }}>{session.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginTop: 2 }}>
-                      {new Date(session.createdAt).toLocaleString()} · {session.volunteers.length} volunteer{session.volunteers.length !== 1 ? 's' : ''} · {session.endedAt ? 'Ended' : 'Active'}
+                      {new Date(session.createdAt).toLocaleString()} · {session.attendeeCount ?? 0} attendee{(session.attendeeCount ?? 0) !== 1 ? 's' : ''} · {(session.attendanceTakerCount ?? session.volunteers.length)} attendance taker{(session.attendanceTakerCount ?? session.volunteers.length) !== 1 ? 's' : ''} · {session.endedAt ? 'Ended' : 'Active'}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -372,6 +372,7 @@ function AttendanceEntry({
   const [addingVolunteer, setAddingVolunteer] = useState(false)
   const [sessionAccessError, setSessionAccessError] = useState<string | null>(null)
   const [serverAttendees, setServerAttendees] = useState<AttendanceSessionAttendee[]>([])
+  const [attendeeDataSyncing, setAttendeeDataSyncing] = useState(true)
   const phoneRef = useRef<HTMLInputElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const lookupRequestRef = useRef<Promise<'found' | 'new' | undefined> | null>(null)
@@ -401,15 +402,18 @@ function AttendanceEntry({
     let cancelled = false
 
     const loadAttendees = async () => {
+      setAttendeeDataSyncing(true)
       try {
         const attendees = await attendanceApi.listSessionAttendees(sessionId, centerId)
         if (!cancelled) {
           setServerAttendees(attendees)
           setSessionAccessError(null)
+          setAttendeeDataSyncing(false)
         }
       } catch {
         if (!cancelled) {
           setSessionAccessError('Unable to refresh attendee list right now. Retrying...')
+          setAttendeeDataSyncing(false)
         }
       }
     }
@@ -680,7 +684,7 @@ function AttendanceEntry({
               ))}
             </div>
             <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-secondary, #666)' }}>
-              Volunteers: {volunteers.length} assigned
+              Attendance Takers: {volunteers.length} assigned
             </div>
             <div style={{ marginTop: 8 }}>
               <button
@@ -696,7 +700,7 @@ function AttendanceEntry({
                   fontSize: 12
                 }}
               >
-                {showAddVolunteer ? '▲ hide volunteers' : '+ volunteers'}
+                {showAddVolunteer ? '▲ hide attendance takers' : '+ attendance takers'}
               </button>
             </div>
             {showAddVolunteer && (
@@ -711,11 +715,11 @@ function AttendanceEntry({
               >
                 <div style={{ marginBottom: 12 }}>
                   <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #000)' }}>
-                    Assigned Volunteers
+                    Assigned Attendance Takers
                   </h4>
                   {volunteers.length === 0 ? (
                     <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)' }}>
-                      No volunteers assigned yet
+                      No attendance takers assigned yet
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -729,12 +733,12 @@ function AttendanceEntry({
                 </div>
                 <div style={{ borderTop: '1px solid var(--border-color, #dee2e6)', paddingTop: 12, marginTop: 12 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-primary, #000)' }}>
-                    Add Volunteer by Phone
+                    Add Attendance Taker by Phone
                   </label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input
                       type="tel"
-                      placeholder="Volunteer phone"
+                      placeholder="Attendance taker phone"
                       value={newVolunteerPhone}
                       onChange={e => setNewVolunteerPhone(e.target.value)}
                       style={{ ...inputStyle, maxWidth: 180, flex: 1 }}
@@ -764,6 +768,11 @@ function AttendanceEntry({
             {sessionAccessError && (
               <div style={{ marginTop: 8, color: '#842029', fontSize: 12 }}>
                 {sessionAccessError}
+              </div>
+            )}
+            {attendeeDataSyncing && (
+              <div style={{ marginTop: 8, color: '#856404', fontSize: 12 }}>
+                Data is yet to update. Syncing latest attendee details...
               </div>
             )}
           </div>
@@ -1080,33 +1089,50 @@ export default function AttendancePage() {
   const [availableSessions, setAvailableSessions] = useState<AttendanceSession[]>([])
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [session, setSession] = useState<SessionConfig | null>(null)
+  const [sessionDataSyncing, setSessionDataSyncing] = useState(true)
+  const [showSessionSyncNotice, setShowSessionSyncNotice] = useState(true)
 
   useEffect(() => {
     if (!selectedCenter) return
     let cancelled = false
+    let refreshTimer: number | null = null
+    let refreshInterval: number | null = null
 
-    const initializeSession = async () => {
+    setSessionDataSyncing(true)
+    setShowSessionSyncNotice(true)
+    setSession(null)
+    setSessionId(null)
+    setSessionVolunteers([])
+
+    const loadSessions = async () => {
+      setSessionDataSyncing(true)
       try {
         const sessions = await attendanceApi.listSessions(selectedCenter)
         if (cancelled) return
 
         setAvailableSessions(sessions)
-        setSession(null)
-        setSessionId(null)
-        setSessionVolunteers([])
+        setSessionDataSyncing(false)
+        setShowSessionSyncNotice(false)
       } catch {
         if (cancelled) return
         setAvailableSessions([])
-        setSession(null)
-        setSessionId(null)
-        setSessionVolunteers([])
+        setSessionDataSyncing(false)
       }
     }
 
-    initializeSession()
+    void loadSessions()
+    refreshTimer = window.setTimeout(() => {
+      void loadSessions()
+    }, 2000)
+
+    refreshInterval = window.setInterval(() => {
+      void loadSessions()
+    }, 15000)
 
     return () => {
       cancelled = true
+      if (refreshTimer) window.clearTimeout(refreshTimer)
+      if (refreshInterval) window.clearInterval(refreshInterval)
     }
   }, [selectedCenter])
 
@@ -1180,6 +1206,22 @@ export default function AttendancePage() {
           {(session ? 'Taking Attendance' : 'Attendance Setup') + ` - ${centerLabel}`}
         </span>
       </div>
+
+      {(showSessionSyncNotice || sessionDataSyncing) && (
+        <div
+          style={{
+            margin: '12px 16px 0',
+            padding: '8px 12px',
+            borderRadius: 6,
+            backgroundColor: '#fff3cd',
+            border: '1px solid #ffe69c',
+            color: '#856404',
+            fontSize: 13
+          }}
+        >
+          Data is yet to update. Syncing latest session details...
+        </div>
+      )}
 
       {session && sessionId ? (
         <AttendanceEntry

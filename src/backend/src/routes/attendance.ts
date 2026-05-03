@@ -56,6 +56,10 @@ function formatSession(
     createdAt: Date
     endedAt: Date | null
     volunteers: Array<{ volunteerPhone: string; volunteer: { phone: string; name: string } }>
+    _count?: {
+      volunteers: number
+      entries: number
+    }
   }
 ) {
   return {
@@ -67,6 +71,8 @@ function formatSession(
     programs: session.programs,
     createdAt: session.createdAt.toISOString(),
     endedAt: session.endedAt ? session.endedAt.toISOString() : null,
+    attendanceTakerCount: session._count?.volunteers ?? session.volunteers.length,
+    attendeeCount: session._count?.entries ?? 0,
     volunteers: session.volunteers.map(v => ({
       phone: v.volunteer.phone,
       name: v.volunteer.name
@@ -98,6 +104,12 @@ router.get('/sessions', async (req: Request, res: Response) => {
         volunteers: {
           include: { volunteer: true },
           orderBy: { createdAt: 'asc' }
+        },
+        _count: {
+          select: {
+            volunteers: true,
+            entries: true
+          }
         }
       },
       orderBy: { createdAt: 'desc' }
