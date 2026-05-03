@@ -24,9 +24,39 @@ function parseAllowedOrigins() {
 
 const allowedOrigins = parseAllowedOrigins()
 
+function normalizeOrigin(origin: string) {
+  return origin.trim().replace(/\/$/, '')
+}
+
+function isOriginAllowed(origin: string, configuredOrigins: string[]) {
+  const normalizedOrigin = normalizeOrigin(origin)
+
+  return configuredOrigins.some(configured => {
+    const normalizedConfigured = normalizeOrigin(configured)
+
+    if (normalizedConfigured.startsWith('*.')) {
+      return normalizedOrigin.endsWith(normalizedConfigured.slice(1))
+    }
+
+    return normalizedOrigin === normalizedConfigured
+  })
+}
+
 // Middleware
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true)
+      return
+    }
+
+    if (isOriginAllowed(origin, allowedOrigins)) {
+      callback(null, true)
+      return
+    }
+
+    callback(new Error(`Origin not allowed by CORS: ${origin}`))
+  },
   credentials: true
 }))
 app.set('trust proxy', 1)
