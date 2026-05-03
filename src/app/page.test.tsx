@@ -167,6 +167,25 @@ describe('Home page', () => {
     localStorage.clear()
   })
 
+  it('hides campaigns and attendance actions in admin mode and restores them in user mode', async () => {
+    const user = userEvent.setup()
+
+    render(<Home />)
+
+    expect(screen.getByRole('button', { name: /campaigns/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /take attendance/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /admin mode/i }))
+
+    expect(screen.queryByRole('button', { name: /campaigns/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /take attendance/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /user mode/i }))
+
+    expect(screen.getByRole('button', { name: /campaigns/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /take attendance/i })).toBeInTheDocument()
+  })
+
   it('covers admin mode, add contact, filters, sorting, bulk actions, and csv import flow', async () => {
     const user = userEvent.setup()
     vi.mocked(CSVService.handleFileImport).mockResolvedValue([

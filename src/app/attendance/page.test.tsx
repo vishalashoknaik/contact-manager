@@ -142,6 +142,29 @@ describe('AttendancePage', () => {
     expect(screen.getByText('Attendance Setup - Center One')).toBeInTheDocument()
   })
 
+  it('shows existing sessions before the create new session section', async () => {
+    mocks.listSessions.mockResolvedValueOnce([
+      {
+        id: 'session-1',
+        name: 'Existing Session',
+        centerId: 'center-1',
+        activities: ['Walkathon'],
+        areas: ['Downtown'],
+        programs: ['Youth Program'],
+        createdAt: new Date('2026-05-02T10:00:00.000Z').toISOString(),
+        endedAt: null,
+        volunteers: [{ phone: '1111111111', name: 'Primary Volunteer' }]
+      }
+    ])
+
+    render(<AttendancePage />)
+
+    const sessionsHeading = await screen.findByText('Your Available Sessions')
+    const createHeading = await screen.findByText('Create New Session')
+
+    expect(sessionsHeading.compareDocumentPosition(createHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('uses the IE Date placeholder and does not render helper copy under session attendees', async () => {
     const user = userEvent.setup()
 
