@@ -10,7 +10,7 @@ interface ActionBarProps {
   onActivityChange: (activity: string) => void
   onAreaChange: (area: string) => void
   onProgramChange: (program: string) => void
-  onIncrement: () => void
+  onIncrement: () => void | Promise<void>
 }
 
 export function ActionBar({
@@ -88,7 +88,7 @@ export function ActionBar({
         onClick={onIncrement}
         style={buttonStyle}
       >
-        +1 (Selected)
+        Update
       </button>
     </div>
   )

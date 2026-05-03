@@ -196,12 +196,12 @@ export function useContacts() {
   ) => {
     if (!selectedCenter) {
       setError('No center selected. Increments are not persisted.')
-      return
+      return false
     }
 
     if (!useBackend) {
       setError('Backend unavailable. Increments are not persisted.')
-      return
+      return false
     }
 
     const updated = ContactService.incrementSelected(
@@ -221,9 +221,11 @@ export function useContacts() {
       await syncContactsToBackend(changedContacts)
       await refreshFromBackend()
       setError(null)
+      return true
     } catch (err) {
       console.error('Backend increment sync failed:', err)
       setError('Failed to persist increments to backend.')
+      return false
     }
   }
 
@@ -252,7 +254,7 @@ export function useContacts() {
   const clearAllSelections = async () => {
     if (!selectedCenter) {
       setError('No center selected. Cannot clear selections.')
-      return
+      return false
     }
 
     if (useBackend) {
@@ -262,15 +264,16 @@ export function useContacts() {
         )
         await refreshFromBackend()
         setError(null)
-        return
+        return true
       } catch (err) {
         console.error('Backend clear failed:', err)
         setError('Failed to clear selections in backend.')
-        return
+        return false
       }
     }
 
     setError('Backend unavailable. Cannot clear selections.')
+    return false
   }
 
   return {

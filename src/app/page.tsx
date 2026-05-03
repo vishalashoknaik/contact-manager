@@ -24,6 +24,7 @@ const VERSION = 'v2.0.0'
 function HomeContent() {
   const router = useRouter()
   const [showCampaignModal, setShowCampaignModal] = useState(false)
+  const [bulkActionFeedback, setBulkActionFeedback] = useState<string | null>(null)
   const contactsManager = useContacts()
   const configManager = useConfig()
   const filteringManager = useFiltering()
@@ -85,12 +86,32 @@ function HomeContent() {
     contactsManager.importContacts(contacts)
   }
 
-  const handleIncrement = () => {
-    contactsManager.incrementSelected(
+  const handleIncrement = async () => {
+    setBulkActionFeedback(null)
+
+    if (selectedContactIds.length === 0) {
+      setBulkActionFeedback('Select at least one contact to update.')
+      return
+    }
+
+    const updateSuccessful = await contactsManager.incrementSelected(
       actionSelectors.activity.value,
       actionSelectors.area.value,
       actionSelectors.program.value
     )
+
+    if (!updateSuccessful) {
+      setBulkActionFeedback('Update failed. Please try again.')
+      return
+    }
+
+    const clearSuccessful = await contactsManager.clearAllSelections()
+    if (!clearSuccessful) {
+      setBulkActionFeedback('Updated successfully, but failed to clear selection.')
+      return
+    }
+
+    setBulkActionFeedback('Update completed. Selection cleared.')
   }
 
   const handleFilterChange = (filterName: string, value: string) => {
@@ -290,6 +311,21 @@ function HomeContent() {
                 onProgramChange={actionSelectors.program.setValue}
                 onIncrement={handleIncrement}
               />
+
+              {bulkActionFeedback && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: '10px 12px',
+                    borderRadius: 4,
+                    backgroundColor: 'var(--panel-bg, #f8f9fa)',
+                    border: '1px solid var(--border-color, #ddd)',
+                    color: 'var(--text-primary, #000)'
+                  }}
+                >
+                  {bulkActionFeedback}
+                </div>
+              )}
 
               {selectedContactIds.length > 0 && (
                 <div style={{ marginTop: 10 }}>

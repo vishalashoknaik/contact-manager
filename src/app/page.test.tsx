@@ -246,17 +246,22 @@ describe('Home page', () => {
       expect(screen.getByText('Manual User')).toBeInTheDocument()
     })
 
-    const rowsBeforeImport = container.querySelectorAll('tbody tr')
-    await user.click(within(rowsBeforeImport[0]).getByRole('checkbox'))
-
     const combos = screen.getAllByRole('combobox')
     const actionCombos = combos.slice(-4, -1)
     await user.selectOptions(actionCombos[0], 'Walkathon')
     await user.selectOptions(actionCombos[1], 'Area1')
     await user.selectOptions(actionCombos[2], 'Program1')
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /create campaign \(1 selected\)/i })).toBeInTheDocument()
+    })
     
-    // Click increment button (increment logic is tested in unit tests)
-    await user.click(screen.getByRole('button', { name: '+1 (Selected)' }))
+    await user.click(screen.getByRole('button', { name: 'Update' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Update completed. Selection cleared.')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /create campaign \(1 selected\)/i })).not.toBeInTheDocument()
+    })
 
     const filterInputs = screen.getAllByPlaceholderText('Filter...')
     await user.clear(filterInputs[0])
