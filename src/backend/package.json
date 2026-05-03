@@ -8,10 +8,10 @@
     "dev": "tsx watch src/server.ts",
     "build": "npm run prisma:generate && tsc",
     "start": "node dist/server.js",
-    "start:prod": "npm run start",
+    "start:prod": "PRISMA_QUERY_ENGINE_LIBRARY=/app/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node npm run start",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:deploy:render": "PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x,debian-openssl-1.1.x prisma migrate deploy",
+    "prisma:deploy:render": "PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:generate": "prisma generate"
   },
