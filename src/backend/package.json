@@ -8,7 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "start:prod": "npm run prisma:generate && npm run prisma:deploy && npm run start",
+    "start:prod": "PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x npm run prisma:generate && PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x npm run prisma:deploy && npm run start",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
