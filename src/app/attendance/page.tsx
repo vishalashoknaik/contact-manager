@@ -118,7 +118,7 @@ function SetupScreen({
   })
 
   function toggle(
-    category: keyof SessionConfig,
+    category: Exclude<keyof SessionConfig, 'name'>,
     value: string,
     checked: boolean
   ) {
@@ -142,7 +142,7 @@ function SetupScreen({
   }: {
     label: string
     items: string[]
-    category: keyof SessionConfig
+    category: Exclude<keyof SessionConfig, 'name'>
   }) {
     if (items.length === 0) return null
     return (
