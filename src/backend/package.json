@@ -6,11 +6,12 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "npm run prisma:generate && tsc",
     "start": "node dist/server.js",
-    "start:prod": "PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x,debian-openssl-1.1.x npm run prisma:generate && PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x,debian-openssl-1.1.x npm run prisma:deploy && npm run start",
+    "start:prod": "npm run start",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
+    "prisma:deploy:render": "PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x,debian-openssl-1.1.x prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:generate": "prisma generate"
   },
