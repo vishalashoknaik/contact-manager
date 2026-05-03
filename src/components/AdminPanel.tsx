@@ -77,7 +77,7 @@ export function AdminPanel({
   }
 
   const getManagedUserRole = (managedUser: ManagedUser | (ManagedUser & { isCenterAdmin?: boolean })) =>
-    managedUser.centerRole || (managedUser.isCenterAdmin ? 'ADMIN' : 'USER')
+    managedUser.centerRole || ('isCenterAdmin' in managedUser && managedUser.isCenterAdmin ? 'ADMIN' : 'USER')
 
   const grantableRoles =
     selectedCenterDetails?.capabilities?.grantableRoles ||
