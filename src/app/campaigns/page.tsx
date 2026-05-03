@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import { campaignsApi, Campaign, CallLog, NextContactResult } from '@/lib/api/client'
+import { campaignsApi, contactsApi, Campaign, CallLog, NextContactResult } from '@/lib/api/client'
 import { VolunteerPanel } from '@/components/VolunteerPanel'
 import { CampaignCallScreen } from '@/components/CampaignCallScreen'
 import { CallLogsTable } from '@/components/CallLogsTable'
@@ -26,6 +26,17 @@ export default function CampaignsPage() {
   const [campaignVolunteerFilter, setCampaignVolunteerFilter] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editingContact, setEditingContact] = useState<{ id: string; name: string; phone: string } | null>(null)
+  const [contactNameDraft, setContactNameDraft] = useState('')
+  const [contactPhoneDraft, setContactPhoneDraft] = useState('')
+  const [isSavingContact, setIsSavingContact] = useState(false)
+  const [editingLog, setEditingLog] = useState<CallLog | null>(null)
+  const [editFeedback, setEditFeedback] = useState<'COMPLETED' | 'NO_RESPONSE' | 'CONNECT_LATER'>('COMPLETED')
+  const [editCenterChange, setEditCenterChange] = useState(false)
+  const [editDnd, setEditDnd] = useState(false)
+  const [editNotInterested, setEditNotInterested] = useState(false)
+  const [editRemarks, setEditRemarks] = useState('')
+  const [isSavingLog, setIsSavingLog] = useState(false)
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -94,6 +105,73 @@ export default function CampaignsPage() {
       setNextSkipped(skipped)
     } catch {
       // silent refresh failure
+    }
+  }
+
+  const openContactEditor = (contact: { id: string; name: string; phone: string }) => {
+    setEditingContact(contact)
+    setContactNameDraft(contact.name)
+    setContactPhoneDraft(contact.phone)
+  }
+
+  const saveContactEdit = async () => {
+    if (!editingContact || !selectedCenter) return
+
+    setIsSavingContact(true)
+    setError(null)
+    try {
+      await contactsApi.update(
+        editingContact.id,
+        {
+          name: contactNameDraft.trim(),
+          phone: contactPhoneDraft.trim()
+        },
+        selectedCenter
+      )
+      setEditingContact(null)
+      await refreshCampaign()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update contact')
+    } finally {
+      setIsSavingContact(false)
+    }
+  }
+
+  const openLogEditor = (log: CallLog) => {
+    setEditingLog(log)
+    setEditFeedback(log.feedback)
+    setEditCenterChange(log.centerChange)
+    setEditDnd(log.doNotDisturb)
+    setEditNotInterested(log.notInterestedToVolunteer)
+    setEditRemarks(log.remarks || '')
+  }
+
+  const saveLogEdit = async () => {
+    if (!editingLog || !selectedCampaign || !selectedCenter) return
+
+    setIsSavingLog(true)
+    setError(null)
+    try {
+      await campaignsApi.submitCallLog(
+        selectedCampaign.id,
+        {
+          campaignContactId: editingLog.campaignContactId,
+          feedback: editFeedback,
+          centerChange: editCenterChange,
+          doNotDisturb: editDnd,
+          notInterestedToVolunteer: editNotInterested,
+          remarks: editRemarks.trim() || undefined,
+          action: editingLog.status === 'SKIPPED' ? 'skip' : 'submit',
+          mode: editingLog.status === 'SKIPPED' ? 'skipped' : 'pending'
+        },
+        selectedCenter
+      )
+      setEditingLog(null)
+      await refreshCampaign()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update call log')
+    } finally {
+      setIsSavingLog(false)
     }
   }
 
@@ -315,10 +393,46 @@ export default function CampaignsPage() {
             </div>
           )}
 
+          {/* Contacts table */}
+          <div style={{ marginBottom: 24 }}>
+            <h4 style={{ marginBottom: 12 }}>Contacts ({selectedCampaign.contacts.length})</h4>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginBottom: 8 }}>
+              Click a contact row to edit basic info.
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid var(--border-color, #ddd)', padding: '6px 8px', textAlign: 'left' }}>Name</th>
+                    <th style={{ border: '1px solid var(--border-color, #ddd)', padding: '6px 8px', textAlign: 'left' }}>Phone</th>
+                    <th style={{ border: '1px solid var(--border-color, #ddd)', padding: '6px 8px', textAlign: 'left' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedCampaign.contacts.map(cc => (
+                    <tr
+                      key={cc.campaignContactId}
+                      onClick={() => openContactEditor(cc.contact)}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to edit contact"
+                    >
+                      <td style={{ border: '1px solid var(--border-color, #eee)', padding: '6px 8px', fontSize: 13 }}>{cc.contact.name}</td>
+                      <td style={{ border: '1px solid var(--border-color, #eee)', padding: '6px 8px', fontSize: 13 }}>{cc.contact.phone}</td>
+                      <td style={{ border: '1px solid var(--border-color, #eee)', padding: '6px 8px', fontSize: 13 }}>{cc.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Call Logs table */}
           <div>
             <h4 style={{ marginBottom: 12 }}>Call Log ({callLogs.length})</h4>
-            <CallLogsTable logs={callLogs} />
+            <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginBottom: 8 }}>
+              Click a call log row to edit feedback and flags.
+            </div>
+            <CallLogsTable logs={callLogs} onLogClick={openLogEditor} />
           </div>
         </div>
       )}
@@ -355,6 +469,66 @@ export default function CampaignsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {editingContact && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 1000 }}>
+          <div style={{ width: '100%', maxWidth: 460, backgroundColor: 'var(--bg-primary, #fff)', border: '1px solid var(--border-color, #ddd)', borderRadius: 8, padding: 16 }}>
+            <h4 style={{ marginTop: 0, marginBottom: 12 }}>Edit Contact</h4>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Name</label>
+              <input value={contactNameDraft} onChange={e => setContactNameDraft(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Phone</label>
+              <input value={contactPhoneDraft} onChange={e => setContactPhoneDraft(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditingContact(null)} disabled={isSavingContact} style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', backgroundColor: 'transparent', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={saveContactEdit} disabled={isSavingContact} style={{ padding: '8px 12px', borderRadius: 4, border: 'none', backgroundColor: '#0d6efd', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+                {isSavingContact ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingLog && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 1000 }}>
+          <div style={{ width: '100%', maxWidth: 520, backgroundColor: 'var(--bg-primary, #fff)', border: '1px solid var(--border-color, #ddd)', borderRadius: 8, padding: 16 }}>
+            <h4 style={{ marginTop: 0, marginBottom: 12 }}>Edit Call Log</h4>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginBottom: 12 }}>
+              {editingLog.contact.name} · {editingLog.contact.phone}
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Feedback</label>
+              <select value={editFeedback} onChange={e => setEditFeedback(e.target.value as 'COMPLETED' | 'NO_RESPONSE' | 'CONNECT_LATER')} style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)' }}>
+                <option value="COMPLETED">Completed</option>
+                <option value="NO_RESPONSE">No Response</option>
+                <option value="CONNECT_LATER">Connect Later</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+              <label><input type="checkbox" checked={editCenterChange} onChange={e => setEditCenterChange(e.target.checked)} /> Center Change</label>
+              <label><input type="checkbox" checked={editDnd} onChange={e => setEditDnd(e.target.checked)} /> Do Not Disturb</label>
+              <label><input type="checkbox" checked={editNotInterested} onChange={e => setEditNotInterested(e.target.checked)} /> Not Interested to Volunteer</label>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Remarks</label>
+              <textarea value={editRemarks} onChange={e => setEditRemarks(e.target.value)} rows={3} style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditingLog(null)} disabled={isSavingLog} style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', backgroundColor: 'transparent', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={saveLogEdit} disabled={isSavingLog} style={{ padding: '8px 12px', borderRadius: 4, border: 'none', backgroundColor: '#198754', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+                {isSavingLog ? 'Saving...' : 'Save Feedback'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

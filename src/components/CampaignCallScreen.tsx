@@ -27,6 +27,7 @@ const feedbackOptions: { value: Feedback; label: string }[] = [
 
 export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, onDone }: CampaignCallScreenProps) {
   const [current, setCurrent] = useState<CurrentContact | { done: true }>(initialNext)
+  const [previous, setPrevious] = useState<CurrentContact | null>(null)
   const [feedback, setFeedback] = useState<Feedback>('COMPLETED')
   const [centerChange, setCenterChange] = useState(false)
   const [doNotDisturb, setDoNotDisturb] = useState(false)
@@ -63,6 +64,7 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, on
     setError(null)
     try {
       const result = await campaignsApi.submitCallLog(campaignId, payload, centerId)
+      setPrevious(cc)
       resetForm()
       if (result.next.done) {
         setCurrent({ done: true })
@@ -196,6 +198,23 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, on
 
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => {
+            if (!previous) return
+            setCurrent(previous)
+            setPrevious(null)
+          }}
+          disabled={isSubmitting || !previous}
+          style={{
+            flex: '1 1 220px', padding: '14px 0', borderRadius: 4,
+            cursor: isSubmitting || !previous ? 'not-allowed' : 'pointer',
+            border: '1px solid var(--border-color, #ddd)',
+            backgroundColor: '#f8f9fa', color: 'var(--text-primary, #000)',
+            fontWeight: 'bold', fontSize: 15, opacity: isSubmitting || !previous ? 0.6 : 1
+          }}
+        >
+          Previous Contact
+        </button>
         <button
           onClick={() => submit('submit')}
           disabled={isSubmitting}

@@ -161,7 +161,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 router.patch('/:id', async (req: Request, res: Response) => {
   try {
     const centerId = req.headers['x-center-id'] as string | undefined
-    const { selected, importOrder } = req.body
+    const { selected, importOrder, name, phone } = req.body
 
     if (!centerId) {
       return res.status(400).json({ error: 'Center ID is required' })
@@ -176,11 +176,23 @@ router.patch('/:id', async (req: Request, res: Response) => {
     }
 
     const { gender, ieDate, areaOfStay, remarks } = req.body
+    const nextName = typeof name === 'string' ? name.trim() : undefined
+    const nextPhone = typeof phone === 'string' ? phone.trim() : undefined
+
+    if (name !== undefined && !nextName) {
+      return res.status(400).json({ error: 'Name cannot be empty' })
+    }
+    if (phone !== undefined && !nextPhone) {
+      return res.status(400).json({ error: 'Phone cannot be empty' })
+    }
+
     const contact = await prisma.contact.update({
       where: { id: req.params.id },
       data: {
         selected: selected !== undefined ? selected : undefined,
         importOrder: importOrder !== undefined ? importOrder : undefined,
+        name: nextName,
+        phone: nextPhone,
         gender: gender !== undefined ? gender : undefined,
         ieDate: ieDate !== undefined ? (ieDate || null) : undefined,
         areaOfStay: areaOfStay !== undefined ? areaOfStay : undefined,

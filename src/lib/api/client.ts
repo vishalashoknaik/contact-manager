@@ -206,7 +206,16 @@ export const contactsApi = {
 
   update: async (
     id: string | number,
-    data: Partial<{ selected: boolean; importOrder?: number }>,
+    data: Partial<{
+      selected: boolean
+      importOrder?: number
+      name: string
+      phone: string
+      gender: 'Male' | 'Female' | 'Other'
+      ieDate: string
+      areaOfStay: string
+      remarks: string
+    }>,
     centerId?: string
   ) => {
     const response = await fetch(`${API_BASE_URL}/contacts/${id}`, {
@@ -500,6 +509,7 @@ export interface Campaign {
 
 export interface CallLog {
   id: string
+  campaignContactId: string
   calledAt: string
   volunteerPhone: string
   contact: { id: string; name: string; phone: string }

@@ -5,6 +5,7 @@ import { CallLog } from '@/lib/api/client'
 
 interface CallLogsTableProps {
   logs: CallLog[]
+  onLogClick?: (log: CallLog) => void
 }
 
 const feedbackLabel: Record<string, string> = {
@@ -13,7 +14,7 @@ const feedbackLabel: Record<string, string> = {
   CONNECT_LATER: 'Connect Later'
 }
 
-export function CallLogsTable({ logs }: CallLogsTableProps) {
+export function CallLogsTable({ logs, onLogClick }: CallLogsTableProps) {
   const [calledAtFilter, setCalledAtFilter] = useState('')
   const [contactFilter, setContactFilter] = useState('')
   const [phoneFilter, setPhoneFilter] = useState('')
@@ -112,7 +113,12 @@ export function CallLogsTable({ logs }: CallLogsTableProps) {
         </thead>
         <tbody>
           {filteredLogs.map(log => (
-            <tr key={log.id}>
+            <tr
+              key={log.id}
+              onClick={() => onLogClick?.(log)}
+              style={onLogClick ? { cursor: 'pointer' } : undefined}
+              title={onLogClick ? 'Click to edit feedback' : undefined}
+            >
               <td style={td}>{new Date(log.calledAt).toLocaleString()}</td>
               <td style={td}>{log.contact.name}</td>
               <td style={td}>{log.contact.phone}</td>

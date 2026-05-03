@@ -495,6 +495,7 @@ router.get('/:id/call-logs', async (req: Request, res: Response) => {
     return res.json(
       logs.map(log => ({
         id: log.id,
+        campaignContactId: log.campaignContactId,
         calledAt: log.calledAt.toISOString(),
         volunteerPhone: log.volunteerPhone,
         contact: {
