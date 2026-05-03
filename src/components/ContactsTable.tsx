@@ -39,12 +39,16 @@ export function ContactsTable({
   onAreaFilterChange,
   onProgramFilterChange
 }: ContactsTableProps) {
-  const thCheckbox = { width: 40, border: '1px solid var(--border-color, #ddd)', padding: 6, backgroundColor: 'var(--th-bg, #f5f5f5)', color: 'var(--text-primary, #000)' }
-  const tdCheckbox = { width: 40, border: '1px solid var(--border-color, #eee)', padding: 6 }
-  const th = { border: '1px solid var(--border-color, #ddd)', padding: 6, cursor: 'pointer', userSelect: 'none' as const, backgroundColor: 'var(--th-bg, #f5f5f5)', color: 'var(--text-primary, #000)' }
-  const td = { border: '1px solid var(--border-color, #eee)', padding: 6, color: 'var(--text-primary, #000)' }
-  const tdCenter = { border: '1px solid var(--border-color, #eee)', padding: 6, textAlign: 'center' as const, color: 'var(--text-primary, #000)' }
+  const thCheckbox = { width: 56, minWidth: 56, border: '1px solid var(--border-color, #ddd)', padding: 6, backgroundColor: 'var(--th-bg, #f5f5f5)', color: 'var(--text-primary, #000)' }
+  const tdCheckbox = { width: 56, minWidth: 56, border: '1px solid var(--border-color, #eee)', padding: 6 }
+  const th = { border: '1px solid var(--border-color, #ddd)', padding: 6, cursor: 'pointer', userSelect: 'none' as const, backgroundColor: 'var(--th-bg, #f5f5f5)', color: 'var(--text-primary, #000)', whiteSpace: 'nowrap' as const }
+  const td = { border: '1px solid var(--border-color, #eee)', padding: 6, color: 'var(--text-primary, #000)', whiteSpace: 'nowrap' as const, verticalAlign: 'top' as const }
+  const tdCenter = { border: '1px solid var(--border-color, #eee)', padding: 6, textAlign: 'center' as const, color: 'var(--text-primary, #000)', whiteSpace: 'nowrap' as const, verticalAlign: 'top' as const }
   const inputStyle = { width: '100%', padding: 4, boxSizing: 'border-box' as const, backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)', border: '1px solid var(--border-color, #ddd)' }
+  const stickyHeader = { position: 'sticky' as const, top: 0, zIndex: 20, backgroundColor: 'var(--th-bg, #f5f5f5)' }
+  const stickyFilter = { position: 'sticky' as const, top: 44, zIndex: 19, backgroundColor: 'var(--th-bg, #f5f5f5)' }
+  const stickyFirstColumnHeader = { position: 'sticky' as const, left: 0, zIndex: 25, backgroundColor: 'var(--th-bg, #f5f5f5)' }
+  const stickyFirstColumnCell = { position: 'sticky' as const, left: 0, zIndex: 10, backgroundColor: 'var(--bg-primary, #fff)' }
 
   const getSortIndicator = (key: string) => {
     if (sortState.key !== key) return ''
@@ -52,66 +56,80 @@ export function ContactsTable({
   }
 
   return (
-    <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginTop: 10 }}>
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '100%',
+        overflowX: 'auto',
+        overflowY: 'auto',
+        maxHeight: '72dvh',
+        border: '1px solid var(--border-color, #ddd)',
+        borderRadius: 6,
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehavior: 'contain',
+        touchAction: 'pan-x pan-y'
+      }}
+    >
+    <table style={{ minWidth: 1200, width: '100%', tableLayout: 'auto', borderCollapse: 'collapse', marginTop: 0 }}>
       <thead>
         {/* Header Row */}
         <tr>
-          <th style={thCheckbox}>
+          <th style={{ ...thCheckbox, ...stickyHeader, ...stickyFirstColumnHeader }}>
             <input
               type="checkbox"
               checked={allSelected}
               onChange={onToggleSelectAll}
             />
           </th>
-          <th style={th} onClick={() => onToggleSort('name')}>
+          <th style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort('name')}>
             Name{getSortIndicator('name')}
           </th>
-          <th style={th} onClick={() => onToggleSort('phone')}>
+          <th style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort('phone')}>
             Phone{getSortIndicator('phone')}
           </th>
-          <th style={th} onClick={() => onToggleSort('gender')}>
+          <th style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort('gender')}>
             Gender{getSortIndicator('gender')}
           </th>
-          <th style={th} onClick={() => onToggleSort('ieDate')}>
+          <th style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort('ieDate')}>
             IE Date{getSortIndicator('ieDate')}
           </th>
-          <th style={th} onClick={() => onToggleSort('areaOfStay')}>
+          <th style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort('areaOfStay')}>
             Area of Stay{getSortIndicator('areaOfStay')}
           </th>
-          <th style={th}>
+          <th style={{ ...th, ...stickyHeader }}>
             Remarks
           </th>
 
           {activities.map(a => (
-            <th key={a} style={th} onClick={() => onToggleSort(a)}>
+            <th key={a} style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort(a)}>
               {a}
               {getSortIndicator(a)}
             </th>
           ))}
           {areas.map(a => (
-            <th key={a} style={th} onClick={() => onToggleSort(a)}>
+            <th key={a} style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort(a)}>
               {a}
               {getSortIndicator(a)}
             </th>
           ))}
           {programs.map(p => (
-            <th key={p} style={th} onClick={() => onToggleSort(p)}>
+            <th key={p} style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort(p)}>
               {p}
               {getSortIndicator(p)}
             </th>
           ))}
 
-          <th style={th} onClick={() => onToggleSort('total')}>
+          <th style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort('total')}>
             Total{getSortIndicator('total')}
           </th>
-          <th style={th} onClick={() => onToggleSort('lastUpdated')}>
+          <th style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort('lastUpdated')}>
             Updated{getSortIndicator('lastUpdated')}
           </th>
         </tr>
 
         {/* Filter Row */}
         <tr>
-          <th style={thCheckbox}>
+          <th style={{ ...thCheckbox, ...stickyFilter, ...stickyFirstColumnHeader }}>
             <button
               onClick={onClearSelections}
               style={{
@@ -129,7 +147,7 @@ export function ContactsTable({
               Clear
             </button>
           </th>
-          <th style={th}>
+          <th style={{ ...th, ...stickyFilter }}>
             <input
               type="text"
               placeholder="Filter..."
@@ -138,7 +156,7 @@ export function ContactsTable({
               style={inputStyle}
             />
           </th>
-          <th style={th}>
+          <th style={{ ...th, ...stickyFilter }}>
             <input
               type="text"
               placeholder="Filter..."
@@ -147,7 +165,7 @@ export function ContactsTable({
               style={inputStyle}
             />
           </th>
-          <th style={th}>
+          <th style={{ ...th, ...stickyFilter }}>
             <select
               value={filters.genderFilter}
               onChange={e => onFilterChange('gender', e.target.value)}
@@ -159,8 +177,8 @@ export function ContactsTable({
               <option value="Other">Other</option>
             </select>
           </th>
-          <th style={th}></th>
-          <th style={th}>
+          <th style={{ ...th, ...stickyFilter }}></th>
+          <th style={{ ...th, ...stickyFilter }}>
             <input
               type="text"
               placeholder="Filter..."
@@ -169,10 +187,10 @@ export function ContactsTable({
               style={inputStyle}
             />
           </th>
-          <th style={th}></th>
+          <th style={{ ...th, ...stickyFilter }}></th>
 
           {activities.map(a => (
-            <th key={a} style={th}>
+            <th key={a} style={{ ...th, ...stickyFilter }}>
               <input
                 type="text"
                 placeholder="Min"
@@ -183,7 +201,7 @@ export function ContactsTable({
             </th>
           ))}
           {areas.map(a => (
-            <th key={a} style={th}>
+            <th key={a} style={{ ...th, ...stickyFilter }}>
               <input
                 type="text"
                 placeholder="Min"
@@ -194,7 +212,7 @@ export function ContactsTable({
             </th>
           ))}
           {programs.map(p => (
-            <th key={p} style={th}>
+            <th key={p} style={{ ...th, ...stickyFilter }}>
               <input
                 type="text"
                 placeholder="Min"
@@ -205,7 +223,7 @@ export function ContactsTable({
             </th>
           ))}
 
-          <th style={th}>
+          <th style={{ ...th, ...stickyFilter }}>
             <input
               type="text"
               placeholder="Min"
@@ -214,7 +232,7 @@ export function ContactsTable({
               style={inputStyle}
             />
           </th>
-          <th style={th}>
+          <th style={{ ...th, ...stickyFilter }}>
             <input
               type="date"
               value={filters.dateFilter}
@@ -228,7 +246,7 @@ export function ContactsTable({
       <tbody>
         {contacts.map(c => (
           <tr key={c.id}>
-            <td style={tdCheckbox}>
+            <td style={{ ...tdCheckbox, ...stickyFirstColumnCell }}>
               <input
                 type="checkbox"
                 checked={c.selected}
@@ -265,5 +283,6 @@ export function ContactsTable({
         ))}
       </tbody>
     </table>
+    </div>
   )
 }
