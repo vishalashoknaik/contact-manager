@@ -12,15 +12,18 @@ const mockPrisma = {
   },
   activity: {
     findUnique: vi.fn(),
-    create: vi.fn()
+    create: vi.fn(),
+    upsert: vi.fn()
   },
   area: {
     findUnique: vi.fn(),
-    create: vi.fn()
+    create: vi.fn(),
+    upsert: vi.fn()
   },
   program: {
     findUnique: vi.fn(),
-    create: vi.fn()
+    create: vi.fn(),
+    upsert: vi.fn()
   },
   contactActivity: {
     deleteMany: vi.fn(),

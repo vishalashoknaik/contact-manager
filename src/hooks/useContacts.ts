@@ -35,23 +35,23 @@ export function useContacts() {
       throw new Error('Center ID is required')
     }
 
-    await Promise.all(
-      updatedContacts.map(c =>
-        contactsApi.create({
-          name: c.name,
-          phone: c.phone,
-          gender: c.gender,
-          ieDate: c.ieDate,
-          areaOfStay: c.areaOfStay,
-          remarks: c.remarks,
-          activities: c.activities,
-          areas: c.areas,
-          programs: c.programs,
-          selected: c.selected,
-          importOrder: c.importOrder
-        }, selectedCenter)
-      )
-    )
+    const validContacts = updatedContacts.filter(c => c.name?.trim() && c.phone?.trim())
+
+    for (const c of validContacts) {
+      await contactsApi.create({
+        name: c.name,
+        phone: c.phone,
+        gender: c.gender,
+        ieDate: c.ieDate,
+        areaOfStay: c.areaOfStay,
+        remarks: c.remarks,
+        activities: c.activities,
+        areas: c.areas,
+        programs: c.programs,
+        selected: c.selected,
+        importOrder: c.importOrder
+      }, selectedCenter)
+    }
   }
 
   useEffect(() => {

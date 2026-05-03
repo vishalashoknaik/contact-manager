@@ -218,58 +218,50 @@ async function syncCategoryData(
 
   // Create new relations
   for (const [name, count] of Object.entries(data)) {
-    if (count > 0) {
+    const parsedCount = Number(count)
+
+    if (!name || Number.isNaN(parsedCount) || parsedCount <= 0) {
+      continue
+    }
+
       let categoryId: string | undefined
 
       if (type === 'activity') {
-        categoryId = (await prisma.activity.findUnique({
-          where: { name_centerId: { name, centerId } }
-        }))?.id
-
-        if (!categoryId) {
-          const created = await prisma.activity.create({
-            data: { name, centerId }
-          })
-          categoryId = created.id
-        }
+        const activity = await prisma.activity.upsert({
+          where: { name_centerId: { name, centerId } },
+          update: {},
+          create: { name, centerId }
+        })
+        categoryId = activity.id
       } else if (type === 'area') {
-        categoryId = (await prisma.area.findUnique({
-          where: { name_centerId: { name, centerId } }
-        }))?.id
-
-        if (!categoryId) {
-          const created = await prisma.area.create({
-            data: { name, centerId }
-          })
-          categoryId = created.id
-        }
+        const area = await prisma.area.upsert({
+          where: { name_centerId: { name, centerId } },
+          update: {},
+          create: { name, centerId }
+        })
+        categoryId = area.id
       } else {
-        categoryId = (await prisma.program.findUnique({
-          where: { name_centerId: { name, centerId } }
-        }))?.id
-
-        if (!categoryId) {
-          const created = await prisma.program.create({
-            data: { name, centerId }
-          })
-          categoryId = created.id
-        }
+        const program = await prisma.program.upsert({
+          where: { name_centerId: { name, centerId } },
+          update: {},
+          create: { name, centerId }
+        })
+        categoryId = program.id
       }
 
       if (type === 'activity') {
         await prisma.contactActivity.create({
-          data: { contactId, activityId: categoryId, count }
+          data: { contactId, activityId: categoryId, count: parsedCount }
         })
       } else if (type === 'area') {
         await prisma.contactArea.create({
-          data: { contactId, areaId: categoryId, count }
+          data: { contactId, areaId: categoryId, count: parsedCount }
         })
       } else {
         await prisma.contactProgram.create({
-          data: { contactId, programId: categoryId, count }
+          data: { contactId, programId: categoryId, count: parsedCount }
         })
       }
-    }
   }
 }
 
