@@ -47,10 +47,25 @@ function resolveCenterId(centerId?: string) {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: response.statusText }))
-    const enrichedError = new Error(error.error || `HTTP ${response.status}`) as Error &
+    const bodyText = await response.text().catch(() => '')
+
+    let parsedError: { error?: string } & Partial<RegistrationRequiredResponse & PendingApprovalResponse> = {
+      error: response.statusText
+    }
+
+    if (bodyText) {
+      try {
+        const body = JSON.parse(bodyText) as { error?: string } &
+          Partial<RegistrationRequiredResponse & PendingApprovalResponse>
+        parsedError = body
+      } catch {
+        parsedError = { error: bodyText.slice(0, 300) }
+      }
+    }
+
+    const enrichedError = new Error(parsedError.error || `HTTP ${response.status}`) as Error &
       Partial<RegistrationRequiredResponse & PendingApprovalResponse>
-    Object.assign(enrichedError, error)
+    Object.assign(enrichedError, parsedError)
     throw enrichedError
   }
   return response.json()
