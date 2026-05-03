@@ -42,10 +42,9 @@ export function ContactsTable({
   const thCheckbox = { width: 56, minWidth: 56, border: '1px solid var(--border-color, #ddd)', padding: 6, backgroundColor: 'var(--th-bg, #f5f5f5)', color: 'var(--text-primary, #000)' }
   const tdCheckbox = { width: 56, minWidth: 56, border: '1px solid var(--border-color, #eee)', padding: 6 }
   const th = { border: '1px solid var(--border-color, #ddd)', padding: 6, cursor: 'pointer', userSelect: 'none' as const, backgroundColor: 'var(--th-bg, #f5f5f5)', color: 'var(--text-primary, #000)', whiteSpace: 'nowrap' as const }
-  const td = { border: '1px solid var(--border-color, #eee)', padding: 6, color: 'var(--text-primary, #000)', whiteSpace: 'nowrap' as const, verticalAlign: 'top' as const }
-  const tdPhone = { ...td, fontSize: 12 }
-  const tdCenter = { border: '1px solid var(--border-color, #eee)', padding: 6, textAlign: 'center' as const, color: 'var(--text-primary, #000)', whiteSpace: 'nowrap' as const, verticalAlign: 'top' as const }
-  const inputStyle = { width: '100%', padding: 4, boxSizing: 'border-box' as const, backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)', border: '1px solid var(--border-color, #ddd)' }
+  const td = { border: '1px solid var(--border-color, #eee)', padding: 6, color: 'var(--text-primary, #000)', whiteSpace: 'nowrap' as const, verticalAlign: 'top' as const, fontSize: 13 }
+  const tdCenter = { border: '1px solid var(--border-color, #eee)', padding: 6, textAlign: 'center' as const, color: 'var(--text-primary, #000)', whiteSpace: 'nowrap' as const, verticalAlign: 'top' as const, fontSize: 13 }
+  const inputStyle = { width: '100%', padding: '4px 6px', borderRadius: 4, fontSize: 12, boxSizing: 'border-box' as const, backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)', border: '1px solid var(--border-color, #ddd)' }
   const stickyHeader = { position: 'sticky' as const, top: 0, zIndex: 20, backgroundColor: 'var(--th-bg, #f5f5f5)' }
   const stickyFilter = { position: 'sticky' as const, top: 44, zIndex: 19, backgroundColor: 'var(--th-bg, #f5f5f5)' }
   const stickyFirstColumnHeader = { position: 'sticky' as const, left: 0, zIndex: 25, backgroundColor: 'var(--th-bg, #f5f5f5)' }
@@ -255,7 +254,7 @@ export function ContactsTable({
             </td>
 
             <td style={td}>{c.name}</td>
-            <td style={tdPhone}>{c.phone}</td>
+            <td style={td}>{c.phone}</td>
             <td style={tdCenter}>{c.gender}</td>
             <td style={td}>{c.ieDate || ''}</td>
             <td style={td}>{c.areaOfStay || ''}</td>
