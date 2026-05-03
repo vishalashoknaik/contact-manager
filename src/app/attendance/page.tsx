@@ -191,63 +191,8 @@ function SetupScreen({
         Give a session name and choose which programs, areas, or activities to track attendance for.
       </p>
 
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontWeight: 600, marginBottom: 6 }} htmlFor="attendance-session-name">
-          Session Name
-        </label>
-        <input
-          id="attendance-session-name"
-          type="text"
-          value={selected.name}
-          onChange={e => setSelected(prev => ({ ...prev, name: e.target.value }))}
-          placeholder="e.g. Morning Walkathon"
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            border: '1px solid var(--border-color, #ced4da)',
-            borderRadius: 6,
-            fontSize: 15,
-            boxSizing: 'border-box',
-            backgroundColor: 'var(--input-bg, #fff)',
-            color: 'var(--text-primary, #000)'
-          }}
-        />
-      </div>
-
-      <CheckGroup label="Programs" items={programs} category="programs" />
-      <CheckGroup label="Areas" items={areas} category="areas" />
-      <CheckGroup label="Activities" items={activities} category="activities" />
-
-      {activities.length === 0 && areas.length === 0 && programs.length === 0 && (
-        <p style={{ color: 'var(--text-secondary, #888)', fontStyle: 'italic' }}>
-          No programs, areas, or activities configured yet. Add them in the Admin panel first.
-        </p>
-      )}
-
-      <div style={{ marginTop: 32, display: 'flex', gap: 12, marginBottom: 24 }}>
-        <button
-          onClick={() => {
-            void onStart(selected)
-          }}
-          disabled={noneSelected}
-          style={{
-            padding: '14px 20px',
-            backgroundColor: noneSelected ? '#adb5bd' : '#198754',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            fontSize: 15,
-            fontWeight: 600,
-            cursor: noneSelected ? 'not-allowed' : 'pointer',
-            width: '100%'
-          }}
-        >
-          ▶ Start Attendance
-        </button>
-      </div>
-
       {sessions.length > 0 && (
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 8, marginBottom: 24 }}>
           <h3 style={{ margin: '0 0 10px', fontSize: 15, color: 'var(--text-primary, #000)' }}>
             Your Available Sessions
           </h3>
@@ -329,6 +274,65 @@ function SetupScreen({
           </div>
         </div>
       )}
+
+      <h3 style={{ margin: '0 0 10px', fontSize: 16, color: 'var(--text-primary, #000)' }}>
+        Create New Session
+      </h3>
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', fontWeight: 600, marginBottom: 6 }} htmlFor="attendance-session-name">
+          Session Name
+        </label>
+        <input
+          id="attendance-session-name"
+          type="text"
+          value={selected.name}
+          onChange={e => setSelected(prev => ({ ...prev, name: e.target.value }))}
+          placeholder="e.g. Morning Walkathon"
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: '1px solid var(--border-color, #ced4da)',
+            borderRadius: 6,
+            fontSize: 15,
+            boxSizing: 'border-box',
+            backgroundColor: 'var(--input-bg, #fff)',
+            color: 'var(--text-primary, #000)'
+          }}
+        />
+      </div>
+
+      <CheckGroup label="Programs" items={programs} category="programs" />
+      <CheckGroup label="Areas" items={areas} category="areas" />
+      <CheckGroup label="Activities" items={activities} category="activities" />
+
+      {activities.length === 0 && areas.length === 0 && programs.length === 0 && (
+        <p style={{ color: 'var(--text-secondary, #888)', fontStyle: 'italic' }}>
+          No programs, areas, or activities configured yet. Add them in the Admin panel first.
+        </p>
+      )}
+
+      <div style={{ marginTop: 32, display: 'flex', gap: 12, marginBottom: 24 }}>
+        <button
+          onClick={() => {
+            void onStart(selected)
+          }}
+          disabled={noneSelected}
+          style={{
+            padding: '14px 20px',
+            backgroundColor: noneSelected ? '#adb5bd' : '#198754',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: noneSelected ? 'not-allowed' : 'pointer',
+            width: '100%'
+          }}
+        >
+          ▶ Start Attendance
+        </button>
+      </div>
     </div>
   )
 }

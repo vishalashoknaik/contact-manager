@@ -140,37 +140,41 @@ function HomeContent() {
       )}
 
       <div style={{ marginBottom: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button
-          onClick={() => router.push('/campaigns')}
-          style={{
-            padding: '12px 16px',
-            backgroundColor: '#6f42c1',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            flex: '1 1 180px'
-          }}
-        >
-          📣 Campaigns
-        </button>
+        {!adminManager.isAdmin && (
+          <>
+            <button
+              onClick={() => router.push('/campaigns')}
+              style={{
+                padding: '12px 16px',
+                backgroundColor: '#6f42c1',
+                color: 'white',
+                border: 'none',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                flex: '1 1 180px'
+              }}
+            >
+              📣 Campaigns
+            </button>
 
-        <button
-          onClick={() => router.push('/attendance')}
-          style={{
-            padding: '12px 16px',
-            backgroundColor: '#198754',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            flex: '1 1 180px'
-          }}
-        >
-          📝 Take Attendance
-        </button>
+            <button
+              onClick={() => router.push('/attendance')}
+              style={{
+                padding: '12px 16px',
+                backgroundColor: '#198754',
+                color: 'white',
+                border: 'none',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                flex: '1 1 180px'
+              }}
+            >
+              📝 Take Attendance
+            </button>
+          </>
+        )}
 
         {canAccessSelectedCenterAdminMode && (
           <>
