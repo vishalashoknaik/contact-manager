@@ -373,6 +373,7 @@ function AttendanceEntry({
   const [sessionAccessError, setSessionAccessError] = useState<string | null>(null)
   const [serverAttendees, setServerAttendees] = useState<AttendanceSessionAttendee[]>([])
   const [attendeeDataSyncing, setAttendeeDataSyncing] = useState(true)
+  const [showAttendeeSyncNotice, setShowAttendeeSyncNotice] = useState(false)
   const phoneRef = useRef<HTMLInputElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const lookupRequestRef = useRef<Promise<'found' | 'new' | undefined> | null>(null)
@@ -397,6 +398,21 @@ function AttendanceEntry({
     }
     savePersistedAttendanceState(storageKey, { session, records })
   }, [persistEnabled, records, session, storageKey])
+
+  useEffect(() => {
+    if (!attendeeDataSyncing) {
+      setShowAttendeeSyncNotice(false)
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowAttendeeSyncNotice(true)
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [attendeeDataSyncing])
 
   useEffect(() => {
     let cancelled = false
@@ -770,7 +786,7 @@ function AttendanceEntry({
                 {sessionAccessError}
               </div>
             )}
-            {attendeeDataSyncing && (
+            {showAttendeeSyncNotice && (
               <div style={{ marginTop: 8, color: '#856404', fontSize: 12 }}>
                 Data is yet to update. Syncing latest attendee details...
               </div>
@@ -1093,13 +1109,28 @@ export default function AttendancePage() {
   const [showSessionSyncNotice, setShowSessionSyncNotice] = useState(true)
 
   useEffect(() => {
+    if (!sessionDataSyncing) {
+      setShowSessionSyncNotice(false)
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowSessionSyncNotice(true)
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [sessionDataSyncing])
+
+  useEffect(() => {
     if (!selectedCenter) return
     let cancelled = false
     let refreshTimer: number | null = null
     let refreshInterval: number | null = null
 
     setSessionDataSyncing(true)
-    setShowSessionSyncNotice(true)
+    setShowSessionSyncNotice(false)
     setSession(null)
     setSessionId(null)
     setSessionVolunteers([])
@@ -1203,11 +1234,11 @@ export default function AttendancePage() {
           ←
         </button>
         <span style={{ fontWeight: 600, fontSize: 16, flex: '1 1 260px' }}>
-          {(session ? 'Taking Attendance' : 'Attendance Setup') + ` - ${centerLabel}`}
+          {(session ? session.name : 'Attendance Setup') + ` - ${centerLabel}`}
         </span>
       </div>
 
-      {(showSessionSyncNotice || sessionDataSyncing) && (
+      {showSessionSyncNotice && (
         <div
           style={{
             margin: '12px 16px 0',

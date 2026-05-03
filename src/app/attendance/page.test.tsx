@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -350,7 +350,7 @@ describe('AttendancePage', () => {
     await userEvent.click(await screen.findByRole('button', { name: /continue/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('Taking Attendance - Center One')).toBeInTheDocument()
+      expect(screen.getByText('Saved Session - Center One')).toBeInTheDocument()
     })
     expect(screen.getByText('1')).toBeInTheDocument()
 
@@ -415,7 +415,7 @@ describe('AttendancePage', () => {
     await user.click(await screen.findByRole('button', { name: /continue/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('Taking Attendance - Center One')).toBeInTheDocument()
+      expect(screen.getByText('Saved Session - Center One')).toBeInTheDocument()
     })
 
     await user.click(screen.getByRole('button', { name: /end session/i }))
@@ -493,7 +493,7 @@ describe('AttendancePage', () => {
     await user.click(await screen.findByRole('button', { name: /continue/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('Taking Attendance - Center One')).toBeInTheDocument()
+      expect(screen.getByText('Saved Session - Center One')).toBeInTheDocument()
     })
 
     await user.click(screen.getByRole('button', { name: /retry pending sync/i }))
@@ -525,8 +525,55 @@ describe('AttendancePage', () => {
     await waitFor(() => {
       expect(mocks.reopenSession).toHaveBeenCalledWith('session-ended', 'center-1')
     })
-    expect(screen.getByText('Taking Attendance - Center One')).toBeInTheDocument()
+    expect(screen.getByText('Ended Session - Center One')).toBeInTheDocument()
   })
+
+  it('shows setup sync notice only after 5 seconds of continuous sync', async () => {
+    try {
+      vi.useFakeTimers()
+      mocks.listSessions.mockImplementation(() => new Promise(() => {}))
+
+      render(<AttendancePage />)
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      expect(screen.queryByText('Data is yet to update. Syncing latest session details...')).not.toBeInTheDocument()
+
+      await act(async () => {
+        vi.advanceTimersByTime(4999)
+      })
+      expect(screen.queryByText('Data is yet to update. Syncing latest session details...')).not.toBeInTheDocument()
+
+      await act(async () => {
+        vi.advanceTimersByTime(1)
+      })
+      expect(screen.getByText('Data is yet to update. Syncing latest session details...')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('shows attendee sync notice only after 5 seconds in entry screen', async () => {
+    const user = userEvent.setup()
+
+    mocks.listSessions.mockResolvedValueOnce([createSession()])
+    mocks.listSessionAttendees.mockImplementation(() => new Promise(() => {}))
+
+    render(<AttendancePage />)
+    await user.click(await screen.findByRole('button', { name: /continue/i }))
+    await waitFor(() => expect(screen.getByPlaceholderText('Enter phone and press Enter')).toBeInTheDocument())
+
+    expect(screen.queryByText('Data is yet to update. Syncing latest attendee details...')).not.toBeInTheDocument()
+
+    await waitFor(
+      () => {
+        expect(screen.getByText('Data is yet to update. Syncing latest attendee details...')).toBeInTheDocument()
+      },
+      { timeout: 7000 }
+    )
+  }, 10000)
 
   it('deletes a session from setup after confirmation', async () => {
     const user = userEvent.setup()

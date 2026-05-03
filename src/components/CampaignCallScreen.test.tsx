@@ -102,4 +102,44 @@ describe('CampaignCallScreen', () => {
     expect(await screen.findByText('Bob')).toBeInTheDocument()
     expect(screen.getByText('9000000002')).toBeInTheDocument()
   })
+
+  it('allows going back to previous contact after moving to next', async () => {
+    const user = userEvent.setup()
+
+    mocks.submitCallLog.mockResolvedValueOnce({
+      success: true,
+      next: {
+        done: false,
+        campaignContactId: 'cc-2',
+        contact: { id: 'contact-2', name: 'Bob', phone: '9000000002' }
+      }
+    })
+
+    render(
+      <CampaignCallScreen
+        campaignId="campaign-1"
+        centerId="center-1"
+        initialNext={{
+          done: false,
+          campaignContactId: 'cc-1',
+          contact: { id: 'contact-1', name: 'Alice', phone: '9000000001' }
+        }}
+        onDone={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Previous Contact' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Submit & Get Next' }))
+    expect(await screen.findByText('Bob')).toBeInTheDocument()
+
+    const previousButton = screen.getByRole('button', { name: 'Previous Contact' })
+    expect(previousButton).toBeEnabled()
+    await user.click(previousButton)
+
+    expect(await screen.findByText('Alice')).toBeInTheDocument()
+    expect(screen.queryByText('Bob')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Previous Contact' })).toBeDisabled()
+  })
 })
