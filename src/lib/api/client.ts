@@ -14,7 +14,13 @@ import type {
   CenterOption
 } from '@/lib/types/auth'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+const PROD_API_BASE_URL = 'https://isha-contacts-manager.onrender.com/api'
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname.endsWith('vercel.app')
+    ? PROD_API_BASE_URL
+    : 'http://localhost:3001/api')
 
 export interface ApiResponse<T> {
   data?: T
