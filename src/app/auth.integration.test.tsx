@@ -118,6 +118,12 @@ describe('Authentication System', () => {
     it('should display registration fields when first-time login requires registration', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: false,
+        text: async () => JSON.stringify({
+          error: 'User not found. Please complete registration.',
+          registrationRequired: true,
+          phone: '9999999999',
+          centers: [{ id: 'center-1', name: 'Center 1' }]
+        }),
         json: async () => ({
           error: 'User not found. Please complete registration.',
           registrationRequired: true,
@@ -152,6 +158,12 @@ describe('Authentication System', () => {
         .fn()
         .mockResolvedValueOnce({
           ok: false,
+          text: async () => JSON.stringify({
+            error: 'User not found. Please complete registration.',
+            registrationRequired: true,
+            phone: '9999999999',
+            centers: [{ id: 'center-1', name: 'Center 1' }]
+          }),
           json: async () => ({
             error: 'User not found. Please complete registration.',
             registrationRequired: true,
@@ -161,6 +173,10 @@ describe('Authentication System', () => {
         } as Response)
         .mockResolvedValueOnce({
           ok: true,
+          text: async () => JSON.stringify({
+            message: 'Registration submitted. An admin must approve access before you can log in.',
+            pendingApproval: true
+          }),
           json: async () => ({
             message: 'Registration submitted. An admin must approve access before you can log in.',
             pendingApproval: true
@@ -200,6 +216,7 @@ describe('Authentication System', () => {
     it('should display error on failed login', async () => {
       const mockResponse = {
         ok: false,
+        text: async () => JSON.stringify({ error: 'Invalid credentials' }),
         json: async () => ({ error: 'Invalid credentials' })
       }
 

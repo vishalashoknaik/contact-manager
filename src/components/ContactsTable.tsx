@@ -20,6 +20,7 @@ interface ContactsTableProps {
   onActivityFilterChange: (activity: string, value: string) => void
   onAreaFilterChange: (area: string, value: string) => void
   onProgramFilterChange: (program: string, value: string) => void
+  onContactClick?: (contact: Contact) => void
 }
 
 export function ContactsTable({
@@ -37,7 +38,8 @@ export function ContactsTable({
   onFilterChange,
   onActivityFilterChange,
   onAreaFilterChange,
-  onProgramFilterChange
+  onProgramFilterChange,
+  onContactClick
 }: ContactsTableProps) {
   const thCheckbox = { width: 56, minWidth: 56, border: '1px solid var(--border-color, #ddd)', padding: 6, backgroundColor: 'var(--th-bg, #f5f5f5)', color: 'var(--text-primary, #000)' }
   const tdCheckbox = { width: 56, minWidth: 56, border: '1px solid var(--border-color, #eee)', padding: 6 }
@@ -253,8 +255,15 @@ export function ContactsTable({
               />
             </td>
 
-            <td style={td}>{c.name}</td>
-            <td style={td}>{c.phone}</td>
+            <td
+              style={{ ...td, cursor: onContactClick ? 'pointer' : undefined }}
+              onClick={() => onContactClick?.(c)}
+              title={onContactClick ? 'Click to edit contact' : undefined}
+            >{c.name}</td>
+            <td
+              style={{ ...td, cursor: onContactClick ? 'pointer' : undefined }}
+              onClick={() => onContactClick?.(c)}
+            >{c.phone}</td>
             <td style={tdCenter}>{c.gender}</td>
             <td style={td}>{c.ieDate || ''}</td>
             <td style={td}>{c.areaOfStay || ''}</td>

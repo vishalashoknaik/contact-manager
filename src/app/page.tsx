@@ -18,6 +18,8 @@ import { AdminPanel } from '../components/AdminPanel'
 import { ActionBar } from '@/components/ActionBar'
 import { ContactsTable } from '@/components/ContactsTable'
 import { CampaignModal } from '@/components/CampaignModal'
+import { contactsApi } from '@/lib/api/client'
+import type { Contact } from '@/lib/types'
 
 const VERSION = 'v2.0.0'
 
@@ -25,6 +27,10 @@ function HomeContent() {
   const router = useRouter()
   const [showCampaignModal, setShowCampaignModal] = useState(false)
   const [bulkActionFeedback, setBulkActionFeedback] = useState<string | null>(null)
+  const [editingContact, setEditingContact] = useState<Contact | null>(null)
+  const [editDraft, setEditDraft] = useState({ name: '', phone: '', gender: 'Male' as Contact['gender'], ieDate: '', areaOfStay: '', remarks: '' })
+  const [isSavingContact, setIsSavingContact] = useState(false)
+  const [contactSaveError, setContactSaveError] = useState<string | null>(null)
   const contactsManager = useContacts()
   const configManager = useConfig()
   const filteringManager = useFiltering()
@@ -369,6 +375,18 @@ function HomeContent() {
               onActivityFilterChange={filteringManager.setActivityFilter}
               onAreaFilterChange={filteringManager.setAreaFilter}
               onProgramFilterChange={filteringManager.setProgramFilter}
+              onContactClick={c => {
+                setEditingContact(c)
+                setEditDraft({
+                  name: c.name,
+                  phone: c.phone,
+                  gender: c.gender,
+                  ieDate: c.ieDate || '',
+                  areaOfStay: c.areaOfStay || '',
+                  remarks: c.remarks || ''
+                })
+                setContactSaveError(null)
+              }}
             />
           ) : (
             <p>Loading...</p>
@@ -400,6 +418,97 @@ function HomeContent() {
           router.push('/campaigns')
         }}
       />
+
+      {editingContact && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 1000 }}>
+          <div style={{ width: '100%', maxWidth: 480, backgroundColor: 'var(--bg-primary, #fff)', border: '1px solid var(--border-color, #ddd)', borderRadius: 8, padding: 20 }}>
+            <h4 style={{ margin: '0 0 16px' }}>Edit Contact</h4>
+
+            {(['name', 'phone', 'ieDate', 'areaOfStay', 'remarks'] as const).map(field => (
+              <div key={field} style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, textTransform: 'capitalize' }}>
+                  {field === 'ieDate' ? 'IE Date' : field === 'areaOfStay' ? 'Area of Stay' : field.charAt(0).toUpperCase() + field.slice(1)}
+                </label>
+                <input
+                  value={editDraft[field]}
+                  onChange={e => setEditDraft(prev => ({ ...prev, [field]: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box', fontSize: 14 }}
+                />
+              </div>
+            ))}
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Gender</label>
+              <select
+                value={editDraft.gender}
+                onChange={e => setEditDraft(prev => ({ ...prev, gender: e.target.value as Contact['gender'] }))}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', fontSize: 14 }}
+              >
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            {contactSaveError && (
+              <div style={{ color: '#dc3545', fontSize: 13, marginBottom: 10 }}>{contactSaveError}</div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setEditingContact(null); setContactSaveError(null) }}
+                disabled={isSavingContact}
+                style={{ padding: '8px 14px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', backgroundColor: 'transparent', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!selectedCenter || !editingContact) return
+                  if (!editDraft.name.trim() || !editDraft.phone.trim()) {
+                    setContactSaveError('Name and phone are required.')
+                    return
+                  }
+                  setIsSavingContact(true)
+                  setContactSaveError(null)
+                  try {
+                    await contactsApi.update(
+                      editingContact.id,
+                      {
+                        name: editDraft.name.trim(),
+                        phone: editDraft.phone.trim(),
+                        gender: editDraft.gender,
+                        ieDate: editDraft.ieDate.trim() || undefined,
+                        areaOfStay: editDraft.areaOfStay.trim() || undefined,
+                        remarks: editDraft.remarks.trim() || undefined
+                      },
+                      selectedCenter
+                    )
+                    // Reflect change locally immediately
+                    contactsManager.contacts.find(c => c.id === editingContact.id) &&
+                      contactsManager.setContacts(
+                        contactsManager.contacts.map(c =>
+                          c.id === editingContact.id
+                            ? { ...c, ...editDraft, ieDate: editDraft.ieDate.trim() || undefined, areaOfStay: editDraft.areaOfStay.trim() || undefined, remarks: editDraft.remarks.trim() || undefined }
+                            : c
+                        )
+                      )
+                    setEditingContact(null)
+                  } catch (err) {
+                    setContactSaveError(err instanceof Error ? err.message : 'Failed to save contact')
+                  } finally {
+                    setIsSavingContact(false)
+                  }
+                }}
+                disabled={isSavingContact}
+                style={{ padding: '8px 14px', borderRadius: 4, border: 'none', backgroundColor: '#0d6efd', color: '#fff', fontWeight: 600, cursor: 'pointer' }}
+              >
+                {isSavingContact ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

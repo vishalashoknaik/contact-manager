@@ -31,7 +31,7 @@ describe('ActionBar', () => {
     await user.selectOptions(selects[0], 'Walkathon')
     await user.selectOptions(selects[1], 'Area1')
     await user.selectOptions(selects[2], 'Program1')
-    await user.click(screen.getByRole('button', { name: '+1 (Selected)' }))
+    await user.click(screen.getByRole('button', { name: 'Update' }))
 
     expect(onActivityChange).toHaveBeenCalledWith('Walkathon')
     expect(onAreaChange).toHaveBeenCalledWith('Area1')
