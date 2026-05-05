@@ -10,6 +10,13 @@ import { CallLogsTable } from '@/components/CallLogsTable'
 
 type View = 'list' | 'detail' | 'call'
 
+const defaultSmsTemplate = 'Hi {name}, this is from {campaign}. Please call us back when convenient.'
+const defaultWhatsappTemplate = 'Hi {name}, this is from {campaign}. Please let us know a good time to connect.'
+
+function getTemplateStorageKey(centerId: string, campaignId: string) {
+  return `campaign-msg-templates:${centerId}:${campaignId}`
+}
+
 export default function CampaignsPage() {
   const { user, selectedCenter, isLoggedIn } = useAuth()
   const router = useRouter()
@@ -37,6 +44,8 @@ export default function CampaignsPage() {
   const [editNotInterested, setEditNotInterested] = useState(false)
   const [editRemarks, setEditRemarks] = useState('')
   const [isSavingLog, setIsSavingLog] = useState(false)
+  const [smsTemplate, setSmsTemplate] = useState(defaultSmsTemplate)
+  const [whatsappTemplate, setWhatsappTemplate] = useState(defaultWhatsappTemplate)
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -48,6 +57,38 @@ export default function CampaignsPage() {
     if (!selectedCenter) return
     loadCampaigns()
   }, [selectedCenter])
+
+  useEffect(() => {
+    if (!selectedCenter || !selectedCampaign) {
+      setSmsTemplate(defaultSmsTemplate)
+      setWhatsappTemplate(defaultWhatsappTemplate)
+      return
+    }
+
+    const key = getTemplateStorageKey(selectedCenter, selectedCampaign.id)
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null
+    if (!stored) {
+      setSmsTemplate(defaultSmsTemplate)
+      setWhatsappTemplate(defaultWhatsappTemplate)
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(stored) as { smsTemplate?: string; whatsappTemplate?: string }
+      setSmsTemplate(parsed.smsTemplate || defaultSmsTemplate)
+      setWhatsappTemplate(parsed.whatsappTemplate || defaultWhatsappTemplate)
+    } catch {
+      setSmsTemplate(defaultSmsTemplate)
+      setWhatsappTemplate(defaultWhatsappTemplate)
+    }
+  }, [selectedCampaign, selectedCenter])
+
+  useEffect(() => {
+    if (!selectedCenter || !selectedCampaign) return
+    const key = getTemplateStorageKey(selectedCenter, selectedCampaign.id)
+    if (typeof window === 'undefined') return
+    localStorage.setItem(key, JSON.stringify({ smsTemplate, whatsappTemplate }))
+  }, [selectedCenter, selectedCampaign, smsTemplate, whatsappTemplate])
 
   const loadCampaigns = async () => {
     if (!selectedCenter) return
@@ -320,6 +361,9 @@ export default function CampaignsPage() {
             centerId={selectedCenter!}
             initialNext={(callMode === 'pending' ? nextPending : nextSkipped) as any}
             mode={callMode}
+            campaignName={selectedCampaign.name}
+            smsTemplate={smsTemplate}
+            whatsappTemplate={whatsappTemplate}
             onDone={() => { setView('detail'); refreshCampaign() }}
           />
         </div>
@@ -392,6 +436,31 @@ export default function CampaignsPage() {
               ✅ All new contacts called. Use “Revisit Skipped” to follow up on skipped contacts.
             </div>
           )}
+
+          <div style={{ marginBottom: 24, padding: 12, border: '1px solid var(--border-color, #ddd)', borderRadius: 8, backgroundColor: 'var(--panel-bg, #f8f9fa)' }}>
+            <h4 style={{ marginTop: 0, marginBottom: 8 }}>Call Message Templates</h4>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginBottom: 10 }}>
+              Use placeholders: {'{name}'}, {'{phone}'}, {'{campaign}'}
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>SMS Template</label>
+              <textarea
+                value={smsTemplate}
+                onChange={e => setSmsTemplate(e.target.value)}
+                rows={2}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>WhatsApp Template</label>
+              <textarea
+                value={whatsappTemplate}
+                onChange={e => setWhatsappTemplate(e.target.value)}
+                rows={2}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
 
           {/* Contacts table */}
           <div style={{ marginBottom: 24 }}>

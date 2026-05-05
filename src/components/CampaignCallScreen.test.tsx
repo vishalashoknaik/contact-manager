@@ -36,6 +36,9 @@ describe('CampaignCallScreen', () => {
           campaignContactId: 'cc-1',
           contact: { id: 'contact-1', name: 'Alice', phone: '9000000001' }
         }}
+        campaignName="Morning Campaign"
+        smsTemplate="Hi {name} from {campaign}"
+        whatsappTemplate="WA {name} {phone}"
         onDone={vi.fn()}
       />
     )
@@ -82,6 +85,9 @@ describe('CampaignCallScreen', () => {
           campaignContactId: 'cc-1',
           contact: { id: 'contact-1', name: 'Alice', phone: '9000000001' }
         }}
+        campaignName="Morning Campaign"
+        smsTemplate="Hi {name} from {campaign}"
+        whatsappTemplate="WA {name} {phone}"
         onDone={vi.fn()}
       />
     )
@@ -124,6 +130,9 @@ describe('CampaignCallScreen', () => {
           campaignContactId: 'cc-1',
           contact: { id: 'contact-1', name: 'Alice', phone: '9000000001' }
         }}
+        campaignName="Morning Campaign"
+        smsTemplate="Hi {name} from {campaign}"
+        whatsappTemplate="WA {name} {phone}"
         onDone={vi.fn()}
       />
     )
@@ -141,5 +150,37 @@ describe('CampaignCallScreen', () => {
     expect(await screen.findByText('Alice')).toBeInTheDocument()
     expect(screen.queryByText('Bob')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Previous Contact' })).toBeDisabled()
+  })
+
+  it('builds call, whatsapp and sms links with prefilled template content', () => {
+    render(
+      <CampaignCallScreen
+        campaignId="campaign-1"
+        centerId="center-1"
+        initialNext={{
+          done: false,
+          campaignContactId: 'cc-1',
+          contact: { id: 'contact-1', name: 'Alice', phone: '+91 90000 00001' }
+        }}
+        campaignName="Morning Campaign"
+        smsTemplate="Hi {name}, from {campaign}. Call {phone}"
+        whatsappTemplate="WA hello {name} in {campaign} ({phone})"
+        onDone={vi.fn()}
+      />
+    )
+
+    const callLink = screen.getByRole('link', { name: 'Call' })
+    const whatsappLink = screen.getByRole('link', { name: 'WhatsApp' })
+    const smsLink = screen.getByRole('link', { name: 'SMS' })
+
+    expect(callLink).toHaveAttribute('href', 'tel:+91 90000 00001')
+    expect(whatsappLink).toHaveAttribute(
+      'href',
+      'https://wa.me/919000000001?text=WA%20hello%20Alice%20in%20Morning%20Campaign%20(%2B91%2090000%2000001)'
+    )
+    expect(smsLink).toHaveAttribute(
+      'href',
+      'sms:+91 90000 00001?body=Hi%20Alice%2C%20from%20Morning%20Campaign.%20Call%20%2B91%2090000%2000001'
+    )
   })
 })

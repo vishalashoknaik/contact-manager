@@ -16,7 +16,17 @@ interface CampaignCallScreenProps {
   centerId: string
   initialNext: CurrentContact | { done: true }
   mode: 'pending' | 'skipped'
+  campaignName: string
+  smsTemplate: string
+  whatsappTemplate: string
   onDone: () => void
+}
+
+function applyTemplate(template: string, context: { name: string; phone: string; campaign: string }) {
+  return template
+    .replaceAll('{name}', context.name)
+    .replaceAll('{phone}', context.phone)
+    .replaceAll('{campaign}', context.campaign)
 }
 
 const feedbackOptions: { value: Feedback; label: string }[] = [
@@ -25,7 +35,7 @@ const feedbackOptions: { value: Feedback; label: string }[] = [
   { value: 'CONNECT_LATER', label: 'Connect Later' }
 ]
 
-export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, onDone }: CampaignCallScreenProps) {
+export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, campaignName, smsTemplate, whatsappTemplate, onDone }: CampaignCallScreenProps) {
   const [current, setCurrent] = useState<CurrentContact | { done: true }>(initialNext)
   const [previous, setPrevious] = useState<CurrentContact | null>(null)
   const [feedback, setFeedback] = useState<Feedback>('COMPLETED')
@@ -119,6 +129,13 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, on
   }
 
   const cc = current as CurrentContact
+  const normalizedPhone = cc.contact.phone.replace(/\D/g, '')
+  const smsHref = `sms:${cc.contact.phone}?body=${encodeURIComponent(
+    applyTemplate(smsTemplate, { name: cc.contact.name, phone: cc.contact.phone, campaign: campaignName })
+  )}`
+  const whatsappHref = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(
+    applyTemplate(whatsappTemplate, { name: cc.contact.name, phone: cc.contact.phone, campaign: campaignName })
+  )}`
 
   return (
     <div style={card}>
@@ -133,6 +150,28 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, on
         <a href={`tel:${cc.contact.phone}`} style={{ fontSize: 16, color: '#0d6efd', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
           {cc.contact.phone}
         </a>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+          <a
+            href={`tel:${cc.contact.phone}`}
+            style={{ padding: '8px 12px', borderRadius: 4, backgroundColor: '#198754', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
+          >
+            Call
+          </a>
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noreferrer"
+            style={{ padding: '8px 12px', borderRadius: 4, backgroundColor: '#25D366', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
+          >
+            WhatsApp
+          </a>
+          <a
+            href={smsHref}
+            style={{ padding: '8px 12px', borderRadius: 4, backgroundColor: '#0d6efd', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
+          >
+            SMS
+          </a>
+        </div>
       </div>
 
       {/* Feedback */}
