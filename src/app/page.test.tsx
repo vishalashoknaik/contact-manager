@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import Home from './page'
 import { CSVService } from '@/lib/services/CSVService'
+import { contactsApi } from '@/lib/api/client'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() })
@@ -280,5 +281,111 @@ describe('Home page', () => {
       expect(CSVService.handleFileImport).toHaveBeenCalled()
       expect(screen.getByText('Imported User')).toBeInTheDocument()
     })
+  })
+
+  it('opens edit modal from contact row with prefilled values and closes on cancel without saving', async () => {
+    const user = userEvent.setup()
+    const updateSpy = vi.mocked(contactsApi.update)
+
+    render(<Home />)
+
+    await user.type(screen.getByPlaceholderText('Name'), 'Editable Person')
+    await user.type(screen.getByPlaceholderText('Phone'), '1111111111')
+    await user.click(within(screen.getByText('Add Contact').closest('div') as HTMLElement).getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(screen.getByText('Editable Person')).toBeInTheDocument())
+
+    await user.click(screen.getByText('Editable Person'))
+
+    expect(screen.getByRole('heading', { name: 'Edit Contact' })).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Editable Person')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('1111111111')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('heading', { name: 'Edit Contact' })).not.toBeInTheDocument()
+    expect(updateSpy).not.toHaveBeenCalled()
+  })
+
+  it('prevents save when required fields are blank and shows validation message', async () => {
+    const user = userEvent.setup()
+    const updateSpy = vi.mocked(contactsApi.update)
+
+    render(<Home />)
+
+    await user.type(screen.getByPlaceholderText('Name'), 'Validation Person')
+    await user.type(screen.getByPlaceholderText('Phone'), '2222222222')
+    await user.click(within(screen.getByText('Add Contact').closest('div') as HTMLElement).getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(screen.getByText('Validation Person')).toBeInTheDocument())
+    await user.click(screen.getByText('Validation Person'))
+
+    await user.clear(screen.getByDisplayValue('Validation Person'))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByText('Name and phone are required.')).toBeInTheDocument()
+    expect(updateSpy).not.toHaveBeenCalled()
+  })
+
+  it('saves edited contact with trimmed values and updates table view', async () => {
+    const user = userEvent.setup()
+    const updateSpy = vi.mocked(contactsApi.update)
+
+    render(<Home />)
+
+    await user.type(screen.getByPlaceholderText('Name'), 'Trim Person')
+    await user.type(screen.getByPlaceholderText('Phone'), '3333333333')
+    await user.click(within(screen.getByText('Add Contact').closest('div') as HTMLElement).getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(screen.getByText('Trim Person')).toBeInTheDocument())
+    await user.click(screen.getByText('Trim Person'))
+
+    const modal = screen.getByRole('heading', { name: 'Edit Contact' }).closest('div') as HTMLElement
+    const textboxes = within(modal).getAllByRole('textbox')
+    await user.clear(textboxes[0])
+    await user.type(textboxes[0], '  Trimmed Name  ')
+    await user.clear(textboxes[1])
+    await user.type(textboxes[1], ' 4444444444 ')
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalled()
+    })
+
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        name: 'Trimmed Name',
+        phone: '4444444444'
+      }),
+      'center-1'
+    )
+
+    await waitFor(() => {
+      const rows = screen.getAllByText(/^Trimmed Name$/)
+      expect(rows.length).toBeGreaterThan(0)
+    })
+  })
+
+  it('keeps modal open and shows backend error when save fails', async () => {
+    const user = userEvent.setup()
+    const originalUpdate = vi.mocked(contactsApi.update)
+    originalUpdate.mockRejectedValueOnce(new Error('Save failed'))
+
+    render(<Home />)
+
+    await user.type(screen.getByPlaceholderText('Name'), 'Error Person')
+    await user.type(screen.getByPlaceholderText('Phone'), '5555555555')
+    await user.click(within(screen.getByText('Add Contact').closest('div') as HTMLElement).getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(screen.getByText('Error Person')).toBeInTheDocument())
+    await user.click(screen.getByText('Error Person'))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Save failed')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('heading', { name: 'Edit Contact' })).toBeInTheDocument()
   })
 })

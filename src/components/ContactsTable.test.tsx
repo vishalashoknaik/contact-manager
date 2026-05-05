@@ -333,6 +333,70 @@ describe('ContactsTable', () => {
     expect(onToggleSort).toHaveBeenCalledWith('ieDate')
   })
 
+  it('invokes onContactClick when name or phone cell is clicked', async () => {
+    const user = userEvent.setup()
+    const onContactClick = vi.fn()
+    const contact = makeContact({ id: 1, name: 'Clickable User', phone: '1234567890' })
+
+    render(
+      <ContactsTable
+        contacts={[contact]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+        onContactClick={onContactClick}
+      />
+    )
+
+    await user.click(screen.getByText('Clickable User'))
+    await user.click(screen.getByText('1234567890'))
+
+    expect(onContactClick).toHaveBeenCalledTimes(2)
+    expect(onContactClick).toHaveBeenCalledWith(expect.objectContaining({ id: 1, name: 'Clickable User' }))
+  })
+
+  it('does not invoke onContactClick when checkbox is clicked', async () => {
+    const user = userEvent.setup()
+    const onContactClick = vi.fn()
+
+    render(
+      <ContactsTable
+        contacts={[makeContact({ id: 1, name: 'Checkbox User', selected: false })]}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+        onContactClick={onContactClick}
+      />
+    )
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    await user.click(checkboxes[1])
+
+    expect(onContactClick).not.toHaveBeenCalled()
+  })
+
   it('sorts by area of stay column', async () => {
     const user = userEvent.setup()
     const onToggleSort = vi.fn()
