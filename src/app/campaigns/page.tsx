@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { campaignsApi, contactsApi, Campaign, CallLog, NextContactResult } from '@/lib/api/client'
@@ -23,10 +23,6 @@ const defaultTemplates: MessageTemplate[] = [
     whatsappContent: 'Hi {name}, this is from {campaign}. Please let us know a good time to connect.'
   }
 ]
-
-function getTemplateStorageKey(centerId: string, campaignId: string) {
-  return `campaign-msg-templates:${centerId}:${campaignId}`
-}
 
 export default function CampaignsPage() {
   const { user, selectedCenter, isLoggedIn } = useAuth()
@@ -58,7 +54,8 @@ export default function CampaignsPage() {
   const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>(defaultTemplates)
   const [selectedTemplateIndex, setSelectedTemplateIndex] = useState(0)
   const [editingTemplate, setEditingTemplate] = useState<{ index: number; name: string; smsContent: string; whatsappContent: string } | null>(null)
-  const [newTemplateName, setNewTemplateName] = useState('')
+  const [isSavingTemplates, setIsSavingTemplates] = useState(false)
+  const templateSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -71,42 +68,39 @@ export default function CampaignsPage() {
     loadCampaigns()
   }, [selectedCenter])
 
+  // Load templates from campaign data when a campaign is selected
   useEffect(() => {
-    if (!selectedCenter || !selectedCampaign) {
+    if (!selectedCampaign) {
       setMessageTemplates(defaultTemplates)
       setSelectedTemplateIndex(0)
       return
     }
-
-    const key = getTemplateStorageKey(selectedCenter, selectedCampaign.id)
-    const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null
-    if (!stored) {
+    const templates = selectedCampaign.messageTemplates
+    if (Array.isArray(templates) && templates.length > 0) {
+      setMessageTemplates(templates as MessageTemplate[])
+    } else {
       setMessageTemplates(defaultTemplates)
-      setSelectedTemplateIndex(0)
-      return
     }
+    setSelectedTemplateIndex(0)
+  }, [selectedCampaign?.id])
 
-    try {
-      const parsed = JSON.parse(stored) as MessageTemplate[]
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        setMessageTemplates(parsed)
-        setSelectedTemplateIndex(0)
-      } else {
-        setMessageTemplates(defaultTemplates)
-        setSelectedTemplateIndex(0)
+  // Debounced save of templates to backend whenever they change
+  const saveTemplates = (updated: MessageTemplate[]) => {
+    setMessageTemplates(updated)
+    if (!selectedCampaign || !selectedCenter) return
+    if (templateSaveTimeout.current) clearTimeout(templateSaveTimeout.current)
+    templateSaveTimeout.current = setTimeout(async () => {
+      setIsSavingTemplates(true)
+      try {
+        const saved = await campaignsApi.updateTemplates(selectedCampaign.id, updated, selectedCenter)
+        setSelectedCampaign(saved)
+      } catch {
+        // silent – templates will still work locally
+      } finally {
+        setIsSavingTemplates(false)
       }
-    } catch {
-      setMessageTemplates(defaultTemplates)
-      setSelectedTemplateIndex(0)
-    }
-  }, [selectedCampaign, selectedCenter])
-
-  useEffect(() => {
-    if (!selectedCenter || !selectedCampaign) return
-    const key = getTemplateStorageKey(selectedCenter, selectedCampaign.id)
-    if (typeof window === 'undefined') return
-    localStorage.setItem(key, JSON.stringify(messageTemplates))
-  }, [selectedCenter, selectedCampaign, messageTemplates])
+    }, 800)
+  }
 
   const loadCampaigns = async () => {
     if (!selectedCenter) return
@@ -459,6 +453,9 @@ export default function CampaignsPage() {
           <div style={{ marginBottom: 24, padding: 12, border: '1px solid var(--border-color, #ddd)', borderRadius: 8, backgroundColor: 'var(--panel-bg, #f8f9fa)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <h4 style={{ margin: 0 }}>Call Message Templates</h4>
+              {isSavingTemplates && (
+                <span style={{ fontSize: 11, color: 'var(--text-secondary, #666)' }}>Syncing…</span>
+              )}
               <button
                 onClick={() => setEditingTemplate({ index: -1, name: 'New Template', smsContent: '', whatsappContent: '' })}
                 style={{
@@ -518,8 +515,8 @@ export default function CampaignsPage() {
                       onClick={(e) => {
                         e.stopPropagation()
                         const updated = messageTemplates.filter((_, i) => i !== index)
-                        setMessageTemplates(updated)
                         setSelectedTemplateIndex(Math.min(selectedTemplateIndex, updated.length - 1))
+                        saveTemplates(updated)
                       }}
                       style={{
                         padding: '4px 8px', borderRadius: 3, border: 'none',
@@ -639,8 +636,58 @@ export default function CampaignsPage() {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 1000 }}>
           <div style={{ width: '100%', maxWidth: 520, backgroundColor: 'var(--bg-primary, #fff)', border: '1px solid var(--border-color, #ddd)', borderRadius: 8, padding: 16 }}>
             <h4 style={{ marginTop: 0, marginBottom: 12 }}>Edit Call Log</h4>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginBottom: 12 }}>
-              {editingLog.contact.name} · {editingLog.contact.phone}
+
+            {/* Contact info + action buttons */}
+            <div style={{ backgroundColor: 'var(--panel-bg, #f8f9fa)', border: '1px solid var(--border-color, #ddd)', borderRadius: 6, padding: 12, marginBottom: 14 }}>
+              <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{editingLog.contact.name}</div>
+              <div style={{ fontSize: 14, color: '#0d6efd', marginBottom: 10 }}>{editingLog.contact.phone}</div>
+              {messageTemplates.length > 1 && (
+                <div style={{ marginBottom: 10 }}>
+                  <label htmlFor="log-template-select" style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Message Template</label>
+                  <select
+                    id="log-template-select"
+                    value={selectedTemplateIndex}
+                    onChange={e => setSelectedTemplateIndex(Number(e.target.value))}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box', fontSize: 13 }}
+                  >
+                    {messageTemplates.map((t, idx) => (
+                      <option key={idx} value={idx}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <a
+                  href={`tel:${editingLog.contact.phone}`}
+                  style={{ padding: '7px 12px', borderRadius: 4, backgroundColor: '#198754', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
+                >
+                  Call
+                </a>
+                <a
+                  href={`https://wa.me/${editingLog.contact.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                    (messageTemplates[selectedTemplateIndex]?.whatsappContent || '')
+                      .replaceAll('{name}', editingLog.contact.name)
+                      .replaceAll('{phone}', editingLog.contact.phone)
+                      .replaceAll('{campaign}', selectedCampaign?.name || '')
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ padding: '7px 12px', borderRadius: 4, backgroundColor: '#25D366', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
+                >
+                  WhatsApp
+                </a>
+                <a
+                  href={`sms:${editingLog.contact.phone}?body=${encodeURIComponent(
+                    (messageTemplates[selectedTemplateIndex]?.smsContent || '')
+                      .replaceAll('{name}', editingLog.contact.name)
+                      .replaceAll('{phone}', editingLog.contact.phone)
+                      .replaceAll('{campaign}', selectedCampaign?.name || '')
+                  )}`}
+                  style={{ padding: '7px 12px', borderRadius: 4, backgroundColor: '#0d6efd', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
+                >
+                  SMS
+                </a>
+              </div>
             </div>
 
             <div style={{ marginBottom: 12 }}>
@@ -735,7 +782,7 @@ export default function CampaignsPage() {
                       whatsappContent: editingTemplate.whatsappContent.trim()
                     }
                   }
-                  setMessageTemplates(updated)
+                  saveTemplates(updated)
                   setEditingTemplate(null)
                   setError(null)
                 }}

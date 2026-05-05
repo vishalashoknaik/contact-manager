@@ -171,11 +171,12 @@ enum CallFeedback {
 }
 
 model Campaign {
-  id        String   @id @default(uuid())
-  name      String
-  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
-  centerId  String
-  createdAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  name             String
+  center           Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  centerId         String
+  createdAt        DateTime @default(now())
+  messageTemplates Json?
 
   contacts   CampaignContact[]
   volunteers CampaignVolunteer[]

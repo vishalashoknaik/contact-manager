@@ -517,6 +517,47 @@ router.get('/:id/call-logs', async (req: Request, res: Response) => {
   }
 })
 
+/**
+ * PATCH /api/campaigns/:id/templates
+ * Save message templates for a campaign
+ */
+router.patch('/:id/templates', async (req: Request, res: Response) => {
+  try {
+    const actor = await getActor(req, res)
+    if (!actor) return
+
+    const centerId = req.headers['x-center-id'] as string | undefined
+    if (!centerId) return res.status(400).json({ error: 'Center ID is required' })
+    if (!canAccessCenter(actor, centerId)) {
+      return res.status(403).json({ error: 'Center access is required' })
+    }
+
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: req.params.id, centerId }
+    })
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' })
+
+    const { messageTemplates } = req.body as { messageTemplates: unknown }
+    if (!Array.isArray(messageTemplates)) {
+      return res.status(400).json({ error: 'messageTemplates must be an array' })
+    }
+
+    const updated = await prisma.campaign.update({
+      where: { id: campaign.id },
+      data: { messageTemplates },
+      include: {
+        contacts: { include: { contact: true } },
+        volunteers: { include: { volunteer: true } }
+      }
+    })
+
+    return res.json(formatCampaign(updated))
+  } catch (err) {
+    console.error('Update templates error:', err)
+    return res.status(500).json({ error: 'Failed to update templates' })
+  }
+})
+
 // ---- helpers ----
 
 type CampaignWithIncludes = {
@@ -524,6 +565,7 @@ type CampaignWithIncludes = {
   name: string
   centerId: string
   createdAt: Date
+  messageTemplates: unknown
   contacts: Array<{
     id: string
     status: string
@@ -543,6 +585,7 @@ function formatCampaign(campaign: CampaignWithIncludes) {
     name: campaign.name,
     centerId: campaign.centerId,
     createdAt: campaign.createdAt.toISOString(),
+    messageTemplates: campaign.messageTemplates ?? null,
     totalContacts: campaign.contacts.length,
     pendingContacts: campaign.contacts.filter(c => c.status === 'PENDING').length,
     completedContacts: campaign.contacts.filter(c => c.status === 'COMPLETED').length,

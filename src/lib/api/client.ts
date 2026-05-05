@@ -499,6 +499,7 @@ export interface Campaign {
   name: string
   centerId: string
   createdAt: string
+  messageTemplates: Array<{ name: string; smsContent: string; whatsappContent: string }> | null
   totalContacts: number
   pendingContacts: number
   completedContacts: number
@@ -619,5 +620,19 @@ export const campaignsApi = {
       headers: getHeaders(resolvedCenterId)
     })
     return handleResponse<CallLog[]>(response)
+  },
+
+  updateTemplates: async (
+    id: string,
+    messageTemplates: Array<{ name: string; smsContent: string; whatsappContent: string }>,
+    centerId?: string
+  ): Promise<Campaign> => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/campaigns/${id}/templates`, {
+      method: 'PATCH',
+      headers: getHeaders(resolvedCenterId),
+      body: JSON.stringify({ messageTemplates })
+    })
+    return handleResponse<Campaign>(response)
   }
 }
