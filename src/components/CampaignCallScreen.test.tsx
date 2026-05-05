@@ -37,8 +37,11 @@ describe('CampaignCallScreen', () => {
           contact: { id: 'contact-1', name: 'Alice', phone: '9000000001' }
         }}
         campaignName="Morning Campaign"
-        smsTemplate="Hi {name} from {campaign}"
-        whatsappTemplate="WA {name} {phone}"
+        messageTemplates={[
+          { name: 'Default', smsContent: 'Hi {name} from {campaign}', whatsappContent: 'WA {name} {phone}' }
+        ]}
+        selectedTemplateIndex={0}
+        onSelectedTemplateChange={vi.fn()}
         onDone={vi.fn()}
       />
     )
@@ -86,8 +89,11 @@ describe('CampaignCallScreen', () => {
           contact: { id: 'contact-1', name: 'Alice', phone: '9000000001' }
         }}
         campaignName="Morning Campaign"
-        smsTemplate="Hi {name} from {campaign}"
-        whatsappTemplate="WA {name} {phone}"
+        messageTemplates={[
+          { name: 'Default', smsContent: 'Hi {name} from {campaign}', whatsappContent: 'WA {name} {phone}' }
+        ]}
+        selectedTemplateIndex={0}
+        onSelectedTemplateChange={vi.fn()}
         onDone={vi.fn()}
       />
     )
@@ -131,8 +137,11 @@ describe('CampaignCallScreen', () => {
           contact: { id: 'contact-1', name: 'Alice', phone: '9000000001' }
         }}
         campaignName="Morning Campaign"
-        smsTemplate="Hi {name} from {campaign}"
-        whatsappTemplate="WA {name} {phone}"
+        messageTemplates={[
+          { name: 'Default', smsContent: 'Hi {name} from {campaign}', whatsappContent: 'WA {name} {phone}' }
+        ]}
+        selectedTemplateIndex={0}
+        onSelectedTemplateChange={vi.fn()}
         onDone={vi.fn()}
       />
     )
@@ -163,8 +172,11 @@ describe('CampaignCallScreen', () => {
           contact: { id: 'contact-1', name: 'Alice', phone: '+91 90000 00001' }
         }}
         campaignName="Morning Campaign"
-        smsTemplate="Hi {name}, from {campaign}. Call {phone}"
-        whatsappTemplate="WA hello {name} in {campaign} ({phone})"
+        messageTemplates={[
+          { name: 'Default', smsContent: 'Hi {name}, from {campaign}. Call {phone}', whatsappContent: 'WA hello {name} in {campaign} ({phone})' }
+        ]}
+        selectedTemplateIndex={0}
+        onSelectedTemplateChange={vi.fn()}
         onDone={vi.fn()}
       />
     )
@@ -182,5 +194,38 @@ describe('CampaignCallScreen', () => {
       'href',
       'sms:+91 90000 00001?body=Hi%20Alice%2C%20from%20Morning%20Campaign.%20Call%20%2B91%2090000%2000001'
     )
+  })
+
+  it('allows selecting different message templates and uses correct content', () => {
+    const onSelectedTemplateChange = vi.fn()
+
+    render(
+      <CampaignCallScreen
+        campaignId="campaign-1"
+        centerId="center-1"
+        initialNext={{
+          done: false,
+          campaignContactId: 'cc-1',
+          contact: { id: 'contact-1', name: 'Alice', phone: '+91 90000 00001' }
+        }}
+        campaignName="Morning Campaign"
+        messageTemplates={[
+          { name: 'Friendly', smsContent: 'Hey {name}!', whatsappContent: 'Hey {name}! 😊' },
+          { name: 'Professional', smsContent: 'Dear {name},', whatsappContent: 'Dear {name},' }
+        ]}
+        selectedTemplateIndex={0}
+        onSelectedTemplateChange={onSelectedTemplateChange}
+        onDone={vi.fn()}
+      />
+    )
+
+    // Message Template dropdown should be visible when there are multiple templates
+    const templateSelect = screen.getByLabelText('Message Template')
+    expect(templateSelect).toBeInTheDocument()
+    expect(templateSelect).toHaveValue('0')
+
+    // SMS link should use first template
+    const smsLink = screen.getByRole('link', { name: 'SMS' })
+    expect(smsLink).toHaveAttribute('href', expect.stringContaining('Hey%20Alice'))
   })
 })

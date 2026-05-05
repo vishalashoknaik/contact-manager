@@ -10,8 +10,19 @@ import { CallLogsTable } from '@/components/CallLogsTable'
 
 type View = 'list' | 'detail' | 'call'
 
-const defaultSmsTemplate = 'Hi {name}, this is from {campaign}. Please call us back when convenient.'
-const defaultWhatsappTemplate = 'Hi {name}, this is from {campaign}. Please let us know a good time to connect.'
+interface MessageTemplate {
+  name: string
+  smsContent: string
+  whatsappContent: string
+}
+
+const defaultTemplates: MessageTemplate[] = [
+  {
+    name: 'Default',
+    smsContent: 'Hi {name}, this is from {campaign}. Please call us back when convenient.',
+    whatsappContent: 'Hi {name}, this is from {campaign}. Please let us know a good time to connect.'
+  }
+]
 
 function getTemplateStorageKey(centerId: string, campaignId: string) {
   return `campaign-msg-templates:${centerId}:${campaignId}`
@@ -44,8 +55,10 @@ export default function CampaignsPage() {
   const [editNotInterested, setEditNotInterested] = useState(false)
   const [editRemarks, setEditRemarks] = useState('')
   const [isSavingLog, setIsSavingLog] = useState(false)
-  const [smsTemplate, setSmsTemplate] = useState(defaultSmsTemplate)
-  const [whatsappTemplate, setWhatsappTemplate] = useState(defaultWhatsappTemplate)
+  const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>(defaultTemplates)
+  const [selectedTemplateIndex, setSelectedTemplateIndex] = useState(0)
+  const [editingTemplate, setEditingTemplate] = useState<{ index: number; name: string; smsContent: string; whatsappContent: string } | null>(null)
+  const [newTemplateName, setNewTemplateName] = useState('')
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -60,26 +73,31 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     if (!selectedCenter || !selectedCampaign) {
-      setSmsTemplate(defaultSmsTemplate)
-      setWhatsappTemplate(defaultWhatsappTemplate)
+      setMessageTemplates(defaultTemplates)
+      setSelectedTemplateIndex(0)
       return
     }
 
     const key = getTemplateStorageKey(selectedCenter, selectedCampaign.id)
     const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null
     if (!stored) {
-      setSmsTemplate(defaultSmsTemplate)
-      setWhatsappTemplate(defaultWhatsappTemplate)
+      setMessageTemplates(defaultTemplates)
+      setSelectedTemplateIndex(0)
       return
     }
 
     try {
-      const parsed = JSON.parse(stored) as { smsTemplate?: string; whatsappTemplate?: string }
-      setSmsTemplate(parsed.smsTemplate || defaultSmsTemplate)
-      setWhatsappTemplate(parsed.whatsappTemplate || defaultWhatsappTemplate)
+      const parsed = JSON.parse(stored) as MessageTemplate[]
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setMessageTemplates(parsed)
+        setSelectedTemplateIndex(0)
+      } else {
+        setMessageTemplates(defaultTemplates)
+        setSelectedTemplateIndex(0)
+      }
     } catch {
-      setSmsTemplate(defaultSmsTemplate)
-      setWhatsappTemplate(defaultWhatsappTemplate)
+      setMessageTemplates(defaultTemplates)
+      setSelectedTemplateIndex(0)
     }
   }, [selectedCampaign, selectedCenter])
 
@@ -87,8 +105,8 @@ export default function CampaignsPage() {
     if (!selectedCenter || !selectedCampaign) return
     const key = getTemplateStorageKey(selectedCenter, selectedCampaign.id)
     if (typeof window === 'undefined') return
-    localStorage.setItem(key, JSON.stringify({ smsTemplate, whatsappTemplate }))
-  }, [selectedCenter, selectedCampaign, smsTemplate, whatsappTemplate])
+    localStorage.setItem(key, JSON.stringify(messageTemplates))
+  }, [selectedCenter, selectedCampaign, messageTemplates])
 
   const loadCampaigns = async () => {
     if (!selectedCenter) return
@@ -362,8 +380,9 @@ export default function CampaignsPage() {
             initialNext={(callMode === 'pending' ? nextPending : nextSkipped) as any}
             mode={callMode}
             campaignName={selectedCampaign.name}
-            smsTemplate={smsTemplate}
-            whatsappTemplate={whatsappTemplate}
+            messageTemplates={messageTemplates}
+            selectedTemplateIndex={selectedTemplateIndex}
+            onSelectedTemplateChange={setSelectedTemplateIndex}
             onDone={() => { setView('detail'); refreshCampaign() }}
           />
         </div>
@@ -438,27 +457,80 @@ export default function CampaignsPage() {
           )}
 
           <div style={{ marginBottom: 24, padding: 12, border: '1px solid var(--border-color, #ddd)', borderRadius: 8, backgroundColor: 'var(--panel-bg, #f8f9fa)' }}>
-            <h4 style={{ marginTop: 0, marginBottom: 8 }}>Call Message Templates</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <h4 style={{ margin: 0 }}>Call Message Templates</h4>
+              <button
+                onClick={() => setEditingTemplate({ index: -1, name: 'New Template', smsContent: '', whatsappContent: '' })}
+                style={{
+                  padding: '6px 12px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)',
+                  backgroundColor: '#198754', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600
+                }}
+              >
+                + Add Template
+              </button>
+            </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginBottom: 10 }}>
               Use placeholders: {'{name}'}, {'{phone}'}, {'{campaign}'}
             </div>
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>SMS Template</label>
-              <textarea
-                value={smsTemplate}
-                onChange={e => setSmsTemplate(e.target.value)}
-                rows={2}
-                style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>WhatsApp Template</label>
-              <textarea
-                value={whatsappTemplate}
-                onChange={e => setWhatsappTemplate(e.target.value)}
-                rows={2}
-                style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }}
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {messageTemplates.map((template, index) => (
+                <div
+                  key={index}
+                  style={{
+                    padding: 10,
+                    borderRadius: 4,
+                    border: `1px solid var(--border-color, #ddd)`,
+                    backgroundColor: selectedTemplateIndex === index ? '#e7f3ff' : '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setSelectedTemplateIndex(index)}
+                >
+                  <input
+                    type="radio"
+                    name="template"
+                    checked={selectedTemplateIndex === index}
+                    onChange={() => setSelectedTemplateIndex(index)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{template.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary, #666)', marginTop: 2 }}>
+                      SMS: {template.smsContent.substring(0, 40)}...
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditingTemplate({ index, name: template.name, smsContent: template.smsContent, whatsappContent: template.whatsappContent })
+                    }}
+                    style={{
+                      padding: '4px 8px', borderRadius: 3, border: 'none',
+                      backgroundColor: '#0d6efd', color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600
+                    }}
+                  >
+                    Edit
+                  </button>
+                  {messageTemplates.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const updated = messageTemplates.filter((_, i) => i !== index)
+                        setMessageTemplates(updated)
+                        setSelectedTemplateIndex(Math.min(selectedTemplateIndex, updated.length - 1))
+                      }}
+                      style={{
+                        padding: '4px 8px', borderRadius: 3, border: 'none',
+                        backgroundColor: '#dc3545', color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600
+                      }}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -595,6 +667,81 @@ export default function CampaignsPage() {
               <button onClick={() => setEditingLog(null)} disabled={isSavingLog} style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', backgroundColor: 'transparent', cursor: 'pointer' }}>Cancel</button>
               <button onClick={saveLogEdit} disabled={isSavingLog} style={{ padding: '8px 12px', borderRadius: 4, border: 'none', backgroundColor: '#198754', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
                 {isSavingLog ? 'Saving...' : 'Save Feedback'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingTemplate && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 1001 }}>
+          <div style={{ width: '100%', maxWidth: 500, backgroundColor: 'var(--bg-primary, #fff)', border: '1px solid var(--border-color, #ddd)', borderRadius: 8, padding: 16 }}>
+            <h4 style={{ marginTop: 0, marginBottom: 12 }}>
+              {editingTemplate.index === -1 ? 'Add Message Template' : 'Edit Message Template'}
+            </h4>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Template Name</label>
+              <input
+                value={editingTemplate.name}
+                onChange={e => setEditingTemplate({ ...editingTemplate, name: e.target.value })}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }}
+                placeholder="e.g., Friendly, Professional"
+              />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>SMS Content</label>
+              <textarea
+                value={editingTemplate.smsContent}
+                onChange={e => setEditingTemplate({ ...editingTemplate, smsContent: e.target.value })}
+                rows={3}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }}
+                placeholder="Use {name}, {phone}, {campaign} placeholders"
+              />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>WhatsApp Content</label>
+              <textarea
+                value={editingTemplate.whatsappContent}
+                onChange={e => setEditingTemplate({ ...editingTemplate, whatsappContent: e.target.value })}
+                rows={3}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }}
+                placeholder="Use {name}, {phone}, {campaign} placeholders"
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setEditingTemplate(null)}
+                style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', backgroundColor: 'transparent', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!editingTemplate.name.trim() || !editingTemplate.smsContent.trim() || !editingTemplate.whatsappContent.trim()) {
+                    setError('All fields are required')
+                    return
+                  }
+                  const updated = [...messageTemplates]
+                  if (editingTemplate.index === -1) {
+                    updated.push({
+                      name: editingTemplate.name.trim(),
+                      smsContent: editingTemplate.smsContent.trim(),
+                      whatsappContent: editingTemplate.whatsappContent.trim()
+                    })
+                  } else {
+                    updated[editingTemplate.index] = {
+                      name: editingTemplate.name.trim(),
+                      smsContent: editingTemplate.smsContent.trim(),
+                      whatsappContent: editingTemplate.whatsappContent.trim()
+                    }
+                  }
+                  setMessageTemplates(updated)
+                  setEditingTemplate(null)
+                  setError(null)
+                }}
+                style={{ padding: '8px 12px', borderRadius: 4, border: 'none', backgroundColor: '#198754', color: '#fff', fontWeight: 600, cursor: 'pointer' }}
+              >
+                {editingTemplate.index === -1 ? 'Add Template' : 'Save Changes'}
               </button>
             </div>
           </div>

@@ -5,6 +5,12 @@ import { campaignsApi, CallLogSubmit } from '@/lib/api/client'
 
 type Feedback = 'COMPLETED' | 'NO_RESPONSE' | 'CONNECT_LATER'
 
+interface MessageTemplate {
+  name: string
+  smsContent: string
+  whatsappContent: string
+}
+
 interface CurrentContact {
   done: false
   campaignContactId: string
@@ -17,8 +23,9 @@ interface CampaignCallScreenProps {
   initialNext: CurrentContact | { done: true }
   mode: 'pending' | 'skipped'
   campaignName: string
-  smsTemplate: string
-  whatsappTemplate: string
+  messageTemplates: MessageTemplate[]
+  selectedTemplateIndex: number
+  onSelectedTemplateChange: (index: number) => void
   onDone: () => void
 }
 
@@ -35,7 +42,7 @@ const feedbackOptions: { value: Feedback; label: string }[] = [
   { value: 'CONNECT_LATER', label: 'Connect Later' }
 ]
 
-export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, campaignName, smsTemplate, whatsappTemplate, onDone }: CampaignCallScreenProps) {
+export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, campaignName, messageTemplates, selectedTemplateIndex, onSelectedTemplateChange, onDone }: CampaignCallScreenProps) {
   const [current, setCurrent] = useState<CurrentContact | { done: true }>(initialNext)
   const [previous, setPrevious] = useState<CurrentContact | null>(null)
   const [feedback, setFeedback] = useState<Feedback>('COMPLETED')
@@ -45,6 +52,8 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
   const [remarks, setRemarks] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const selectedTemplate = messageTemplates[selectedTemplateIndex] || messageTemplates[0]
 
   const resetForm = useCallback(() => {
     setFeedback('COMPLETED')
@@ -131,10 +140,10 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
   const cc = current as CurrentContact
   const normalizedPhone = cc.contact.phone.replace(/\D/g, '')
   const smsHref = `sms:${cc.contact.phone}?body=${encodeURIComponent(
-    applyTemplate(smsTemplate, { name: cc.contact.name, phone: cc.contact.phone, campaign: campaignName })
+    applyTemplate(selectedTemplate.smsContent, { name: cc.contact.name, phone: cc.contact.phone, campaign: campaignName })
   )}`
   const whatsappHref = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(
-    applyTemplate(whatsappTemplate, { name: cc.contact.name, phone: cc.contact.phone, campaign: campaignName })
+    applyTemplate(selectedTemplate.whatsappContent, { name: cc.contact.name, phone: cc.contact.phone, campaign: campaignName })
   )}`
 
   return (
@@ -150,6 +159,28 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
         <a href={`tel:${cc.contact.phone}`} style={{ fontSize: 16, color: '#0d6efd', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
           {cc.contact.phone}
         </a>
+        
+        {messageTemplates.length > 1 && (
+          <div style={{ marginTop: 12, marginBottom: 12 }}>
+            <label htmlFor="template-select" style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Message Template</label>
+            <select
+              id="template-select"
+              value={selectedTemplateIndex}
+              onChange={e => onSelectedTemplateChange(Number(e.target.value))}
+              style={{
+                width: '100%', padding: '8px 10px', borderRadius: 4,
+                border: '1px solid var(--border-color, #ddd)',
+                backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)',
+                boxSizing: 'border-box'
+              }}
+            >
+              {messageTemplates.map((t, idx) => (
+                <option key={idx} value={idx}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
           <a
             href={`tel:${cc.contact.phone}`}
