@@ -10,6 +10,7 @@
   --input-bg: #ffffff;
   --th-bg: #f5f5f5;
   --panel-bg: #f9f9f9;
+  --selected-item-bg: #f0f7ff;
 }
 
 @theme inline {
@@ -30,6 +31,7 @@
     --input-bg: #2a2a2a;
     --th-bg: #2a2a2a;
     --panel-bg: #252525;
+    --selected-item-bg: #2d4d6d;
   }
 }
 

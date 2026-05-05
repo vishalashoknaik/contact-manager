@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import { campaignsApi, contactsApi, Campaign, CallLog, NextContactResult } from '@/lib/api/client'
+import { campaignsApi, Campaign, CallLog, NextContactResult } from '@/lib/api/client'
 import { VolunteerPanel } from '@/components/VolunteerPanel'
 import { CampaignCallScreen } from '@/components/CampaignCallScreen'
 import { CallLogsTable } from '@/components/CallLogsTable'
@@ -25,7 +25,7 @@ const defaultTemplates: MessageTemplate[] = [
 ]
 
 export default function CampaignsPage() {
-  const { user, selectedCenter, isLoggedIn } = useAuth()
+  const { user, selectedCenter, selectedCenterDetails, isLoggedIn } = useAuth()
   const router = useRouter()
   const [view, setView] = useState<View>('list')
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
@@ -40,10 +40,6 @@ export default function CampaignsPage() {
   const [campaignVolunteerFilter, setCampaignVolunteerFilter] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [editingContact, setEditingContact] = useState<{ id: string; name: string; phone: string } | null>(null)
-  const [contactNameDraft, setContactNameDraft] = useState('')
-  const [contactPhoneDraft, setContactPhoneDraft] = useState('')
-  const [isSavingContact, setIsSavingContact] = useState(false)
   const [editingLog, setEditingLog] = useState<CallLog | null>(null)
   const [editFeedback, setEditFeedback] = useState<'COMPLETED' | 'NO_RESPONSE' | 'CONNECT_LATER'>('COMPLETED')
   const [editCenterChange, setEditCenterChange] = useState(false)
@@ -56,6 +52,7 @@ export default function CampaignsPage() {
   const [editingTemplate, setEditingTemplate] = useState<{ index: number; name: string; smsContent: string; whatsappContent: string } | null>(null)
   const [isSavingTemplates, setIsSavingTemplates] = useState(false)
   const templateSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const canEditTemplates = selectedCenterDetails?.role === 'USER'
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -158,35 +155,6 @@ export default function CampaignsPage() {
       setNextSkipped(skipped)
     } catch {
       // silent refresh failure
-    }
-  }
-
-  const openContactEditor = (contact: { id: string; name: string; phone: string }) => {
-    setEditingContact(contact)
-    setContactNameDraft(contact.name)
-    setContactPhoneDraft(contact.phone)
-  }
-
-  const saveContactEdit = async () => {
-    if (!editingContact || !selectedCenter) return
-
-    setIsSavingContact(true)
-    setError(null)
-    try {
-      await contactsApi.update(
-        editingContact.id,
-        {
-          name: contactNameDraft.trim(),
-          phone: contactPhoneDraft.trim()
-        },
-        selectedCenter
-      )
-      setEditingContact(null)
-      await refreshCampaign()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update contact')
-    } finally {
-      setIsSavingContact(false)
     }
   }
 
@@ -456,15 +424,17 @@ export default function CampaignsPage() {
               {isSavingTemplates && (
                 <span style={{ fontSize: 11, color: 'var(--text-secondary, #666)' }}>Syncing…</span>
               )}
-              <button
-                onClick={() => setEditingTemplate({ index: -1, name: 'New Template', smsContent: '', whatsappContent: '' })}
-                style={{
-                  padding: '6px 12px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)',
-                  backgroundColor: '#198754', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600
-                }}
-              >
-                + Add Template
-              </button>
+              {canEditTemplates && (
+                <button
+                  onClick={() => setEditingTemplate({ index: -1, name: 'New Template', smsContent: '', whatsappContent: '' })}
+                  style={{
+                    padding: '6px 12px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)',
+                    backgroundColor: '#198754', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600
+                  }}
+                >
+                  + Add Template
+                </button>
+              )}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginBottom: 10 }}>
               Use placeholders: {'{name}'}, {'{phone}'}, {'{campaign}'}
@@ -476,8 +446,8 @@ export default function CampaignsPage() {
                   style={{
                     padding: 10,
                     borderRadius: 4,
-                    border: `1px solid var(--border-color, #ddd)`,
-                    backgroundColor: selectedTemplateIndex === index ? '#e7f3ff' : '#fff',
+                    border: `1px solid ${selectedTemplateIndex === index ? 'var(--text-primary, #000)' : 'var(--border-color, #ddd)'}`,
+                    backgroundColor: selectedTemplateIndex === index ? 'var(--selected-item-bg, #f0f7ff)' : 'var(--panel-bg, #f9f9f9)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
@@ -498,19 +468,21 @@ export default function CampaignsPage() {
                       SMS: {template.smsContent.substring(0, 40)}...
                     </div>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setEditingTemplate({ index, name: template.name, smsContent: template.smsContent, whatsappContent: template.whatsappContent })
-                    }}
-                    style={{
-                      padding: '4px 8px', borderRadius: 3, border: 'none',
-                      backgroundColor: '#0d6efd', color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600
-                    }}
-                  >
-                    Edit
-                  </button>
-                  {messageTemplates.length > 1 && (
+                  {canEditTemplates && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingTemplate({ index, name: template.name, smsContent: template.smsContent, whatsappContent: template.whatsappContent })
+                      }}
+                      style={{
+                        padding: '4px 8px', borderRadius: 3, border: 'none',
+                        backgroundColor: '#0d6efd', color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600
+                      }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {canEditTemplates && messageTemplates.length > 1 && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -528,39 +500,6 @@ export default function CampaignsPage() {
                   )}
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* Contacts table */}
-          <div style={{ marginBottom: 24 }}>
-            <h4 style={{ marginBottom: 12 }}>Contacts ({selectedCampaign.contacts.length})</h4>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginBottom: 8 }}>
-              Click a contact row to edit basic info.
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
-                <thead>
-                  <tr>
-                    <th style={{ border: '1px solid var(--border-color, #ddd)', padding: '6px 8px', textAlign: 'left' }}>Name</th>
-                    <th style={{ border: '1px solid var(--border-color, #ddd)', padding: '6px 8px', textAlign: 'left' }}>Phone</th>
-                    <th style={{ border: '1px solid var(--border-color, #ddd)', padding: '6px 8px', textAlign: 'left' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedCampaign.contacts.map(cc => (
-                    <tr
-                      key={cc.campaignContactId}
-                      onClick={() => openContactEditor(cc.contact)}
-                      style={{ cursor: 'pointer' }}
-                      title="Click to edit contact"
-                    >
-                      <td style={{ border: '1px solid var(--border-color, #eee)', padding: '6px 8px', fontSize: 13 }}>{cc.contact.name}</td>
-                      <td style={{ border: '1px solid var(--border-color, #eee)', padding: '6px 8px', fontSize: 13 }}>{cc.contact.phone}</td>
-                      <td style={{ border: '1px solid var(--border-color, #eee)', padding: '6px 8px', fontSize: 13 }}>{cc.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
 
@@ -607,28 +546,6 @@ export default function CampaignsPage() {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {editingContact && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 1000 }}>
-          <div style={{ width: '100%', maxWidth: 460, backgroundColor: 'var(--bg-primary, #fff)', border: '1px solid var(--border-color, #ddd)', borderRadius: 8, padding: 16 }}>
-            <h4 style={{ marginTop: 0, marginBottom: 12 }}>Edit Contact</h4>
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Name</label>
-              <input value={contactNameDraft} onChange={e => setContactNameDraft(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Phone</label>
-              <input value={contactPhoneDraft} onChange={e => setContactPhoneDraft(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setEditingContact(null)} disabled={isSavingContact} style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)', backgroundColor: 'transparent', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={saveContactEdit} disabled={isSavingContact} style={{ padding: '8px 12px', borderRadius: 4, border: 'none', backgroundColor: '#0d6efd', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-                {isSavingContact ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -720,7 +637,7 @@ export default function CampaignsPage() {
         </div>
       )}
 
-      {editingTemplate && (
+      {canEditTemplates && editingTemplate && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 1001 }}>
           <div style={{ width: '100%', maxWidth: 500, backgroundColor: 'var(--bg-primary, #fff)', border: '1px solid var(--border-color, #ddd)', borderRadius: 8, padding: 16 }}>
             <h4 style={{ marginTop: 0, marginBottom: 12 }}>

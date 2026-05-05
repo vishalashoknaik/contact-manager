@@ -367,5 +367,134 @@ describe('campaign routes', () => {
       data: { isApproved: true }
     })
     expect(mockPrisma.userCenter.create).not.toHaveBeenCalled()
+
+    describe('message templates', () => {
+      it('allows USER role to update campaign message templates', async () => {
+        mockPrisma.user.findUnique.mockResolvedValueOnce({
+          phone: '8888888888',
+          canAccessAllCenters: false,
+          centers: [{ centerId: 'center-1', isApproved: true, role: 'USER' }]
+        })
+
+        mockPrisma.campaign.findFirst.mockResolvedValueOnce({ id: 'campaign-1', centerId: 'center-1' })
+        mockPrisma.campaign.update.mockResolvedValueOnce({
+          id: 'campaign-1',
+          name: 'Campaign 1',
+          centerId: 'center-1',
+          createdAt: new Date(),
+          messageTemplates: [
+            {
+              name: 'Friendly',
+              smsContent: 'Hi {name}, please call us back.',
+              whatsappContent: 'Hi {name}, let us know when you are available.'
+            }
+          ],
+          contacts: [],
+          volunteers: []
+        })
+
+        const baseUrl = await startTestServer()
+        const templates = [
+          {
+            name: 'Friendly',
+            smsContent: 'Hi {name}, please call us back.',
+            whatsappContent: 'Hi {name}, let us know when you are available.'
+          }
+        ]
+
+        const response = await fetch(`${baseUrl}/api/campaigns/campaign-1/templates`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Center-ID': 'center-1',
+            ...authHeaderFor('8888888888')
+          },
+          body: JSON.stringify({ messageTemplates: templates })
+        })
+
+        expect(response.status).toBe(200)
+        const data = (await response.json()) as { messageTemplates: unknown }
+        expect(Array.isArray(data.messageTemplates)).toBe(true)
+        expect(mockPrisma.campaign.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: { messageTemplates: templates }
+          })
+        )
+      })
+
+      it('blocks ATTENDANCE_TAKER role from updating templates', async () => {
+        mockPrisma.user.findUnique.mockResolvedValueOnce({
+          phone: '9999999999',
+          canAccessAllCenters: false,
+          centers: [{ centerId: 'center-1', isApproved: true, role: 'ATTENDANCE_TAKER' }]
+        })
+
+        mockPrisma.campaign.findFirst.mockResolvedValueOnce({ id: 'campaign-1', centerId: 'center-1' })
+
+        const baseUrl = await startTestServer()
+        const response = await fetch(`${baseUrl}/api/campaigns/campaign-1/templates`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Center-ID': 'center-1',
+            ...authHeaderFor('9999999999')
+          },
+          body: JSON.stringify({
+            messageTemplates: [{ name: 'Test', smsContent: 'Test', whatsappContent: 'Test' }]
+          })
+        })
+
+        expect(response.status).toBe(403)
+        await expect(response.json()).resolves.toEqual({ error: 'Only USER role can edit campaign templates' })
+      })
+
+      it('rejects non-array messageTemplates', async () => {
+        mockPrisma.user.findUnique.mockResolvedValueOnce({
+          phone: '1010101010',
+          canAccessAllCenters: false,
+          centers: [{ centerId: 'center-1', isApproved: true, role: 'USER' }]
+        })
+
+        mockPrisma.campaign.findFirst.mockResolvedValueOnce({ id: 'campaign-1', centerId: 'center-1' })
+
+        const baseUrl = await startTestServer()
+        const response = await fetch(`${baseUrl}/api/campaigns/campaign-1/templates`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Center-ID': 'center-1',
+            ...authHeaderFor('1010101010')
+          },
+          body: JSON.stringify({ messageTemplates: 'not an array' })
+        })
+
+        expect(response.status).toBe(400)
+        await expect(response.json()).resolves.toEqual({ error: 'messageTemplates must be an array' })
+      })
+
+      it('returns 404 when campaign does not exist', async () => {
+        mockPrisma.user.findUnique.mockResolvedValueOnce({
+          phone: '1111111010',
+          canAccessAllCenters: false,
+          centers: [{ centerId: 'center-1', isApproved: true, role: 'USER' }]
+        })
+
+        mockPrisma.campaign.findFirst.mockResolvedValueOnce(null)
+
+        const baseUrl = await startTestServer()
+        const response = await fetch(`${baseUrl}/api/campaigns/nonexistent/templates`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Center-ID': 'center-1',
+            ...authHeaderFor('1111111010')
+          },
+          body: JSON.stringify({ messageTemplates: [] })
+        })
+
+        expect(response.status).toBe(404)
+        await expect(response.json()).resolves.toEqual({ error: 'Campaign not found' })
+      })
+    })
   })
 })

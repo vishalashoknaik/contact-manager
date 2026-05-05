@@ -531,6 +531,10 @@ router.patch('/:id/templates', async (req: Request, res: Response) => {
     if (!canAccessCenter(actor, centerId)) {
       return res.status(403).json({ error: 'Center access is required' })
     }
+    const membership = actor.centers.find(m => m.centerId === centerId && m.isApproved)
+    if (!membership || membership.role !== 'USER') {
+      return res.status(403).json({ error: 'Only USER role can edit campaign templates' })
+    }
 
     const campaign = await prisma.campaign.findFirst({
       where: { id: req.params.id, centerId }
