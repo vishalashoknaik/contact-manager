@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { SyncStatusNotices } from '@/components/SyncStatusNotices'
+import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { campaignsApi, Campaign, CampaignVolunteer } from '@/lib/api/client'
 
 interface VolunteerPanelProps {
@@ -12,25 +14,42 @@ interface VolunteerPanelProps {
 
 export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated }: VolunteerPanelProps) {
   const [addPhone, setAddPhone] = useState('')
+  const [volunteers, setVolunteers] = useState<CampaignVolunteer[]>(campaign.volunteers)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { isOnline, showLongSyncNotice, showOfflineWarning } = useSyncStatus({ isSyncing: isLoading })
+
+  useEffect(() => {
+    setVolunteers(campaign.volunteers)
+  }, [campaign.id, campaign.volunteers])
 
   const handleAddVolunteer = async () => {
     const phone = addPhone.trim()
     if (!phone) return
-    const already = campaign.volunteers.some(v => v.phone === phone)
+    const already = volunteers.some(v => v.phone === phone)
     if (already) {
       setError('This person is already a volunteer')
       return
     }
+
+    const previousVolunteers = volunteers
+    const optimisticVolunteer: CampaignVolunteer = {
+      phone,
+      name: phone === currentUserPhone ? 'You' : ''
+    }
+
     setError(null)
+    setVolunteers([...volunteers, optimisticVolunteer])
+    setAddPhone('')
     setIsLoading(true)
     try {
-      const phones = [...campaign.volunteers.map(v => v.phone), phone]
+      const phones = [...previousVolunteers.map(v => v.phone), phone]
       const updated = await campaignsApi.setVolunteers(campaign.id, phones, centerId)
+      setVolunteers(updated.volunteers)
       onUpdated(updated)
-      setAddPhone('')
     } catch (err) {
+      setVolunteers(previousVolunteers)
+      setAddPhone(phone)
       setError(err instanceof Error ? err.message : 'Failed to add volunteer')
     } finally {
       setIsLoading(false)
@@ -38,13 +57,17 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
   }
 
   const handleRemoveVolunteer = async (phone: string) => {
+    const previousVolunteers = volunteers
     setError(null)
+    setVolunteers(volunteers.filter(v => v.phone !== phone))
     setIsLoading(true)
     try {
-      const phones = campaign.volunteers.map(v => v.phone).filter(p => p !== phone)
+      const phones = previousVolunteers.map(v => v.phone).filter(p => p !== phone)
       const updated = await campaignsApi.setVolunteers(campaign.id, phones, centerId)
+      setVolunteers(updated.volunteers)
       onUpdated(updated)
     } catch (err) {
+      setVolunteers(previousVolunteers)
       setError(err instanceof Error ? err.message : 'Failed to remove volunteer')
     } finally {
       setIsLoading(false)
@@ -63,17 +86,30 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
 
   return (
     <div style={{ border: '1px solid var(--border-color, #ddd)', borderRadius: 6, padding: 16 }}>
-      <h4 style={{ margin: '0 0 12px 0' }}>Volunteers ({campaign.volunteers.length})</h4>
+      <h4 style={{ margin: '0 0 12px 0' }}>Volunteers ({volunteers.length})</h4>
 
-      {campaign.volunteers.length === 0 ? (
+      <SyncStatusNotices
+        isSyncing={isLoading}
+        syncMessage={isOnline
+          ? 'Sync has not happened yet. Saving latest volunteer changes...'
+          : 'Internet is disconnected. Volunteer changes cannot be synced yet.'}
+        showLongSyncNotice={showLongSyncNotice}
+        showOfflineWarning={showOfflineWarning}
+        offlineMessage="Internet is disconnected or volunteer changes are still syncing. The volunteer list may be outdated until sync completes."
+        margin="0 0 12px"
+      />
+
+      {volunteers.length === 0 ? (
         <p style={{ color: 'var(--text-secondary, #888)', margin: '0 0 12px 0', fontSize: 14 }}>
           No volunteers assigned yet
         </p>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px 0' }}>
-          {campaign.volunteers.map((v: CampaignVolunteer) => (
+          {volunteers.map((v: CampaignVolunteer) => (
             <li key={v.phone} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-              <span style={{ flex: '1 1 220px' }}>{v.name} ({v.phone})</span>
+              <span style={{ flex: '1 1 220px' }}>
+                {v.name?.trim() ? `${v.name} (${v.phone})` : v.phone}
+              </span>
               <button
                 onClick={() => handleRemoveVolunteer(v.phone)}
                 disabled={isLoading}

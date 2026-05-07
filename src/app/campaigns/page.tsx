@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { campaignsApi, Campaign, CallLog, NextContactResult } from '@/lib/api/client'
+import { SyncStatusNotices } from '@/components/SyncStatusNotices'
 import { VolunteerPanel } from '@/components/VolunteerPanel'
 import { CampaignCallScreen } from '@/components/CampaignCallScreen'
 import { CallLogsTable } from '@/components/CallLogsTable'
@@ -53,6 +55,8 @@ export default function CampaignsPage() {
   const [isSavingTemplates, setIsSavingTemplates] = useState(false)
   const templateSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const canEditTemplates = selectedCenterDetails?.role === 'USER'
+  const [hasLoadedCampaignsOnce, setHasLoadedCampaignsOnce] = useState(false)
+  const { isOnline, showLongSyncNotice, showOfflineWarning } = useSyncStatus({ isSyncing: isLoading })
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -106,6 +110,7 @@ export default function CampaignsPage() {
     try {
       const list = await campaignsApi.getAll(selectedCenter)
       setCampaigns(list)
+      setHasLoadedCampaignsOnce(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load campaigns')
     } finally {
@@ -325,6 +330,17 @@ export default function CampaignsPage() {
           {error}
         </div>
       )}
+
+      <SyncStatusNotices
+        isSyncing={isLoading}
+        syncMessage={isOnline
+          ? 'Sync has not happened yet. Fetching latest campaign details...'
+          : 'Internet is disconnected. Campaigns could not be refreshed yet, so the current list may be incomplete.'}
+        showLongSyncNotice={showLongSyncNotice}
+        showOfflineWarning={showOfflineWarning || (!hasLoadedCampaignsOnce && !!error)}
+        offlineMessage="Internet is disconnected or campaigns are still loading. Existing campaigns may be temporarily unavailable until sync completes."
+        margin="0 0 16px"
+      />
 
       {/* CALL VIEW */}
       {view === 'call' && selectedCampaign && (

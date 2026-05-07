@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { SyncStatusNotices } from '@/components/SyncStatusNotices'
+import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { authApi, centersApi, contactsApi } from '@/lib/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { AdminService } from '@/lib/services/AdminService'
@@ -56,11 +58,15 @@ export function AdminPanel({
   const [managedRoleDrafts, setManagedRoleDrafts] = useState<Record<string, CenterRole>>({})
   const [userError, setUserError] = useState<string | null>(null)
   const [isManagingUsers, setIsManagingUsers] = useState(false)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const [hasLoadedUsersOnce, setHasLoadedUsersOnce] = useState(false)
   const [centers, setCenters] = useState<CenterOption[]>([])
   const [newCenterName, setNewCenterName] = useState('')
   const [renameCenterName, setRenameCenterName] = useState('')
   const [centerError, setCenterError] = useState<string | null>(null)
   const [isSavingCenter, setIsSavingCenter] = useState(false)
+  const [isLoadingCenters, setIsLoadingCenters] = useState(false)
+  const [hasLoadedCentersOnce, setHasLoadedCentersOnce] = useState(false)
   const [mergeDialog, setMergeDialog] = useState<{
     type: 'activity' | 'area' | 'program'
     itemToDelete: string
@@ -89,6 +95,13 @@ export function AdminPanel({
 
   const toExistingContactByPhone = (phone: string) =>
     contacts.find(contact => contact.phone.trim() === phone.trim())
+  const shouldLoadCenters = !!user?.canAccessAllCenters && isVisible && section === 'access'
+  const isAccessSyncing = (isLoadingUsers && !hasLoadedUsersOnce) || (shouldLoadCenters && isLoadingCenters && !hasLoadedCentersOnce)
+  const {
+    isOnline,
+    showLongSyncNotice: showAccessLongSyncNotice,
+    showOfflineWarning: showAccessOfflineWarning
+  } = useSyncStatus({ isSyncing: isAccessSyncing })
 
   useEffect(() => {
     if (!isVisible || !selectedCenter || !canManageSelectedCenterAccess || section !== 'access') {
@@ -96,12 +109,16 @@ export function AdminPanel({
     }
 
     const loadUsers = async () => {
+      setIsLoadingUsers(true)
       try {
         const users = await authApi.getUsers(selectedCenter)
         setManagedUsers(users)
+        setHasLoadedUsersOnce(true)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load users'
         setUserError(message)
+      } finally {
+        setIsLoadingUsers(false)
       }
     }
 
@@ -140,11 +157,15 @@ export function AdminPanel({
     }
 
     const loadCenters = async () => {
+      setIsLoadingCenters(true)
       try {
         setCenters(await centersApi.getAll())
+        setHasLoadedCentersOnce(true)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load centers'
         setCenterError(message)
+      } finally {
+        setIsLoadingCenters(false)
       }
     }
 
@@ -297,6 +318,14 @@ export function AdminPanel({
     setCenters(nextCenters)
   }
 
+  const patchManagedUser = (managedUser: ManagedUser, updates: Partial<ManagedUser>) => (
+    currentUsers: ManagedUser[]
+  ) => currentUsers.map(currentUser => (
+    toManagedKey(currentUser) === toManagedKey(managedUser)
+      ? { ...currentUser, ...updates }
+      : currentUser
+  ))
+
   const handleSaveUser = async () => {
     if (!selectedCenter) {
       setUserError('Select a center before managing users')
@@ -366,6 +395,13 @@ export function AdminPanel({
       return
     }
 
+    const previousManagedUsers = managedUsers
+    setManagedUsers(patchManagedUser(managedUser, {
+      centerRole: nextRole,
+      isApproved: true,
+      accessStatus: 'approved'
+    }))
+
     setIsManagingUsers(true)
     setUserError(null)
 
@@ -383,6 +419,7 @@ export function AdminPanel({
       )
       await reloadManagedUsers()
     } catch (err) {
+      setManagedUsers(previousManagedUsers)
       const message = err instanceof Error ? err.message : 'Failed to update roles'
       setUserError(message)
     } finally {
@@ -400,6 +437,13 @@ export function AdminPanel({
       return
     }
 
+    const previousManagedUsers = managedUsers
+    setManagedUsers(patchManagedUser(managedUser, {
+      canAccessAllCenters: !managedUser.canAccessAllCenters,
+      isApproved: true,
+      accessStatus: 'approved'
+    }))
+
     setIsManagingUsers(true)
     setUserError(null)
 
@@ -415,6 +459,7 @@ export function AdminPanel({
       )
       await reloadManagedUsers()
     } catch (err) {
+      setManagedUsers(previousManagedUsers)
       const message = err instanceof Error ? err.message : 'Failed to update roles'
       setUserError(message)
     } finally {
@@ -427,6 +472,9 @@ export function AdminPanel({
       return
     }
 
+    const previousManagedUsers = managedUsers
+    setManagedUsers(currentUsers => currentUsers.filter(currentUser => toManagedKey(currentUser) !== toManagedKey(managedUser)))
+
     setIsManagingUsers(true)
     setUserError(null)
 
@@ -434,6 +482,7 @@ export function AdminPanel({
       await authApi.removeUserAccess(managedUser.phone, selectedCenter)
       await reloadManagedUsers()
     } catch (err) {
+      setManagedUsers(previousManagedUsers)
       const message = err instanceof Error ? err.message : 'Failed to remove access'
       setUserError(message)
     } finally {
@@ -622,6 +671,17 @@ export function AdminPanel({
             {isManagingUsers ? 'Saving...' : 'Grant Access'}
           </button>
         </div>
+
+        <SyncStatusNotices
+          isSyncing={isAccessSyncing}
+          syncMessage={isOnline
+            ? 'Sync has not happened yet. Fetching latest access control details...'
+            : 'Internet is disconnected. Access control details could not be refreshed yet and may be incomplete.'}
+          showLongSyncNotice={showAccessLongSyncNotice}
+          showOfflineWarning={showAccessOfflineWarning}
+          offlineMessage="Internet is disconnected or access control data is still loading. Users and centers may appear incomplete until sync finishes."
+          margin="0 0 12px"
+        />
 
         {userError && <div style={{ color: '#b02a37', marginBottom: 12 }}>{userError}</div>}
       </div>

@@ -138,15 +138,25 @@ export function useContacts() {
     }
 
     if (useBackend) {
+      const previousContacts = contacts
+      const nextContacts = contacts.map(contact => (
+          String(contact.id) === String(id)
+            ? { ...contact, selected: !contact.selected }
+            : contact
+      ))
+      setContactsState(nextContacts)
+
+      const updatedContact = nextContacts.find(contact => String(contact.id) === String(id))
+      if (!updatedContact) {
+        return
+      }
+
       try {
-        const contact = contacts.find(c => String(c.id) === String(id))
-        if (contact) {
-          await contactsApi.update(id, { selected: !contact.selected }, selectedCenter)
-          await refreshFromBackend()
-          setError(null)
-        }
+        await contactsApi.update(id, { selected: updatedContact.selected }, selectedCenter)
+        setError(null)
         return
       } catch (err) {
+        setContactsState(previousContacts)
         console.error('Backend toggle failed:', err)
         setError('Failed to update selection in backend.')
         return
@@ -171,15 +181,24 @@ export function useContacts() {
     }
 
     if (useBackend) {
+      const allSelected = targetContacts.length > 0 && targetContacts.every(c => c.selected)
+      const targetIds = new Set(targetContacts.map(contact => String(contact.id)))
+      const previousContacts = contacts
+      const nextContacts = contacts.map(contact => (
+          targetIds.has(String(contact.id))
+            ? { ...contact, selected: !allSelected }
+            : contact
+      ))
+      setContactsState(nextContacts)
+
       try {
-        const allSelected = targetContacts.length > 0 && targetContacts.every(c => c.selected)
         await Promise.all(
           targetContacts.map(c => contactsApi.update(c.id, { selected: !allSelected }, selectedCenter))
         )
-        await refreshFromBackend()
         setError(null)
         return
       } catch (err) {
+        setContactsState(previousContacts)
         console.error('Backend toggle-all failed:', err)
         setError('Failed to update bulk selection in backend.')
         return
@@ -258,14 +277,17 @@ export function useContacts() {
     }
 
     if (useBackend) {
+      const previousContacts = contacts
+      setContactsState(currentContacts => currentContacts.map(contact => ({ ...contact, selected: false })))
+
       try {
         await Promise.all(
           contacts.map(c => contactsApi.update(c.id, { selected: false }, selectedCenter))
         )
-        await refreshFromBackend()
         setError(null)
         return true
       } catch (err) {
+        setContactsState(previousContacts)
         console.error('Backend clear failed:', err)
         setError('Failed to clear selections in backend.')
         return false

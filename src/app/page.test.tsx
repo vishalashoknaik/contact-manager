@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -387,5 +387,38 @@ describe('Home page', () => {
       expect(screen.getByText('Save failed')).toBeInTheDocument()
     })
     expect(screen.getByRole('heading', { name: 'Edit Contact' })).toBeInTheDocument()
+  })
+
+  it('warns when contacts are still syncing while offline', async () => {
+    try {
+      vi.useFakeTimers()
+      Object.defineProperty(window.navigator, 'onLine', {
+        configurable: true,
+        value: false
+      })
+
+      vi.mocked(contactsApi.getAll).mockImplementationOnce(() => new Promise<never>(() => {}))
+
+      render(<Home />)
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      expect(screen.getByText('Internet is disconnected. Contacts and configuration could not be refreshed yet, so the current view may be incomplete.')).toBeInTheDocument()
+      expect(screen.queryByText('Internet is disconnected or data is unavailable. Contacts and configuration may look incomplete until the latest sync succeeds.')).not.toBeInTheDocument()
+
+      await act(async () => {
+        vi.advanceTimersByTime(5000)
+      })
+
+      expect(screen.getByText('Internet is disconnected or data is unavailable. Contacts and configuration may look incomplete until the latest sync succeeds.')).toBeInTheDocument()
+    } finally {
+      Object.defineProperty(window.navigator, 'onLine', {
+        configurable: true,
+        value: true
+      })
+      vi.useRealTimers()
+    }
   })
 })

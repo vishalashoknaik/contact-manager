@@ -8,8 +8,10 @@ import { useFiltering } from '@/hooks/useFiltering'
 import { useAdmin } from '@/hooks/useAdmin'
 import { useInputState } from '@/hooks/useInputState'
 import { useAuth } from '@/hooks/useAuth'
+import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { LoginPage } from '@/components/LoginPage'
 import { CenterSelector } from '@/components/CenterSelector'
+import { SyncStatusNotices } from '@/components/SyncStatusNotices'
 import { FilterService } from '@/lib/services/FilterService'
 import { ContactService } from '@/lib/services/contactService'
 import { ContactForm } from '@/components/ContactForm'
@@ -130,6 +132,10 @@ function HomeContent() {
   }
 
   const backendError = contactsManager.error || configManager.error
+  const dataSyncing = !contactsManager.isLoaded || !configManager.isLoaded
+  const { isOnline, showLongSyncNotice, showOfflineWarning } = useSyncStatus({
+    isSyncing: dataSyncing
+  })
 
   return (
     <div style={{ 
@@ -165,6 +171,17 @@ function HomeContent() {
           {backendError}
         </div>
       )}
+
+      <SyncStatusNotices
+        isSyncing={dataSyncing}
+        syncMessage={isOnline
+          ? 'Sync has not happened yet. Fetching latest contacts and center configuration...'
+          : 'Internet is disconnected. Contacts and configuration could not be refreshed yet, so the current view may be incomplete.'}
+        showLongSyncNotice={showLongSyncNotice}
+        showOfflineWarning={showOfflineWarning || (dataSyncing && !!backendError)}
+        offlineMessage="Internet is disconnected or data is unavailable. Contacts and configuration may look incomplete until the latest sync succeeds."
+        margin="0 0 16px"
+      />
 
       <div style={{ marginBottom: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {!adminManager.isAdmin && (

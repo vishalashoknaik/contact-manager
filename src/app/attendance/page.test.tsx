@@ -504,6 +504,9 @@ describe('AttendancePage', () => {
     })
 
     await waitFor(() => expect(mocks.submit).toHaveBeenCalledTimes(1))
+    await waitFor(() => {
+      expect(screen.queryByText(/Saved offline\. Attendance will sync automatically when online\./i)).not.toBeInTheDocument()
+    })
 
     await user.click(screen.getByRole('button', { name: /session attendees/i }))
 

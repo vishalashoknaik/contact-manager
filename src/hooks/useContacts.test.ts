@@ -161,8 +161,7 @@ describe('useContacts', () => {
     const initialContacts = [{ ...mockContacts[0], selected: false }]
 
     vi.mocked(contactsApi.getAll)
-      .mockResolvedValueOnce(initialContacts as never)        // initial
-      .mockResolvedValueOnce([{ ...initialContacts[0], selected: true }] as never) // after toggle
+      .mockResolvedValueOnce(initialContacts as never)
 
     const { result } = renderHook(() => useContacts())
     await waitFor(() => expect(result.current.isLoaded).toBe(true))
@@ -175,13 +174,48 @@ describe('useContacts', () => {
     expect(result.current.contacts[0].selected).toBe(true)
   })
 
+  it('toggleSelect updates UI immediately before the backend call resolves', async () => {
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([{ ...mockContacts[0], selected: false }] as never)
+
+    let resolveUpdate: (() => void) | null = null
+    vi.mocked(contactsApi.update).mockImplementationOnce(() => new Promise(resolve => {
+      resolveUpdate = () => resolve({ ...mockContacts[0], selected: true })
+    }) as never)
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    act(() => {
+      void result.current.toggleSelect('uuid-1')
+    })
+
+    expect(result.current.contacts[0].selected).toBe(true)
+
+    await act(async () => {
+      resolveUpdate?.()
+    })
+  })
+
+  it('toggleSelect rolls back the UI when the backend update fails', async () => {
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([{ ...mockContacts[0], selected: false }] as never)
+    vi.mocked(contactsApi.update).mockRejectedValueOnce(new Error('Server error'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.toggleSelect('uuid-1')
+    })
+
+    expect(result.current.contacts[0].selected).toBe(false)
+    expect(result.current.error).toMatch(/Failed to update selection/)
+  })
+
   it('toggleSelectAll selects all when none are selected', async () => {
     const allUnselected = mockContacts.map(c => ({ ...c, selected: false }))
-    const allSelected = mockContacts.map(c => ({ ...c, selected: true }))
 
     vi.mocked(contactsApi.getAll)
       .mockResolvedValueOnce(allUnselected as never)
-      .mockResolvedValueOnce(allSelected as never)
 
     const { result } = renderHook(() => useContacts())
     await waitFor(() => expect(result.current.isLoaded).toBe(true))
@@ -197,11 +231,9 @@ describe('useContacts', () => {
 
   it('toggleSelectAll deselects all when all are selected', async () => {
     const allSelected = mockContacts.map(c => ({ ...c, selected: true }))
-    const allUnselected = mockContacts.map(c => ({ ...c, selected: false }))
 
     vi.mocked(contactsApi.getAll)
       .mockResolvedValueOnce(allSelected as never)
-      .mockResolvedValueOnce(allUnselected as never)
 
     const { result } = renderHook(() => useContacts())
     await waitFor(() => expect(result.current.isLoaded).toBe(true))
@@ -222,10 +254,6 @@ describe('useContacts', () => {
 
     vi.mocked(contactsApi.getAll)
       .mockResolvedValueOnce(mixedSelection as never)
-      .mockResolvedValueOnce([
-        { ...mixedSelection[0], selected: true },
-        mixedSelection[1]
-      ] as never)
 
     const { result } = renderHook(() => useContacts())
     await waitFor(() => expect(result.current.isLoaded).toBe(true))
@@ -236,6 +264,33 @@ describe('useContacts', () => {
 
     expect(contactsApi.update).toHaveBeenCalledTimes(1)
     expect(contactsApi.update).toHaveBeenCalledWith('uuid-1', { selected: true }, 'center-1')
+    expect(result.current.contacts[0].selected).toBe(true)
+    expect(result.current.contacts[1].selected).toBe(true)
+  })
+
+  it('toggleSelectAll updates targeted contacts immediately before backend calls resolve', async () => {
+    const allUnselected = mockContacts.map(c => ({ ...c, selected: false }))
+
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce(allUnselected as never)
+
+    let releaseUpdates: (() => void) | null = null
+    vi.mocked(contactsApi.update).mockImplementation(() => new Promise(resolve => {
+      releaseUpdates = () => resolve({ success: true })
+    }) as never)
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    act(() => {
+      void result.current.toggleSelectAll(['uuid-1'])
+    })
+
+    expect(result.current.contacts[0].selected).toBe(true)
+    expect(result.current.contacts[1].selected).toBe(false)
+
+    await act(async () => {
+      releaseUpdates?.()
+    })
   })
 
   it('clearAllSelections clears all selections', async () => {

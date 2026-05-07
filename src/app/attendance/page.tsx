@@ -4,7 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useConfig } from '@/hooks/useConfig'
+import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { attendanceApi } from '@/lib/api/client'
+import { SyncStatusNotices } from '@/components/SyncStatusNotices'
 import type { AttendanceSession } from '@/lib/api/client'
 import type { AttendanceSessionAttendee } from '@/lib/api/client'
 import type { Gender } from '@/lib/types'
@@ -62,6 +64,8 @@ const EMPTY_FORM: AttendeeForm = {
   ieDate: '',
   areaOfStay: ''
 }
+
+const OFFLINE_SAVED_MESSAGE = 'Saved offline. Attendance will sync automatically when online.'
 
 function getStorageKey(centerId: string) {
   return `attendance-session:${centerId}`
@@ -376,14 +380,18 @@ function AttendanceEntry({
   const [addingVolunteer, setAddingVolunteer] = useState(false)
   const [sessionAccessError, setSessionAccessError] = useState<string | null>(null)
   const [serverAttendees, setServerAttendees] = useState<AttendanceSessionAttendee[]>([])
-  const [isOnline, setIsOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
   const [attendeeDataSyncing, setAttendeeDataSyncing] = useState(true)
-  const [showAttendeeLongSyncNotice, setShowAttendeeLongSyncNotice] = useState(false)
+  const [hasLoadedAttendeesOnce, setHasLoadedAttendeesOnce] = useState(false)
   const phoneRef = useRef<HTMLInputElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const lookupRequestRef = useRef<Promise<'found' | 'new' | undefined> | null>(null)
   const syncingPendingRef = useRef(false)
   const lastLookupPhoneRef = useRef('')
+  const {
+    isOnline,
+    showLongSyncNotice: showAttendeeLongSyncNotice,
+    showOfflineWarning
+  } = useSyncStatus({ isSyncing: attendeeDataSyncing })
 
   const pendingRecords = records.filter(record => record.status === 'pending')
   const uniquePendingRecords = pendingRecords.filter((record, index, list) => {
@@ -426,36 +434,6 @@ function AttendanceEntry({
   }, [persistEnabled, records, session, storageKey])
 
   useEffect(() => {
-    if (!attendeeDataSyncing) {
-      setShowAttendeeLongSyncNotice(false)
-      return
-    }
-
-    const timer = window.setTimeout(() => {
-      setShowAttendeeLongSyncNotice(true)
-    }, 5000)
-
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [attendeeDataSyncing])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const onOnline = () => setIsOnline(true)
-    const onOffline = () => setIsOnline(false)
-
-    window.addEventListener('online', onOnline)
-    window.addEventListener('offline', onOffline)
-
-    return () => {
-      window.removeEventListener('online', onOnline)
-      window.removeEventListener('offline', onOffline)
-    }
-  }, [])
-
-  useEffect(() => {
     let cancelled = false
 
     const loadAttendees = async () => {
@@ -464,6 +442,7 @@ function AttendanceEntry({
         const attendees = await attendanceApi.listSessionAttendees(sessionId, centerId)
         if (!cancelled) {
           setServerAttendees(attendees)
+          setHasLoadedAttendeesOnce(true)
           setSessionAccessError(null)
           setAttendeeDataSyncing(false)
         }
@@ -612,7 +591,7 @@ function AttendanceEntry({
       lastLookupPhoneRef.current = ''
 
       if (!isOnline) {
-        setSubmitError('Saved offline. Attendance will sync automatically when online.')
+        setSubmitError(OFFLINE_SAVED_MESSAGE)
       }
     } catch (err: any) {
       const message = err?.message || 'Failed to record attendance'
@@ -666,6 +645,12 @@ function AttendanceEntry({
     void retryPendingRecords().finally(() => {
       syncingPendingRef.current = false
     })
+  }, [isOnline, pendingCount])
+
+  useEffect(() => {
+    if (!isOnline || pendingCount > 0) return
+
+    setSubmitError(prev => (prev === OFFLINE_SAVED_MESSAGE ? null : prev))
   }, [isOnline, pendingCount])
 
   async function handleEndSession() {
@@ -855,16 +840,14 @@ function AttendanceEntry({
                 {sessionAccessError}
               </div>
             )}
-            {attendeeDataSyncing && (
-              <div style={{ marginTop: 8, color: '#856404', fontSize: 12 }}>
-                Sync has not happened yet. Fetching latest attendee details...
-              </div>
-            )}
-            {showAttendeeLongSyncNotice && (
-              <div style={{ marginTop: 6, color: '#842029', fontSize: 12 }}>
-                Sync has not happened for more than 5 seconds.
-              </div>
-            )}
+            <SyncStatusNotices
+              isSyncing={attendeeDataSyncing && !hasLoadedAttendeesOnce}
+              syncMessage="Sync has not happened yet. Fetching latest attendee details..."
+              showLongSyncNotice={showAttendeeLongSyncNotice}
+              showOfflineWarning={showOfflineWarning}
+              offlineMessage="Internet connection has been unavailable for more than 5 seconds. Showing last known attendee data and syncing pending entries when the connection returns."
+              margin="8px 0 0"
+            />
             {!isOnline && (
               <div style={{ marginTop: 6, color: '#856404', fontSize: 12 }}>
                 Offline mode enabled. Entries are saved locally and will sync automatically once online.
@@ -1186,22 +1169,12 @@ export default function AttendancePage() {
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [session, setSession] = useState<SessionConfig | null>(null)
   const [sessionDataSyncing, setSessionDataSyncing] = useState(true)
-  const [showSessionLongSyncNotice, setShowSessionLongSyncNotice] = useState(false)
-
-  useEffect(() => {
-    if (!sessionDataSyncing) {
-      setShowSessionLongSyncNotice(false)
-      return
-    }
-
-    const timer = window.setTimeout(() => {
-      setShowSessionLongSyncNotice(true)
-    }, 5000)
-
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [sessionDataSyncing])
+  const [hasLoadedSessionsOnce, setHasLoadedSessionsOnce] = useState(false)
+  const {
+    isOnline: isSessionOnline,
+    showLongSyncNotice: showSessionLongSyncNotice,
+    showOfflineWarning: showSessionOfflineWarning
+  } = useSyncStatus({ isSyncing: sessionDataSyncing })
 
   useEffect(() => {
     if (!selectedCenter) return
@@ -1210,7 +1183,7 @@ export default function AttendancePage() {
     let refreshInterval: number | null = null
 
     setSessionDataSyncing(true)
-    setShowSessionLongSyncNotice(false)
+  setHasLoadedSessionsOnce(false)
     setSession(null)
     setSessionId(null)
     setSessionVolunteers([])
@@ -1222,6 +1195,7 @@ export default function AttendancePage() {
         if (cancelled) return
 
         setAvailableSessions(sessions)
+        setHasLoadedSessionsOnce(true)
         setSessionDataSyncing(false)
       } catch {
         if (cancelled) return
@@ -1317,37 +1291,15 @@ export default function AttendancePage() {
         </span>
       </div>
 
-      {sessionDataSyncing && (
-        <div
-          style={{
-            margin: '12px 16px 0',
-            padding: '8px 12px',
-            borderRadius: 6,
-            backgroundColor: '#fff3cd',
-            border: '1px solid #ffe69c',
-            color: '#856404',
-            fontSize: 13
-          }}
-        >
-          Sync has not happened yet. Fetching latest session details...
-        </div>
-      )}
-
-      {showSessionLongSyncNotice && (
-        <div
-          style={{
-            margin: '8px 16px 0',
-            padding: '8px 12px',
-            borderRadius: 6,
-            backgroundColor: '#f8d7da',
-            border: '1px solid #f5c2c7',
-            color: '#842029',
-            fontSize: 13
-          }}
-        >
-          Sync has not happened for more than 5 seconds.
-        </div>
-      )}
+      <SyncStatusNotices
+        isSyncing={sessionDataSyncing && !hasLoadedSessionsOnce}
+        syncMessage={isSessionOnline
+          ? 'Sync has not happened yet. Fetching latest session details...'
+          : 'Internet is disconnected. Existing sessions could not be refreshed yet and may be missing until sync completes.'}
+        showLongSyncNotice={showSessionLongSyncNotice}
+        showOfflineWarning={showSessionOfflineWarning}
+        offlineMessage="Internet is disconnected or sessions are still loading. Existing sessions may not be visible until the connection returns and sync completes."
+      />
 
       {session && sessionId ? (
         <AttendanceEntry

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -365,6 +365,133 @@ describe('AdminPanel', () => {
     await waitFor(() => {
       expect(authApiMock.removeUserAccess).toHaveBeenCalledWith('6666666666', 'center-1')
     })
+  })
+
+  it('warns when access control data is still syncing while offline', async () => {
+    try {
+      vi.useFakeTimers()
+      Object.defineProperty(window.navigator, 'onLine', {
+        configurable: true,
+        value: false
+      })
+      authApiMock.getUsers.mockImplementationOnce(() => new Promise(() => {}))
+
+      render(
+        <AdminPanel
+          isVisible
+          section="access"
+          activities={[]}
+          areas={[]}
+          programs={[]}
+          contacts={[]}
+          onActivitiesChange={vi.fn()}
+          onAreasChange={vi.fn()}
+          onProgramsChange={vi.fn()}
+          onContactsChange={vi.fn()}
+        />
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      expect(screen.getByText('Internet is disconnected. Access control details could not be refreshed yet and may be incomplete.')).toBeInTheDocument()
+      expect(screen.queryByText('Internet is disconnected or access control data is still loading. Users and centers may appear incomplete until sync finishes.')).not.toBeInTheDocument()
+
+      await act(async () => {
+        vi.advanceTimersByTime(5000)
+      })
+
+      expect(screen.getByText('Internet is disconnected or access control data is still loading. Users and centers may appear incomplete until sync finishes.')).toBeInTheDocument()
+    } finally {
+      Object.defineProperty(window.navigator, 'onLine', {
+        configurable: true,
+        value: true
+      })
+      vi.useRealTimers()
+    }
+  })
+
+  it('updates an approved user role optimistically before the backend request resolves', async () => {
+    const user = userEvent.setup()
+    authApiMock.getUsers.mockResolvedValueOnce([
+      {
+        phone: '6666666666',
+        name: 'Approved User',
+        centerId: 'center-1',
+        centerName: 'Center 1',
+        centerRole: 'USER',
+        canAccessAllCenters: false,
+        isApproved: true,
+        accessStatus: 'approved'
+      }
+    ])
+    authApiMock.upsertUserAccess.mockImplementationOnce(() => new Promise(() => {}))
+
+    render(
+      <AdminPanel
+        isVisible
+        section="access"
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        contacts={[]}
+        onActivitiesChange={vi.fn()}
+        onAreasChange={vi.fn()}
+        onProgramsChange={vi.fn()}
+        onContactsChange={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Approved User')).toBeInTheDocument()
+    })
+
+    await user.selectOptions(screen.getByDisplayValue('Center User'), 'ATTENDANCE_TAKER')
+    await user.click(screen.getByRole('button', { name: 'Update Role' }))
+
+    const approvedUserRow = screen.getByText('Approved User').closest('div') as HTMLElement
+    expect(within(approvedUserRow).getByText('Attendance Taker')).toBeInTheDocument()
+  })
+
+  it('removes an approved user optimistically before the backend request resolves', async () => {
+    const user = userEvent.setup()
+    authApiMock.getUsers.mockResolvedValueOnce([
+      {
+        phone: '6666666666',
+        name: 'Approved User',
+        centerId: 'center-1',
+        centerName: 'Center 1',
+        centerRole: 'USER',
+        canAccessAllCenters: false,
+        isApproved: true,
+        accessStatus: 'approved'
+      }
+    ])
+    authApiMock.removeUserAccess.mockImplementationOnce(() => new Promise(() => {}))
+
+    render(
+      <AdminPanel
+        isVisible
+        section="access"
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        contacts={[]}
+        onActivitiesChange={vi.fn()}
+        onAreasChange={vi.fn()}
+        onProgramsChange={vi.fn()}
+        onContactsChange={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Approved User')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Remove Access' }))
+
+    expect(screen.queryByText('Approved User')).not.toBeInTheDocument()
   })
 
   it('allows renaming configuration items', async () => {
