@@ -89,6 +89,10 @@ function clearPersistedAttendanceState(storageKey: string) {
   localStorage.removeItem(storageKey)
 }
 
+function normalizePhoneKey(phone: string) {
+  return phone.replace(/\D/g, '')
+}
+
 // ─── Setup Screen ─────────────────────────────────────────────────────────────
 
 function SetupScreen({
@@ -372,20 +376,42 @@ function AttendanceEntry({
   const [addingVolunteer, setAddingVolunteer] = useState(false)
   const [sessionAccessError, setSessionAccessError] = useState<string | null>(null)
   const [serverAttendees, setServerAttendees] = useState<AttendanceSessionAttendee[]>([])
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
   const [attendeeDataSyncing, setAttendeeDataSyncing] = useState(true)
-  const [showAttendeeSyncNotice, setShowAttendeeSyncNotice] = useState(false)
+  const [showAttendeeLongSyncNotice, setShowAttendeeLongSyncNotice] = useState(false)
   const phoneRef = useRef<HTMLInputElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const lookupRequestRef = useRef<Promise<'found' | 'new' | undefined> | null>(null)
+  const syncingPendingRef = useRef(false)
   const lastLookupPhoneRef = useRef('')
 
   const pendingRecords = records.filter(record => record.status === 'pending')
-  const count = serverAttendees.length + pendingRecords.length
-  const sessionAttendees: Array<SessionAttendee | PersistedAttendanceRecord> = [
-    ...pendingRecords,
-    ...serverAttendees
-  ]
-  const pendingCount = records.filter(record => record.status === 'pending').length
+  const uniquePendingRecords = pendingRecords.filter((record, index, list) => {
+    const normalized = normalizePhoneKey(record.phone)
+    return list.findIndex(item => normalizePhoneKey(item.phone) === normalized) === index
+  })
+  const sessionAttendees: Array<SessionAttendee | PersistedAttendanceRecord> = (() => {
+    const merged: Array<SessionAttendee | PersistedAttendanceRecord> = []
+    const seenPhones = new Set<string>()
+
+    for (const record of uniquePendingRecords) {
+      const normalized = normalizePhoneKey(record.phone)
+      if (!normalized || seenPhones.has(normalized)) continue
+      seenPhones.add(normalized)
+      merged.push(record)
+    }
+
+    for (const attendee of serverAttendees) {
+      const normalized = normalizePhoneKey(attendee.phone)
+      if (!normalized || seenPhones.has(normalized)) continue
+      seenPhones.add(normalized)
+      merged.push(attendee)
+    }
+
+    return merged
+  })()
+  const count = sessionAttendees.length
+  const pendingCount = uniquePendingRecords.length
 
   // Focus phone field on mount and after each submission
   useEffect(() => {
@@ -401,18 +427,33 @@ function AttendanceEntry({
 
   useEffect(() => {
     if (!attendeeDataSyncing) {
-      setShowAttendeeSyncNotice(false)
+      setShowAttendeeLongSyncNotice(false)
       return
     }
 
     const timer = window.setTimeout(() => {
-      setShowAttendeeSyncNotice(true)
+      setShowAttendeeLongSyncNotice(true)
     }, 5000)
 
     return () => {
       window.clearTimeout(timer)
     }
   }, [attendeeDataSyncing])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const onOnline = () => setIsOnline(true)
+    const onOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -533,6 +574,13 @@ function AttendanceEntry({
         programs: session.programs
       }
 
+      const normalizedPhone = normalizePhoneKey(payload.phone)
+      const alreadyCounted = sessionAttendees.some(item => normalizePhoneKey(item.phone) === normalizedPhone)
+      if (alreadyCounted) {
+        setSubmitError('This phone number is already counted in this session.')
+        return
+      }
+
       const recordId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const submittedAt = new Date().toLocaleTimeString([], {
         hour: '2-digit',
@@ -549,22 +597,29 @@ function AttendanceEntry({
 
       setRecords(prev => [optimisticRecord, ...prev])
 
-      await attendanceApi.submit({ ...payload, sessionId }, centerId)
+      if (isOnline) {
+        await attendanceApi.submit({ ...payload, sessionId }, centerId)
 
-      setRecords(prev => prev.filter(record => record.id !== recordId))
-      const attendees = await attendanceApi.listSessionAttendees(sessionId, centerId)
-      setServerAttendees(attendees)
+        setRecords(prev => prev.filter(record => record.id !== recordId))
+        const attendees = await attendanceApi.listSessionAttendees(sessionId, centerId)
+        setServerAttendees(attendees)
+      }
 
       setLastSubmitted(form.name.trim())
       setForm(EMPTY_FORM)
       setLookupStatus('idle')
       setShowSessionAttendees(false)
       lastLookupPhoneRef.current = ''
+
+      if (!isOnline) {
+        setSubmitError('Saved offline. Attendance will sync automatically when online.')
+      }
     } catch (err: any) {
       const message = err?.message || 'Failed to record attendance'
       setSubmitError(message)
+      const normalizedPhone = normalizePhoneKey(form.phone.trim())
       setRecords(prev => prev.map(record => (
-        record.phone === form.phone.trim() && record.name === form.name.trim() && record.status === 'pending'
+        normalizePhoneKey(record.phone) === normalizedPhone && record.status === 'pending'
           ? { ...record, error: message }
           : record
       )))
@@ -574,17 +629,22 @@ function AttendanceEntry({
   }
 
   async function retryPendingRecords() {
+    if (!isOnline) return false
     let hasFailure = false
 
-    for (const record of records.filter(item => item.status === 'pending')) {
+    for (const record of uniquePendingRecords) {
       try {
         await attendanceApi.submit({ ...record.payload, sessionId }, centerId)
-        setRecords(prev => prev.filter(item => item.id !== record.id))
+        const normalized = normalizePhoneKey(record.phone)
+        setRecords(prev => prev.filter(item => normalizePhoneKey(item.phone) !== normalized || item.status !== 'pending'))
       } catch (err: any) {
         hasFailure = true
         const message = err?.message || 'Failed to record attendance'
+        const normalized = normalizePhoneKey(record.phone)
         setRecords(prev => prev.map(item => (
-          item.id === record.id ? { ...item, error: message } : item
+          normalizePhoneKey(item.phone) === normalized && item.status === 'pending'
+            ? { ...item, error: message }
+            : item
         )))
       }
     }
@@ -598,6 +658,15 @@ function AttendanceEntry({
 
     return !hasFailure
   }
+
+  useEffect(() => {
+    if (!isOnline || pendingCount === 0 || syncingPendingRef.current) return
+
+    syncingPendingRef.current = true
+    void retryPendingRecords().finally(() => {
+      syncingPendingRef.current = false
+    })
+  }, [isOnline, pendingCount])
 
   async function handleEndSession() {
     setSubmitting(true)
@@ -786,9 +855,19 @@ function AttendanceEntry({
                 {sessionAccessError}
               </div>
             )}
-            {showAttendeeSyncNotice && (
+            {attendeeDataSyncing && (
               <div style={{ marginTop: 8, color: '#856404', fontSize: 12 }}>
-                Data is yet to update. Syncing latest attendee details...
+                Sync has not happened yet. Fetching latest attendee details...
+              </div>
+            )}
+            {showAttendeeLongSyncNotice && (
+              <div style={{ marginTop: 6, color: '#842029', fontSize: 12 }}>
+                Sync has not happened for more than 5 seconds.
+              </div>
+            )}
+            {!isOnline && (
+              <div style={{ marginTop: 6, color: '#856404', fontSize: 12 }}>
+                Offline mode enabled. Entries are saved locally and will sync automatically once online.
               </div>
             )}
           </div>
@@ -953,15 +1032,16 @@ function AttendanceEntry({
               <button
                 type="button"
                 onClick={retryPendingRecords}
+                disabled={!isOnline}
                 style={{
                   padding: '8px 12px',
-                  backgroundColor: '#ffc107',
+                  backgroundColor: isOnline ? '#ffc107' : '#adb5bd',
                   color: '#212529',
                   border: 'none',
                   borderRadius: 6,
                   fontSize: 13,
                   fontWeight: 600,
-                  cursor: 'pointer'
+                  cursor: isOnline ? 'pointer' : 'not-allowed'
                 }}
               >
                 Retry Pending Sync ({pendingCount})
@@ -1106,16 +1186,16 @@ export default function AttendancePage() {
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [session, setSession] = useState<SessionConfig | null>(null)
   const [sessionDataSyncing, setSessionDataSyncing] = useState(true)
-  const [showSessionSyncNotice, setShowSessionSyncNotice] = useState(true)
+  const [showSessionLongSyncNotice, setShowSessionLongSyncNotice] = useState(false)
 
   useEffect(() => {
     if (!sessionDataSyncing) {
-      setShowSessionSyncNotice(false)
+      setShowSessionLongSyncNotice(false)
       return
     }
 
     const timer = window.setTimeout(() => {
-      setShowSessionSyncNotice(true)
+      setShowSessionLongSyncNotice(true)
     }, 5000)
 
     return () => {
@@ -1130,7 +1210,7 @@ export default function AttendancePage() {
     let refreshInterval: number | null = null
 
     setSessionDataSyncing(true)
-    setShowSessionSyncNotice(false)
+    setShowSessionLongSyncNotice(false)
     setSession(null)
     setSessionId(null)
     setSessionVolunteers([])
@@ -1143,7 +1223,6 @@ export default function AttendancePage() {
 
         setAvailableSessions(sessions)
         setSessionDataSyncing(false)
-        setShowSessionSyncNotice(false)
       } catch {
         if (cancelled) return
         setAvailableSessions([])
@@ -1238,7 +1317,7 @@ export default function AttendancePage() {
         </span>
       </div>
 
-      {showSessionSyncNotice && (
+      {sessionDataSyncing && (
         <div
           style={{
             margin: '12px 16px 0',
@@ -1250,7 +1329,23 @@ export default function AttendancePage() {
             fontSize: 13
           }}
         >
-          Data is yet to update. Syncing latest session details...
+          Sync has not happened yet. Fetching latest session details...
+        </div>
+      )}
+
+      {showSessionLongSyncNotice && (
+        <div
+          style={{
+            margin: '8px 16px 0',
+            padding: '8px 12px',
+            borderRadius: 6,
+            backgroundColor: '#f8d7da',
+            border: '1px solid #f5c2c7',
+            color: '#842029',
+            fontSize: 13
+          }}
+        >
+          Sync has not happened for more than 5 seconds.
         </div>
       )}
 

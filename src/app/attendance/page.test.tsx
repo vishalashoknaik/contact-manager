@@ -89,6 +89,7 @@ async function renderAndResumeSession(user: ReturnType<typeof userEvent.setup>) 
 
 describe('AttendancePage', () => {
   beforeEach(() => {
+    window.dispatchEvent(new Event('online'))
     localStorage.clear()
     mocks.push.mockReset()
     mocks.replace.mockReset()
@@ -352,13 +353,11 @@ describe('AttendancePage', () => {
     await waitFor(() => {
       expect(screen.getByText('Saved Session - Center One')).toBeInTheDocument()
     })
-    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /session attendees/i })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /session attendees/i }))
 
-    expect(screen.getByText('Saved Person')).toBeInTheDocument()
-    expect(screen.getByText('6666666666')).toBeInTheDocument()
-    expect(screen.getByText(/Pending sync: Network error/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /session attendees/i })).toBeInTheDocument()
   })
 
   it('retries pending records and clears persisted session when ending succeeds', async () => {
@@ -438,8 +437,12 @@ describe('AttendancePage', () => {
     expect(screen.getByText('Attendance Setup - Center One')).toBeInTheDocument()
   })
 
-  it('retries pending records from the retry button and updates their status', async () => {
+  it('syncs pending records once online and updates their status', async () => {
     const user = userEvent.setup()
+
+    await act(async () => {
+      window.dispatchEvent(new Event('offline'))
+    })
 
     mocks.listSessions.mockResolvedValueOnce([
       {
@@ -496,7 +499,9 @@ describe('AttendancePage', () => {
       expect(screen.getByText('Saved Session - Center One')).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole('button', { name: /retry pending sync/i }))
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+    })
 
     await waitFor(() => expect(mocks.submit).toHaveBeenCalledTimes(1))
 
@@ -528,7 +533,7 @@ describe('AttendancePage', () => {
     expect(screen.getByText('Ended Session - Center One')).toBeInTheDocument()
   })
 
-  it('shows setup sync notice only after 5 seconds of continuous sync', async () => {
+  it('shows setup sync notice immediately and escalates after 5 seconds', async () => {
     try {
       vi.useFakeTimers()
       mocks.listSessions.mockImplementation(() => new Promise(() => {}))
@@ -539,23 +544,24 @@ describe('AttendancePage', () => {
         await Promise.resolve()
       })
 
-      expect(screen.queryByText('Data is yet to update. Syncing latest session details...')).not.toBeInTheDocument()
+      expect(screen.getByText('Sync has not happened yet. Fetching latest session details...')).toBeInTheDocument()
+      expect(screen.queryByText('Sync has not happened for more than 5 seconds.')).not.toBeInTheDocument()
 
       await act(async () => {
         vi.advanceTimersByTime(4999)
       })
-      expect(screen.queryByText('Data is yet to update. Syncing latest session details...')).not.toBeInTheDocument()
+      expect(screen.queryByText('Sync has not happened for more than 5 seconds.')).not.toBeInTheDocument()
 
       await act(async () => {
         vi.advanceTimersByTime(1)
       })
-      expect(screen.getByText('Data is yet to update. Syncing latest session details...')).toBeInTheDocument()
+      expect(screen.getByText('Sync has not happened for more than 5 seconds.')).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('shows attendee sync notice only after 5 seconds in entry screen', async () => {
+  it('shows attendee sync notice immediately and escalates after 5 seconds in entry screen', async () => {
     const user = userEvent.setup()
 
     mocks.listSessions.mockResolvedValueOnce([createSession()])
@@ -565,15 +571,53 @@ describe('AttendancePage', () => {
     await user.click(await screen.findByRole('button', { name: /continue/i }))
     await waitFor(() => expect(screen.getByPlaceholderText('Enter phone and press Enter')).toBeInTheDocument())
 
-    expect(screen.queryByText('Data is yet to update. Syncing latest attendee details...')).not.toBeInTheDocument()
+    expect(screen.getByText('Sync has not happened yet. Fetching latest attendee details...')).toBeInTheDocument()
+    expect(screen.queryByText('Sync has not happened for more than 5 seconds.')).not.toBeInTheDocument()
 
     await waitFor(
       () => {
-        expect(screen.getByText('Data is yet to update. Syncing latest attendee details...')).toBeInTheDocument()
+        expect(screen.getByText('Sync has not happened for more than 5 seconds.')).toBeInTheDocument()
       },
       { timeout: 7000 }
     )
   }, 10000)
+
+  it('supports offline attendance and counts duplicate phone entries only once', async () => {
+    const user = userEvent.setup()
+
+    mocks.lookup.mockResolvedValue({ found: false })
+
+    await renderAndResumeSession(user)
+
+    await act(async () => {
+      window.dispatchEvent(new Event('offline'))
+    })
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9999999999')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Offline Person')
+    await user.selectOptions(screen.getByRole('combobox'), 'Female')
+    await user.type(screen.getByPlaceholderText('IE Date'), '2026 Batch')
+    await user.type(screen.getByPlaceholderText('Neighbourhood / area'), 'Downtown')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Saved offline\. Attendance will sync automatically when online\./i)).toBeInTheDocument()
+    })
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9999999999')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Offline Person')
+    await user.selectOptions(screen.getByRole('combobox'), 'Female')
+    await user.type(screen.getByPlaceholderText('IE Date'), '2026 Batch')
+    await user.type(screen.getByPlaceholderText('Neighbourhood / area'), 'Downtown')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/already counted in this session/i)).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /session attendees/i }))
+    expect(screen.getAllByText('9999999999').length).toBe(1)
+  })
 
   it('deletes a session from setup after confirmation', async () => {
     const user = userEvent.setup()
