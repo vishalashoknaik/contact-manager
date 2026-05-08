@@ -201,4 +201,129 @@ describe('useConfig', () => {
     expect(result.current.useBackend).toBe(false)
     expect(result.current.error).toMatch(/No center selected/)
   })
+
+  it('setAreas sets error when no center is selected', async () => {
+    vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: null } as any)
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.setAreas(['NewArea'])
+    })
+
+    expect(areasApi.create).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/No center selected/)
+  })
+
+  it('setAreas sets error when backend is unavailable', async () => {
+    vi.mocked(activitiesApi.getAll).mockRejectedValueOnce(new Error('down'))
+    vi.mocked(areasApi.getAll).mockRejectedValueOnce(new Error('down'))
+    vi.mocked(programsApi.getAll).mockRejectedValueOnce(new Error('down'))
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.useBackend).toBe(false)
+
+    await act(async () => {
+      await result.current.setAreas(['NewArea'])
+    })
+
+    expect(areasApi.create).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/Backend unavailable/)
+  })
+
+  it('setAreas sets error when backend sync throws', async () => {
+    vi.mocked(areasApi.create).mockRejectedValueOnce(new Error('Server error'))
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.setAreas(['Area1', 'NewArea'])
+    })
+
+    expect(result.current.error).toMatch(/Failed to sync areas/)
+  })
+
+  it('setPrograms sets error when no center is selected', async () => {
+    vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: null } as any)
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.setPrograms(['NewProgram'])
+    })
+
+    expect(programsApi.create).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/No center selected/)
+  })
+
+  it('setPrograms sets error when backend is unavailable', async () => {
+    vi.mocked(activitiesApi.getAll).mockRejectedValueOnce(new Error('down'))
+    vi.mocked(areasApi.getAll).mockRejectedValueOnce(new Error('down'))
+    vi.mocked(programsApi.getAll).mockRejectedValueOnce(new Error('down'))
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.useBackend).toBe(false)
+
+    await act(async () => {
+      await result.current.setPrograms(['NewProgram'])
+    })
+
+    expect(programsApi.create).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/Backend unavailable/)
+  })
+
+  it('setPrograms sets error when backend sync throws', async () => {
+    vi.mocked(programsApi.create).mockRejectedValueOnce(new Error('Server error'))
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.setPrograms(['Program1', 'NewProgram'])
+    })
+
+    expect(result.current.error).toMatch(/Failed to sync programs/)
+  })
+
+  it('setActivities sets error when no center is selected', async () => {
+    vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: null } as any)
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.setActivities(['NewActivity'])
+    })
+
+    expect(activitiesApi.create).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/No center selected/)
+  })
+
+  it('reloads config when selectedCenter changes', async () => {
+    vi.mocked(activitiesApi.getAll)
+      .mockResolvedValueOnce(['Walkathon'] as never)
+      .mockResolvedValueOnce(['Prayer'] as never)
+    vi.mocked(areasApi.getAll)
+      .mockResolvedValueOnce(['Area1'] as never)
+      .mockResolvedValueOnce(['Area2'] as never)
+    vi.mocked(programsApi.getAll)
+      .mockResolvedValueOnce(['Program1'] as never)
+      .mockResolvedValueOnce(['Program2'] as never)
+
+    const { result, rerender } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.activities).toEqual(['Walkathon'])
+
+    vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: 'center-2' } as any)
+    rerender()
+
+    await waitFor(() => expect(result.current.activities).toEqual(['Prayer']))
+    expect(result.current.areas).toEqual(['Area2'])
+    expect(result.current.programs).toEqual(['Program2'])
+  })
 })

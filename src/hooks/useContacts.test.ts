@@ -381,4 +381,308 @@ describe('useContacts', () => {
     expect(contactsApi.create).not.toHaveBeenCalled()
     expect(result.current.error).toMatch(/Backend unavailable/)
   })
+
+  // ── toggleSelectAll rollback ────────────────────────────────────────────────
+
+  it('toggleSelectAll rolls back optimistic update when Promise.all fails', async () => {
+    const allUnselected = mockContacts.map(c => ({ ...c, selected: false }))
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce(allUnselected as never)
+    vi.mocked(contactsApi.update).mockRejectedValue(new Error('Server error'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.toggleSelectAll()
+    })
+
+    expect(result.current.contacts[0].selected).toBe(false)
+    expect(result.current.contacts[1].selected).toBe(false)
+    expect(result.current.error).toMatch(/Failed to update bulk selection/)
+  })
+
+  it('toggleSelectAll does nothing when target contacts array is empty', async () => {
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([] as never)
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.toggleSelectAll()
+    })
+
+    expect(contactsApi.update).not.toHaveBeenCalled()
+    expect(result.current.error).toBeNull()
+  })
+
+  it('toggleSelectAll returns error when no center is selected', async () => {
+    vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: null } as any)
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([] as never)
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.toggleSelectAll()
+    })
+
+    expect(contactsApi.update).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/No center selected/)
+  })
+
+  it('toggleSelectAll returns error when backend unavailable', async () => {
+    vi.mocked(contactsApi.getAll).mockRejectedValueOnce(new Error('down'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.useBackend).toBe(false)
+
+    await act(async () => {
+      await result.current.toggleSelectAll()
+    })
+
+    expect(contactsApi.update).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/Backend unavailable/)
+  })
+
+  // ── clearAllSelections rollback ────────────────────────────────────────────
+
+  it('clearAllSelections rolls back when backend update fails', async () => {
+    const allSelected = mockContacts.map(c => ({ ...c, selected: true }))
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce(allSelected as never)
+    vi.mocked(contactsApi.update).mockRejectedValue(new Error('Network timeout'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    const returnValue = await act(async () => {
+      return await result.current.clearAllSelections()
+    })
+
+    expect(returnValue).toBe(false)
+    expect(result.current.contacts[0].selected).toBe(true)
+    expect(result.current.contacts[1].selected).toBe(true)
+    expect(result.current.error).toMatch(/Failed to clear selections/)
+  })
+
+  it('clearAllSelections returns false when no center is selected', async () => {
+    vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: null } as any)
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([] as never)
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    const returnValue = await act(async () => {
+      return await result.current.clearAllSelections()
+    })
+
+    expect(returnValue).toBeFalsy()
+    expect(contactsApi.update).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/No center selected/)
+  })
+
+  it('clearAllSelections returns false when backend unavailable', async () => {
+    vi.mocked(contactsApi.getAll).mockRejectedValueOnce(new Error('down'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.useBackend).toBe(false)
+
+    const returnValue = await act(async () => {
+      return await result.current.clearAllSelections()
+    })
+
+    expect(returnValue).toBeFalsy()
+    expect(contactsApi.update).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/Backend unavailable/)
+  })
+
+  // ── setContacts guards ────────────────────────────────────────────────────
+
+  it('setContacts returns early when no center is selected', async () => {
+    vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: null } as any)
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([] as never)
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.setContacts([{ id: 'x', name: 'X', phone: '1' } as any])
+    })
+
+    expect(contactsApi.create).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/No center selected/)
+  })
+
+  it('setContacts returns early when backend unavailable', async () => {
+    vi.mocked(contactsApi.getAll).mockRejectedValueOnce(new Error('down'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.useBackend).toBe(false)
+
+    await act(async () => {
+      await result.current.setContacts([{ id: 'x', name: 'X', phone: '1' } as any])
+    })
+
+    expect(contactsApi.create).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/Backend unavailable/)
+  })
+
+  // ── importContacts failures ───────────────────────────────────────────────
+
+  it('importContacts sets error when backend sync fails', async () => {
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([] as never)
+    vi.mocked(contactsApi.create).mockRejectedValueOnce(new Error('Server error'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.importContacts([mockContacts[0]] as any)
+    })
+
+    expect(result.current.error).toMatch(/Failed to import/)
+  })
+
+  it('importContacts returns early when no center is selected', async () => {
+    vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: null } as any)
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([] as never)
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.importContacts([mockContacts[0]] as any)
+    })
+
+    expect(contactsApi.create).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/No center selected/)
+  })
+
+  it('importContacts returns error when backend unavailable', async () => {
+    vi.mocked(contactsApi.getAll).mockRejectedValueOnce(new Error('down'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.useBackend).toBe(false)
+
+    await act(async () => {
+      await result.current.importContacts([mockContacts[0]] as any)
+    })
+
+    expect(contactsApi.create).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/Backend unavailable/)
+  })
+
+  // ── incrementSelected guards and failure ──────────────────────────────────
+
+  it('incrementSelected returns false when no center is selected', async () => {
+    vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: null } as any)
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([] as never)
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    const returned = await act(async () => {
+      return await result.current.incrementSelected('Walkathon', 'Area1', 'Prog1')
+    })
+
+    expect(returned).toBe(false)
+    expect(result.current.error).toMatch(/No center selected/)
+  })
+
+  it('incrementSelected returns false when backend unavailable', async () => {
+    vi.mocked(contactsApi.getAll).mockRejectedValueOnce(new Error('down'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.useBackend).toBe(false)
+
+    const returned = await act(async () => {
+      return await result.current.incrementSelected('Walkathon', 'Area1', 'Prog1')
+    })
+
+    expect(returned).toBe(false)
+    expect(result.current.error).toMatch(/Backend unavailable/)
+  })
+
+  it('incrementSelected returns false when backend sync throws', async () => {
+    const selected = [{ ...mockContacts[0], selected: true }]
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce(selected as never)
+    vi.mocked(contactsApi.create).mockRejectedValueOnce(new Error('sync failed'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    const returned = await act(async () => {
+      return await result.current.incrementSelected('Walkathon', 'Area1', 'Prog1')
+    })
+
+    expect(returned).toBe(false)
+    expect(result.current.error).toMatch(/Failed to persist/)
+  })
+
+  // ── toggleSelect additional guards ────────────────────────────────────────
+
+  it('toggleSelect returns early when no center is selected', async () => {
+    vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: null } as any)
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([] as never)
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.toggleSelect('uuid-1')
+    })
+
+    expect(contactsApi.update).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/No center selected/)
+  })
+
+  it('toggleSelect returns error when backend unavailable', async () => {
+    vi.mocked(contactsApi.getAll).mockRejectedValueOnce(new Error('down'))
+
+    const { result } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.useBackend).toBe(false)
+
+    await act(async () => {
+      await result.current.toggleSelect('uuid-1')
+    })
+
+    expect(contactsApi.update).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/Backend unavailable/)
+  })
+
+  // ── Center-switch clears stale contacts before reload ─────────────────────
+
+  it('clears contacts state when selectedCenter changes', async () => {
+    const center1Contacts = [mockContacts[0]]
+    const center2Contacts = [mockContacts[1]]
+
+    vi.mocked(contactsApi.getAll)
+      .mockResolvedValueOnce(center1Contacts as never)
+      .mockResolvedValueOnce(center2Contacts as never)
+
+    const { result, rerender } = renderHook(() => useContacts())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.contacts).toHaveLength(1)
+    expect(result.current.contacts[0].name).toBe('Alice')
+
+    // Simulate center switch
+    vi.mocked(useAuth).mockReturnValue({
+      isLoggedIn: true,
+      isLoading: false,
+      selectedCenter: 'center-2'
+    } as any)
+    rerender()
+
+    // Contacts should be cleared immediately while new center loads
+    await waitFor(() => expect(result.current.isLoaded).toBe(false))
+
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.contacts).toHaveLength(1)
+    expect(result.current.contacts[0].name).toBe('Bob')
+  })
 })

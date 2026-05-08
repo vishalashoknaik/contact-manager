@@ -206,7 +206,8 @@ router.patch('/:id', async (req: Request, res: Response) => {
     })
     res.json(contact)
   } catch (err) {
-    res.status(404).json({ error: 'Contact not found' })
+    console.error('Failed to update contact:', err)
+    res.status(500).json({ error: 'Failed to update contact' })
   }
 })
 

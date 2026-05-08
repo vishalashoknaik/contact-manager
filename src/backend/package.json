@@ -1,7 +1,7 @@
 {
   "name": "contact-manager-backend",
   "version": "1.0.0",
-  "description": "Contact Manager Backend API",
+  "description": "Meditators Nurturing App Backend API",
   "type": "module",
   "main": "dist/server.js",
   "scripts": {

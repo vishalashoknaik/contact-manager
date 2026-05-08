@@ -83,6 +83,7 @@ export function useContacts() {
     }
 
     setIsLoaded(false)
+    setContactsState([])
     loadContacts()
   }, [authLoading, isLoggedIn, selectedCenter])
 

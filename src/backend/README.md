@@ -1,6 +1,6 @@
-# Contact Manager Backend
+# Meditators Nurturing App — Backend
 
-Express.js + Prisma + PostgreSQL backend API for Contact Manager.
+Express.js + Prisma + PostgreSQL backend API for Meditators Nurturing App.
 
 ## Setup
 

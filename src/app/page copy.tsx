@@ -274,7 +274,7 @@ export default function Home() {
 
   return (
     <div style={{ padding: 20 }}>
-      <h3>Contact Manager ({VERSION})</h3>
+      <h3>Meditators Nurturing App ({VERSION})</h3>
 
       <button onClick={() => setIsAdmin(!isAdmin)}>
         {isAdmin ? 'User Mode' : 'Admin Mode'}

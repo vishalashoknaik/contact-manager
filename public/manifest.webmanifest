@@ -1,9 +1,9 @@
 {
-  "name": "Contact Manager",
-  "short_name": "Contacts",
+  "name": "Meditators Nurturing App",
+  "short_name": "MNA",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#198754",
-  "description": "Manage contacts, attendance, and campaigns by center."
+  "description": "Manage meditators, attendance, and campaigns by center."
 }

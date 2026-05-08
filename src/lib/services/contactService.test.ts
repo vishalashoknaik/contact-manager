@@ -205,5 +205,147 @@ describe('ContactService', () => {
       expect(result.contacts[0].phone).toBe('1111111111')
       expect(result.contacts[0].activities.Walkathon).toBe(5)
     })
+
+    // ── createContact ───────────────────────────────────────────────────────
+
+    it('createContact returns a contact with all required default fields', () => {
+      const contact = ContactService.createContact('Alice', '9876543210')
+
+      expect(contact.name).toBe('Alice')
+      expect(contact.phone).toBe('9876543210')
+      expect(contact.gender).toBe('Male')
+      expect(contact.selected).toBe(true)
+      expect(contact.activities).toEqual({})
+      expect(contact.areas).toEqual({})
+      expect(contact.programs).toEqual({})
+      expect(typeof contact.id).toBe('number')
+      expect(typeof contact.lastUpdated).toBe('string')
+    })
+
+    it('createContact accepts all optional fields', () => {
+      const contact = ContactService.createContact('Bob', '1234567890', 'Female', '2026-01-15', 'Koramangala', 'VIP')
+
+      expect(contact.gender).toBe('Female')
+      expect(contact.ieDate).toBe('2026-01-15')
+      expect(contact.areaOfStay).toBe('Koramangala')
+      expect(contact.remarks).toBe('VIP')
+    })
+
+    it('createContact uses current timestamp for lastUpdated', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-06-01T00:00:00.000Z'))
+
+      const contact = ContactService.createContact('Alice', '9876543210')
+
+      expect(contact.lastUpdated).toBe('2026-06-01T00:00:00.000Z')
+
+      vi.useRealTimers()
+    })
+
+    it('createContact generates unique ids for different contacts', () => {
+      const c1 = ContactService.createContact('Alice', '111')
+      const c2 = ContactService.createContact('Bob', '222')
+
+      expect(c1.id).not.toBe(c2.id)
+    })
+
+    // ── getTotal ────────────────────────────────────────────────────────────
+
+    it('getTotal returns sum of all activity counts', () => {
+      const contact = makeContact({ activities: { Walkathon: 3, Prayer: 5, Cleanup: 2 } })
+
+      expect(ContactService.getTotal(contact)).toBe(10)
+    })
+
+    it('getTotal returns 0 when activities is empty', () => {
+      const contact = makeContact({ activities: {} })
+
+      expect(ContactService.getTotal(contact)).toBe(0)
+    })
+
+    it('getTotal returns 0 when activities is null/undefined', () => {
+      const contact = makeContact({}) as any
+      contact.activities = null
+
+      expect(ContactService.getTotal(contact)).toBe(0)
+    })
+
+    it('getTotal handles a single activity', () => {
+      const contact = makeContact({ activities: { Walkathon: 7 } })
+
+      expect(ContactService.getTotal(contact)).toBe(7)
+    })
+
+    // ── initializeFromData ──────────────────────────────────────────────────
+
+    it('initializeFromData resets selected to false for all contacts', () => {
+      const raw = [
+        { id: 1, name: 'Alice', phone: '111', selected: true },
+        { id: 2, name: 'Bob', phone: '222', selected: true }
+      ]
+
+      const result = ContactService.initializeFromData(raw)
+
+      expect(result.every(c => c.selected === false)).toBe(true)
+    })
+
+    it('initializeFromData resets activities, areas, programs to empty objects', () => {
+      const raw = [{ id: 1, name: 'Alice', phone: '111', activities: { Walkathon: 5 }, areas: { Area1: 2 }, programs: { Prog: 1 } }]
+
+      const result = ContactService.initializeFromData(raw)
+
+      expect(result[0].activities).toEqual({})
+      expect(result[0].areas).toEqual({})
+      expect(result[0].programs).toEqual({})
+    })
+
+    it('initializeFromData preserves existing non-reset fields', () => {
+      const raw = [{ id: 42, name: 'Alice', phone: '9999999999', gender: 'Female', areaOfStay: 'Koramangala' }]
+
+      const result = ContactService.initializeFromData(raw)
+
+      expect(result[0].id).toBe(42)
+      expect(result[0].name).toBe('Alice')
+      expect(result[0].gender).toBe('Female')
+      expect(result[0].areaOfStay).toBe('Koramangala')
+    })
+
+    it('initializeFromData returns empty array for empty input', () => {
+      expect(ContactService.initializeFromData([])).toEqual([])
+    })
+
+    it('incrementSelected creates new activity key when not previously present', () => {
+      const contacts = [makeContact({ id: 1, selected: true, activities: {} })]
+
+      const result = ContactService.incrementSelected(contacts, 'NewActivity', '', '')
+
+      expect(result[0].activities['NewActivity']).toBe(1)
+    })
+
+    it('incrementSelected creates new area key when not previously present', () => {
+      const contacts = [makeContact({ id: 1, selected: true, areas: {} })]
+
+      const result = ContactService.incrementSelected(contacts, '', 'NewArea', '')
+
+      expect(result[0].areas['NewArea']).toBe(1)
+    })
+
+    it('incrementSelected creates new program key when not previously present', () => {
+      const contacts = [makeContact({ id: 1, selected: true, programs: {} })]
+
+      const result = ContactService.incrementSelected(contacts, '', '', 'NewProgram')
+
+      expect(result[0].programs['NewProgram']).toBe(1)
+    })
+
+    it('incrementSelected skips all increments when all category strings are empty', () => {
+      const contacts = [makeContact({ id: 1, selected: true, activities: { Walkathon: 3 }, areas: { Area1: 2 }, programs: { Prog: 1 } })]
+
+      const result = ContactService.incrementSelected(contacts, '', '', '')
+
+      expect(result[0].activities.Walkathon).toBe(3)
+      expect(result[0].areas.Area1).toBe(2)
+      expect(result[0].programs.Prog).toBe(1)
+    })
   })
 })

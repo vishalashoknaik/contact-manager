@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meditators Nurturing App — Team Presentation</title>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #212529; line-height: 1.55; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ── Layout ── */
+  .page { max-width: 1080px; margin: 0 auto; padding: 0 24px 60px; }
+
+  /* ── Hero ── */
+  .hero { background: linear-gradient(135deg, #6f42c1 0%, #0d6efd 100%); color: #fff; padding: 64px 40px 56px; text-align: center; border-radius: 0 0 24px 24px; margin-bottom: 48px; }
+  .hero h1 { font-size: 2.6rem; font-weight: 700; margin-bottom: 12px; }
+  .hero .sub { font-size: 1.15rem; opacity: .88; max-width: 600px; margin: 0 auto 20px; }
+  .hero .center-pill { display: inline-block; background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.4); border-radius: 999px; padding: 5px 18px; font-size: .9rem; letter-spacing: .02em; }
+
+  /* ── Section ── */
+  .section { margin-bottom: 52px; }
+  .section-title { font-size: 1.55rem; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+  .section-desc { color: #555; margin-bottom: 24px; font-size: 1rem; }
+  hr.divider { border: none; border-top: 2px solid #e2e8f0; margin: 48px 0; }
+
+  /* ── Problem / Solution cards ── */
+  .ps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .ps-card { background: #fff; border-radius: 12px; padding: 28px 24px; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+  .ps-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 10px; }
+  .ps-card.problem h3 { color: #dc3545; }
+  .ps-card.solution h3 { color: #198754; }
+  .ps-card ul { list-style: none; padding: 0; }
+  .ps-card ul li { padding: 5px 0 5px 20px; position: relative; font-size: .95rem; color: #444; }
+  .ps-card ul li::before { position: absolute; left: 0; }
+  .ps-card.problem ul li::before { content: "✗"; color: #dc3545; }
+  .ps-card.solution ul li::before { content: "✓"; color: #198754; }
+
+  /* ── Use-case cards ── */
+  .uc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .uc-card { background: #fff; border-radius: 12px; padding: 22px 20px; box-shadow: 0 1px 6px rgba(0,0,0,.08); border-top: 4px solid; }
+  .uc-card:nth-child(1) { border-color: #6f42c1; }
+  .uc-card:nth-child(2) { border-color: #198754; }
+  .uc-card:nth-child(3) { border-color: #0d6efd; }
+  .uc-card:nth-child(4) { border-color: #fd7e14; }
+  .uc-card:nth-child(5) { border-color: #dc3545; }
+  .uc-card:nth-child(6) { border-color: #20c997; }
+  .uc-card .uc-id { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #888; margin-bottom: 6px; }
+  .uc-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; color: #1a1a2e; }
+  .uc-card p { font-size: .875rem; color: #555; }
+
+  /* ── App shell ── */
+  .app-shell { background: #fff; border: 1px solid #dee2e6; border-radius: 10px; box-shadow: 0 4px 18px rgba(0,0,0,.10); overflow: hidden; font-size: .83rem; }
+  .app-topbar { background: #fff; border-bottom: 1px solid #dee2e6; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; }
+  .app-topbar-left { color: #333; font-size: .8rem; }
+  .app-topbar-left span { color: #0d6efd; font-weight: 600; }
+  .btn-logout { background: #dc3545; color: #fff; border: none; border-radius: 5px; padding: 3px 10px; font-size: .75rem; cursor: pointer; }
+  .app-center-row { background: #f8f9fa; border-bottom: 1px solid #dee2e6; padding: 6px 14px; font-size: .8rem; color: #555; }
+  .app-center-row strong { color: #0d6efd; }
+  .app-body { padding: 14px 16px; }
+  .app-body-title { font-size: 1rem; font-weight: 700; color: #212529; margin-bottom: 4px; }
+  .app-version { font-size: .72rem; color: #888; margin-bottom: 10px; }
+  .app-hr { border: none; border-top: 1px solid #dee2e6; margin: 10px 0; }
+
+  /* ── Nav buttons ── */
+  .nav-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .nav-btn { border: none; border-radius: 6px; padding: 8px 16px; font-size: .82rem; font-weight: 600; cursor: pointer; color: #fff; }
+  .nav-btn-campaigns { background: #6f42c1; }
+  .nav-btn-attendance { background: #198754; }
+  .nav-btn-admin { background: #0d6efd; }
+
+  /* ── Add contact form ── */
+  .form-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .form-input { border: 1px solid #ced4da; border-radius: 5px; padding: 5px 9px; font-size: .78rem; background: #fff; }
+  .form-input.sm { width: 110px; }
+  .form-input.md { width: 150px; }
+  .btn-add { background: #0d6efd; color: #fff; border: none; border-radius: 5px; padding: 5px 12px; font-size: .78rem; cursor: pointer; }
+  .btn-green { background: #198754; color: #fff; border: none; border-radius: 5px; padding: 5px 12px; font-size: .78rem; cursor: pointer; }
+  .btn-red { background: #dc3545; color: #fff; border: none; border-radius: 5px; padding: 4px 10px; font-size: .75rem; cursor: pointer; }
+  .btn-grey { background: #6c757d; color: #fff; border: none; border-radius: 5px; padding: 4px 10px; font-size: .75rem; cursor: pointer; }
+  .btn-outline-blue { background: transparent; color: #0d6efd; border: 1px solid #0d6efd; border-radius: 5px; padding: 4px 10px; font-size: .75rem; cursor: pointer; }
+
+  /* ── Contacts table ── */
+  .contacts-table { width: 100%; border-collapse: collapse; font-size: .75rem; margin-top: 6px; }
+  .contacts-table th { background: #f8f9fa; border: 1px solid #dee2e6; padding: 5px 7px; text-align: left; font-weight: 600; white-space: nowrap; }
+  .contacts-table td { border: 1px solid #dee2e6; padding: 5px 7px; vertical-align: middle; }
+  .contacts-table .filter-row td { padding: 3px 4px; }
+  .contacts-table .filter-row input { width: 100%; border: 1px solid #ced4da; border-radius: 3px; padding: 2px 5px; font-size: .72rem; }
+  .contacts-table tr:nth-child(even) td { background: #f8f9fa; }
+  .count-label { font-size: .8rem; font-weight: 700; color: #333; margin: 8px 0 4px; }
+
+  /* ── Bulk actions bar ── */
+  .bulk-bar { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .bulk-bar label { font-size: .75rem; color: #555; font-weight: 600; }
+  .bulk-bar select { border: 1px solid #ced4da; border-radius: 4px; padding: 3px 7px; font-size: .75rem; }
+  .btn-update { background: #fd7e14; color: #fff; border: none; border-radius: 5px; padding: 4px 12px; font-size: .75rem; cursor: pointer; }
+
+  /* ── Attendance ── */
+  .att-session-card { border: 1px solid #dee2e6; border-radius: 8px; padding: 14px; margin-bottom: 10px; background: #fff; }
+  .att-session-card .sess-name { font-weight: 700; color: #212529; font-size: .88rem; margin-bottom: 6px; }
+  .att-session-meta { display: flex; gap: 14px; font-size: .75rem; color: #666; margin-bottom: 10px; flex-wrap: wrap; }
+  .att-status-active { color: #198754; font-weight: 700; }
+  .sess-btn-row { display: flex; gap: 8px; }
+
+  .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 14px; }
+  .cb-pill { display: flex; align-items: center; gap: 5px; background: #f0f4ff; border: 1px solid #b8c7f5; border-radius: 999px; padding: 4px 12px; font-size: .78rem; cursor: pointer; }
+  .cb-pill input { accent-color: #0d6efd; }
+
+  .create-section-title { font-weight: 700; font-size: .85rem; color: #333; margin: 10px 0 6px; }
+  .sess-name-input { width: 100%; border: 1px solid #ced4da; border-radius: 5px; padding: 6px 10px; font-size: .82rem; margin-bottom: 10px; }
+
+  /* Attendance taking */
+  .att-take-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .att-take-name { font-weight: 700; font-size: .95rem; color: #212529; margin-bottom: 6px; }
+  .session-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .session-tag { border-radius: 999px; padding: 3px 10px; font-size: .73rem; font-weight: 600; }
+  .tag-blue { background: #cfe2ff; color: #0a58ca; }
+  .tag-green { background: #d1e7dd; color: #0f5132; }
+  .tag-orange { background: #ffe5d0; color: #842029; }
+  .attended-count { text-align: center; background: #f0fff4; border: 1px solid #b7e4c7; border-radius: 8px; padding: 8px 16px; }
+  .attended-count .num { font-size: 2rem; font-weight: 800; color: #198754; line-height: 1; }
+  .attended-count .lbl { font-size: .68rem; color: #555; }
+  .taker-link { color: #0d6efd; font-size: .78rem; text-decoration: underline; cursor: pointer; margin-top: 4px; display: inline-block; }
+  .form-label { font-size: .75rem; color: #555; font-weight: 600; margin-bottom: 3px; display: block; }
+  .form-input-lg { width: 100%; border: 1px solid #ced4da; border-radius: 5px; padding: 7px 10px; font-size: .82rem; margin-bottom: 8px; }
+  .form-input-lg.phone-focus { border-color: #fd7e14; outline: 2px solid rgba(253,126,20,.25); }
+  .submit-row { display: flex; gap: 8px; margin-top: 10px; }
+  .btn-submit { background: #6c757d; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: .82rem; cursor: pointer; }
+  .btn-end-session { background: #dc3545; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: .82rem; cursor: pointer; }
+
+  /* ── Campaigns ── */
+  .campaign-card { border: 1px solid #dee2e6; border-radius: 8px; padding: 14px; margin-bottom: 10px; background: #fff; }
+  .campaign-card .cname { font-weight: 700; font-size: .9rem; color: #212529; margin-bottom: 8px; }
+  .cbadge-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+  .cbadge { border-radius: 999px; padding: 3px 10px; font-size: .73rem; font-weight: 600; }
+  .cbadge-blue { background: #cfe2ff; color: #0a58ca; }
+  .cbadge-orange { background: #ffe5d0; color: #842029; }
+  .cbadge-green { background: #d1e7dd; color: #0f5132; }
+  .cbadge-grey { background: #e9ecef; color: #495057; }
+  .campaign-meta { font-size: .72rem; color: #888; }
+
+  /* Campaign detail */
+  .vol-section-title { font-weight: 700; font-size: .85rem; color: #333; margin: 12px 0 8px; }
+  .vol-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; margin-bottom: 6px; }
+  .vol-info { font-size: .8rem; color: #333; }
+  .vol-phone { font-size: .73rem; color: #666; }
+  .add-vol-row { display: flex; gap: 6px; margin-top: 8px; }
+  .call-log-table { width: 100%; border-collapse: collapse; font-size: .72rem; margin-top: 8px; }
+  .call-log-table th { background: #f8f9fa; border: 1px solid #dee2e6; padding: 5px 7px; text-align: left; font-weight: 600; white-space: nowrap; }
+  .call-log-table td { border: 1px solid #dee2e6; padding: 5px 7px; vertical-align: middle; }
+  .call-log-table .filter-row td input { width: 100%; border: 1px solid #ced4da; border-radius: 3px; padding: 2px 5px; font-size: .7rem; }
+  .feedback-complete { background: #d1e7dd; color: #0f5132; border-radius: 999px; padding: 2px 8px; font-size: .7rem; font-weight: 600; }
+
+  /* ── Admin ── */
+  .admin-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .admin-tab { border: none; border-radius: 6px; padding: 7px 14px; font-size: .8rem; font-weight: 600; cursor: pointer; color: #fff; }
+  .admin-tab-red { background: #dc3545; }
+  .admin-tab-blue { background: #0d6efd; }
+  .admin-tab-grey { background: #6c757d; }
+
+  .config-section-title { font-weight: 700; font-size: .88rem; color: #333; margin: 12px 0 8px; }
+  .config-add-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .config-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; margin-bottom: 4px; }
+  .config-item-label { font-size: .8rem; color: #333; }
+  .config-item-btns { display: flex; gap: 5px; }
+  .btn-rename { background: #198754; color: #fff; border: none; border-radius: 4px; padding: 3px 9px; font-size: .72rem; cursor: pointer; }
+
+  .user-row { border: 1px solid #dee2e6; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; background: #fff; }
+  .user-row-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+  .user-name { font-weight: 700; font-size: .85rem; color: #212529; }
+  .user-phone { font-size: .75rem; color: #666; }
+  .role-badge { display: inline-block; border-radius: 999px; padding: 2px 9px; font-size: .7rem; font-weight: 700; }
+  .role-badge-manager { background: #cfe2ff; color: #0a58ca; }
+  .role-badge-admin { background: #d1e7dd; color: #0f5132; }
+  .role-badge-taker { background: #fff3cd; color: #664d03; }
+  .user-controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .role-select { border: 1px solid #ced4da; border-radius: 4px; padding: 3px 7px; font-size: .75rem; }
+  .btn-update-role { background: #6c757d; color: #fff; border: none; border-radius: 4px; padding: 4px 10px; font-size: .73rem; cursor: pointer; }
+  .btn-make-overall { background: #198754; color: #fff; border: none; border-radius: 4px; padding: 4px 10px; font-size: .73rem; cursor: pointer; }
+  .overall-tag { font-size: .7rem; color: #198754; font-weight: 700; }
+
+  /* ── Grant access form ── */
+  .grant-form { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+  .grant-form-title { font-weight: 700; font-size: .85rem; color: #333; margin-bottom: 10px; }
+  .grant-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .grant-form-grid .form-input { width: 100%; }
+  .grant-form-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn-grant { background: #0d6efd; color: #fff; border: none; border-radius: 5px; padding: 6px 16px; font-size: .8rem; cursor: pointer; font-weight: 600; }
+  .overall-checkbox-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: #444; }
+
+  /* ── Login ── */
+  .login-shell { background: #f0f2f5; padding: 40px 20px; display: flex; align-items: center; justify-content: center; }
+  .login-card { background: #fff; border-radius: 12px; padding: 36px 32px; box-shadow: 0 4px 20px rgba(0,0,0,.12); max-width: 360px; width: 100%; }
+  .login-card h2 { text-align: center; font-size: 1.2rem; font-weight: 700; color: #212529; margin-bottom: 20px; }
+  .login-field { margin-bottom: 14px; }
+  .login-field label { display: block; font-size: .8rem; font-weight: 600; color: #555; margin-bottom: 5px; }
+  .login-field input { width: 100%; border: 1px solid #ced4da; border-radius: 6px; padding: 9px 12px; font-size: .9rem; }
+  .login-tip { font-size: .72rem; color: #888; margin-top: 4px; }
+  .btn-login { width: 100%; background: #198754; color: #fff; border: none; border-radius: 6px; padding: 11px; font-size: .95rem; font-weight: 700; cursor: pointer; margin-top: 6px; }
+  .demo-box { background: #f0fff4; border: 1px solid #b7e4c7; border-radius: 8px; padding: 10px 14px; margin-top: 16px; font-size: .75rem; color: #333; }
+  .demo-box strong { color: #0f5132; }
+
+  /* ── Roles table ── */
+  .roles-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .roles-table th { background: #1a1a2e; color: #fff; padding: 10px 14px; text-align: left; }
+  .roles-table td { border: 1px solid #dee2e6; padding: 9px 14px; }
+  .roles-table tr:nth-child(even) td { background: #f8f9fa; }
+  .check { color: #198754; font-weight: 700; font-size: 1.1rem; }
+  .cross { color: #dc3545; font-weight: 700; font-size: 1.1rem; }
+
+  /* ── Offline banner ── */
+  .offline-banner { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px 18px; font-size: .85rem; color: #664d03; display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .sync-status { background: #d1e7dd; border: 1px solid #a3cfbb; border-radius: 8px; padding: 12px 18px; font-size: .85rem; color: #0f5132; display: flex; align-items: center; gap: 10px; }
+
+  /* ── Callout ── */
+  .callout { background: linear-gradient(135deg, #198754 0%, #0d6efd 100%); color: #fff; border-radius: 16px; padding: 40px 36px; text-align: center; margin-bottom: 40px; }
+  .callout h2 { font-size: 1.7rem; font-weight: 700; margin-bottom: 10px; }
+  .callout p { font-size: 1rem; opacity: .9; max-width: 520px; margin: 0 auto; }
+
+  /* ── Footer ── */
+  footer { text-align: center; font-size: .8rem; color: #888; padding: 24px 0 16px; }
+
+  /* ── Before/After visual ── */
+  .ba-section { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0; align-items: start; }
+  .ba-col { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.08); overflow: hidden; }
+  .ba-col-header { padding: 18px 24px 16px; display: flex; align-items: center; gap: 10px; }
+  .ba-col.before .ba-col-header { background: linear-gradient(90deg,#fff0f1,#fff); border-bottom: 2px solid #f5c2c7; }
+  .ba-col.after .ba-col-header { background: linear-gradient(90deg,#f0fff4,#fff); border-bottom: 2px solid #a3cfbb; }
+  .ba-col-header .ba-icon { font-size: 1.5rem; }
+  .ba-col-header h3 { font-size: 1rem; font-weight: 700; }
+  .ba-col.before .ba-col-header h3 { color: #dc3545; }
+  .ba-col.after .ba-col-header h3 { color: #198754; }
+  .ba-items { padding: 12px 0; }
+  .ba-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 20px; border-bottom: 1px solid #f3f4f6; }
+  .ba-item:last-child { border-bottom: none; }
+  .ba-item-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+  .ba-col.before .ba-item-icon { background: #fff0f1; }
+  .ba-col.after .ba-item-icon { background: #f0fff4; }
+  .ba-item-text { font-size: .88rem; color: #444; line-height: 1.45; padding-top: 8px; }
+  .ba-arrow { display: flex; align-items: center; justify-content: center; padding: 0 20px; font-size: 2rem; color: #6f42c1; opacity: .7; align-self: center; }
+  @media (max-width: 700px) {
+    .ba-section { grid-template-columns: 1fr; }
+    .ba-arrow { transform: rotate(90deg); padding: 10px 0; }
+  }
+
+  /* ── UC icon cards ── */
+  .uc-icon-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+  .uc-icon-card { background: #fff; border-radius: 16px; padding: 28px 22px 24px; box-shadow: 0 2px 12px rgba(0,0,0,.08); text-align: center; transition: transform .15s; }
+  .uc-icon-card:hover { transform: translateY(-3px); }
+  .uc-ic-circle { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 14px; }
+  .uc-ic-1 { background: #ede9fe; }
+  .uc-ic-2 { background: #dcfce7; }
+  .uc-ic-3 { background: #dbeafe; }
+  .uc-ic-4 { background: #fff7ed; }
+  .uc-ic-5 { background: #fee2e2; }
+  .uc-ic-6 { background: #d1fae5; }
+  .uc-icon-card h3 { font-size: .98rem; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+  .uc-icon-card p { font-size: .84rem; color: #666; line-height: 1.5; }
+  @media (max-width: 700px) { .uc-icon-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 480px) { .uc-icon-grid { grid-template-columns: 1fr; } }
+
+  /* ── Feature deep dive layout ── */
+  .feature-block { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; margin-bottom: 40px; }
+  .feature-block.reverse { direction: rtl; }
+  .feature-block.reverse > * { direction: ltr; }
+  .feature-text h3 { font-size: 1.15rem; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+  .feature-text p { color: #555; font-size: .95rem; margin-bottom: 10px; }
+  .feature-text ul { list-style: none; padding: 0; }
+  .feature-text ul li { padding: 5px 0 5px 20px; position: relative; font-size: .9rem; color: #444; }
+  .feature-text ul li::before { content: "→"; position: absolute; left: 0; color: #0d6efd; }
+  @media (max-width: 700px) {
+    .feature-block { grid-template-columns: 1fr; }
+    .feature-block.reverse { direction: ltr; }
+  }
+
+  /* ── Mobile overrides ── */
+  @media (max-width: 700px) {
+    /* Layout */
+    .page { padding: 0 12px 40px; }
+    .hero { padding: 44px 20px 38px; }
+    .hero h1 { font-size: 1.75rem; }
+    .hero .sub { font-size: 1rem; }
+    .section-title { font-size: 1.25rem; }
+
+    /* Before/after already stacks via own query above */
+
+    /* Grant form */
+    .grant-form-grid { grid-template-columns: 1fr; }
+
+    /* App shell — make tables scroll horizontally */
+    .app-shell { font-size: .78rem; }
+    .contacts-table, .call-log-table { display: block; overflow-x: auto; white-space: nowrap; }
+    .app-body { padding: 10px 10px; }
+    .nav-row { gap: 6px; }
+    .nav-btn { padding: 6px 10px; font-size: .76rem; }
+
+    /* Feature text stacks: show screenshot first, text below */
+    .feature-block { gap: 18px; }
+    .feature-text h3 { font-size: 1rem; }
+    .feature-text p { font-size: .88rem; }
+
+    /* Roles table — allow horizontal scroll */
+    .roles-table { display: block; overflow-x: auto; white-space: nowrap; }
+
+    /* Callout */
+    .callout { padding: 28px 20px; }
+    .callout h2 { font-size: 1.3rem; }
+
+    /* Offline section */
+    .ps-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .hero h1 { font-size: 1.45rem; }
+    .app-topbar { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .form-row { flex-direction: column; }
+    .form-row .form-input, .form-row .btn-add { width: 100%; }
+    .bulk-bar { flex-direction: column; align-items: flex-start; }
+    .submit-row { flex-direction: column; }
+    .submit-row button { width: 100%; }
+    .admin-tabs { flex-direction: column; }
+    .admin-tab { text-align: left; }
+    .user-controls { flex-direction: column; align-items: flex-start; }
+    .sess-btn-row { flex-wrap: wrap; }
+    .checkbox-group { gap: 6px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ HERO ═══════════════════════════ -->
+<div class="hero">
+  <h1>Meditators Nurturing App</h1>
+  <p class="sub">A purpose-built tool for your center to manage meditators, track attendance, and run outreach campaigns — all in one place.</p>
+  <span class="center-pill">📍 Koramangala Center</span>
+</div>
+
+<div class="page">
+
+<!-- ═══════════════════════════ PROBLEM / SOLUTION ═══════════════════════════ -->
+<div class="section">
+  <div class="section-title">Why we built this</div>
+  <div class="section-desc">The challenges your center faced before this tool, and what it addresses.</div>
+  <div class="ba-section">
+    <div class="ba-col before">
+      <div class="ba-col-header"><span class="ba-icon">🟥</span><h3>Before — The Old Way</h3></div>
+      <div class="ba-items">
+        <div class="ba-item"><div class="ba-item-icon">📜</div><div class="ba-item-text">Attendance tracked in paper registers or scattered spreadsheets</div></div>
+        <div class="ba-item"><div class="ba-item-icon">🕵️</div><div class="ba-item-text">No single view of who is actively engaged vs who has drifted away</div></div>
+        <div class="ba-item"><div class="ba-item-icon"></div><div class="ba-item-text">Volunteer coordination done manually for every session</div></div>
+        <div class="ba-item"><div class="ba-item-icon">📤</div><div class="ba-item-text">New team members had no structured handoff of contacts</div></div>
+      </div>
+    </div>
+    <div class="ba-arrow">→</div>
+    <div class="ba-col after">
+      <div class="ba-col-header"><span class="ba-icon">🟢</span><h3>After — Meditators Nurturing App</h3></div>
+      <div class="ba-items">
+        <div class="ba-item"><div class="ba-item-icon">📱</div><div class="ba-item-text">Digital attendance per session with instant totals and full history</div></div>
+        <div class="ba-item"><div class="ba-item-icon">📊</div><div class="ba-item-text">Activity counts show each meditator’s engagement level at a glance</div></div>
+        <div class="ba-item"><div class="ba-item-icon">👀</div><div class="ba-item-text">Volunteers see only their assigned contacts; coordinators see all</div></div>
+        <div class="ba-item"><div class="ba-item-icon">⚡</div><div class="ba-item-text">Attendance takers assigned per session — no coordination overhead</div></div>
+        <div class="ba-item"><div class="ba-item-icon">📡</div><div class="ba-item-text">Offline support: works in the hall, syncs when back online</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════ USE CASES ═══════════════════════════ -->
+<div class="section">
+  <div class="section-title">What you can do</div>
+  <div class="section-desc">Six key workflows your center team uses every week.</div>
+  <div class="uc-icon-grid">
+    <div class="uc-icon-card">
+      <div class="uc-ic-circle uc-ic-1">📊</div>
+      <h3>Know who is engaged</h3>
+      <p>Every contact shows activity counts across sessions. Instantly spot consistent meditators and those who have drifted — filter by area, program, or activity.</p>
+    </div>
+    <div class="uc-icon-card">
+      <div class="uc-ic-circle uc-ic-2">✅</div>
+      <h3>Take attendance digitally</h3>
+      <p>Create a session, pick programs and areas, assign takers, and let volunteers mark attendance on their phones. Totals update live. Works offline in the hall.</p>
+    </div>
+    <div class="uc-icon-card">
+      <div class="uc-ic-circle uc-ic-3">📣</div>
+      <h3>Run outreach campaigns</h3>
+      <p>Create a campaign, assign volunteers, and track every call — feedback, status, notes — all in one place. No more lost follow-up threads over WhatsApp.</p>
+    </div>
+    <div class="uc-icon-card">
+      <div class="uc-ic-circle uc-ic-4">👥</div>
+      <h3>Manage contacts easily</h3>
+      <p>Add contacts one at a time or import via CSV. Update area, program, or activity in bulk across multiple contacts with a single action.</p>
+    </div>
+    <div class="uc-icon-card">
+      <div class="uc-ic-circle uc-ic-5">🔑</div>
+      <h3>Assign roles without sharing logins</h3>
+      <p>Grant Attendance Taker or Coordinator access with one click. Each person logs in with their own phone number — no shared credentials.</p>
+    </div>
+    <div class="uc-icon-card">
+      <div class="uc-ic-circle uc-ic-6">⚙️</div>
+      <h3>Configure the center your way</h3>
+      <p>Add your own Programs, Areas, and Activities from the Admin panel. Dropdowns across the app update immediately — no code changes needed.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════ FEATURE: SIGN IN ═══════════════════════════ -->
+<div class="section">
+  <div class="section-title">Feature walkthrough</div>
+  <div class="section-desc">Each screen below is an accurate representation of the running application.</div>
+
+  <!-- Login -->
+  <div class="feature-block" style="margin-bottom:36px;">
+    <div class="feature-text">
+<h3>Simple phone + PIN login</h3>
+      <p>Each team member logs in with their phone number and a PIN. The coordinator sets up access from the Admin panel. The initial PIN is the phone number itself — it can be changed later.</p>
+      <ul>
+        <li>Phone number is the username; PIN is the password</li>
+        <li>Initial PIN equals phone number — change it after first login</li>
+        <li>Works on any device: desktop, tablet, or mobile browser</li>
+        <li>Role is enforced server-side on every request</li>
+      </ul>
+    </div>
+    <div>
+      <div class="login-shell">
+        <div class="login-card">
+          <h2>Meditators Nurturing App</h2>
+          <div class="login-field">
+            <label>Phone Number</label>
+            <input type="text" value="9876543210" readonly />
+          </div>
+          <div class="login-field">
+            <label>PIN</label>
+            <input type="password" value="••••••••••" readonly />
+            <div class="login-tip">💡 Initial PIN is your phone number. You can change it later.</div>
+          </div>
+          <button class="btn-login">Login</button>
+          <div class="demo-box">
+            <strong>Koramangala Coordinator login:</strong><br />
+            Phone: 9876543210 &nbsp;|&nbsp; PIN: 9876543210 (initial)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Home / Contacts -->
+  <div class="feature-block reverse" style="margin-bottom:36px;">
+    <div class="feature-text">
+      <h3>Contact list — your center's master database</h3>
+      <p>Every meditator in your center is one row. Activity counts per session type show engagement at a glance. Coordinators can filter, sort, and act in bulk.</p>
+      <ul>
+        <li>Filter by name, phone, gender, area, or remarks in real time</li>
+        <li>Activity columns (Satsang Setup, Savesoil Event…) count attendance per contact</li>
+        <li>Bulk-update Area, Program, or Activity for selected contacts</li>
+        <li>Import contacts from a CSV file in one step</li>
+      </ul>
+    </div>
+    <div>
+      <div class="app-shell">
+        <div class="app-topbar">
+          <div class="app-topbar-left">Logged in as: <span>Manager · Koramangala</span> (9876543210)</div>
+          <button class="btn-logout">Logout</button>
+        </div>
+        <div class="app-center-row">Center: <strong>Koramangala ▼</strong></div>
+        <div class="app-body">
+          <div class="app-body-title">🌿 Meditators Nurturing App</div>
+          <div class="app-version">Version v2.0.0</div>
+          <div class="nav-row">
+            <button class="nav-btn nav-btn-campaigns">📣 Campaigns</button>
+            <button class="nav-btn nav-btn-attendance">📋 Take Attendance</button>
+            <button class="nav-btn nav-btn-admin">⚙️ Admin Mode</button>
+          </div>
+          <div class="app-hr"></div>
+          <div class="form-row">
+            <input class="form-input md" placeholder="Name" value="Priya Sharma" />
+            <input class="form-input sm" placeholder="Phone" value="9900001111" />
+            <select class="form-input sm"><option>Female</option></select>
+            <button class="btn-add">Add Contact</button>
+          </div>
+          <div class="bulk-bar">
+            <label>Bulk Actions:</label>
+            <select class="form-input"><option>Activity</option><option>Satsang Setup</option></select>
+            <select class="form-input"><option>Area</option><option>HSR Layout</option></select>
+            <select class="form-input"><option>Program</option><option>Satsang</option></select>
+            <button class="btn-update">Update</button>
+          </div>
+          <div class="count-label">Contacts (7)</div>
+          <table class="contacts-table">
+            <thead>
+              <tr>
+                <th><input type="checkbox" /></th>
+                <th>Name ▲</th><th>Phone</th><th>Gender</th><th>IE Date</th><th>Area of Stay</th><th>Satsang</th><th>Savesoil</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="filter-row">
+                <td><button class="btn-red" style="padding:2px 6px;font-size:.68rem;">Clear</button></td>
+                <td><input placeholder="filter…" /></td>
+                <td><input placeholder="filter…" /></td>
+                <td><input placeholder="filter…" /></td>
+                <td><input placeholder="filter…" /></td>
+                <td><input placeholder="filter…" /></td>
+                <td><input placeholder="filter…" /></td>
+                <td><input placeholder="filter…" /></td>
+              </tr>
+              <tr><td><input type="checkbox" /></td><td>Ananya Rao</td><td>9964297517</td><td>F</td><td>2023-06-01</td><td>HSR Layout</td><td>8</td><td>3</td></tr>
+              <tr><td><input type="checkbox" /></td><td>Kiran Murthy</td><td>9900112233</td><td>M</td><td>2022-11-15</td><td>Bellandur</td><td>12</td><td>5</td></tr>
+              <tr><td><input type="checkbox" /></td><td>Meena Iyer</td><td>9845001122</td><td>F</td><td>2024-01-20</td><td>Koramangala</td><td>4</td><td>1</td></tr>
+              <tr><td><input type="checkbox" /></td><td>Vishal Kumar</td><td>9876543210</td><td>M</td><td>2021-08-10</td><td>HSR Layout</td><td>22</td><td>9</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attendance Setup -->
+  <div class="feature-block" style="margin-bottom:36px;">
+    <div class="feature-text">
+      <h3>Attendance setup — ready in under a minute</h3>
+      <p>Before each session, a coordinator creates an attendance session by naming it and selecting which Programs, Areas, and Activities apply. Previous sessions remain available to continue or review.</p>
+      <ul>
+        <li>Sessions are reusable — continue from where you left off</li>
+        <li>Programs and Areas match your center's configuration</li>
+        <li>Assign one or more attendance takers per session</li>
+        <li>Delete old sessions that are no longer needed</li>
+      </ul>
+    </div>
+    <div>
+      <div class="app-shell">
+        <div class="app-topbar">
+          <div class="app-topbar-left">← <strong>Attendance Setup</strong> · Koramangala</div>
+          <button class="btn-logout">Logout</button>
+        </div>
+        <div class="app-body">
+          <div style="font-weight:700;font-size:.92rem;margin-bottom:4px;">📋 Attendance Session Setup</div>
+          <div style="font-size:.76rem;color:#666;margin-bottom:14px;">Select or create a session to start taking attendance.</div>
+
+          <div style="font-weight:700;font-size:.82rem;color:#333;margin-bottom:8px;">Your Available Sessions</div>
+          <div class="att-session-card">
+            <div class="sess-name">Satsang Attendance</div>
+            <div class="att-session-meta">
+              <span>📅 Apr 27, 2026</span>
+              <span>👥 34 attended</span>
+              <span>🙋 2 takers</span>
+              <span class="att-status-active">● Active</span>
+            </div>
+            <div class="sess-btn-row">
+              <button class="btn-add" style="font-size:.75rem;padding:4px 12px;">Continue</button>
+              <button class="btn-red">Delete</button>
+            </div>
+          </div>
+
+          <div style="font-weight:700;font-size:.82rem;color:#333;margin:12px 0 8px;">Create New Session</div>
+          <input class="sess-name-input" placeholder="Session Name (e.g. Satsang May 4)" value="Satsang Attendance" />
+          <div class="create-section-title">Programs</div>
+          <div class="checkbox-group">
+            <label class="cb-pill"><input type="checkbox" /> Darshan</label>
+            <label class="cb-pill"><input type="checkbox" checked /> Satsang</label>
+            <label class="cb-pill"><input type="checkbox" /> Isha Kriya</label>
+          </div>
+          <div class="create-section-title">Areas</div>
+          <div class="checkbox-group">
+            <label class="cb-pill"><input type="checkbox" /> Bellandur</label>
+            <label class="cb-pill"><input type="checkbox" checked /> HSR Layout</label>
+            <label class="cb-pill"><input type="checkbox" /> Koramangala</label>
+          </div>
+          <div class="create-section-title">Activities</div>
+          <div class="checkbox-group">
+            <label class="cb-pill"><input type="checkbox" checked /> Satsang Setup</label>
+            <label class="cb-pill"><input type="checkbox" /> Savesoil Event</label>
+            <label class="cb-pill"><input type="checkbox" /> Walkathon</label>
+          </div>
+          <button class="btn-green" style="margin-top:12px;padding:8px 18px;font-size:.83rem;">▶ Start Attendance</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attendance Taking -->
+  <div class="feature-block reverse" style="margin-bottom:36px;">
+    <div class="feature-text">
+      <h3>Taking attendance — fast and foolproof</h3>
+      <p>Attendance takers open the session on their phone. They type a phone number and the contact's details auto-fill from the database. Each submission is logged instantly.</p>
+      <ul>
+        <li>Phone lookup auto-fills name, gender, and area</li>
+        <li>New contacts are added on the fly during the session</li>
+        <li>Live "attended" counter visible at all times</li>
+        <li>Works offline — entries queue locally and sync on reconnection</li>
+        <li>Coordinator can assign or reassign takers at any time</li>
+      </ul>
+    </div>
+    <div>
+      <div class="app-shell">
+        <div class="app-topbar">
+          <div class="app-topbar-left">← <strong>Satsang Attendance</strong> · Koramangala</div>
+          <button class="btn-logout">Logout</button>
+        </div>
+        <div class="app-body">
+          <div class="att-take-header">
+            <div>
+              <div class="att-take-name">📝 Satsang Attendance</div>
+              <div class="session-tags">
+                <span class="session-tag tag-blue">Satsang</span>
+                <span class="session-tag tag-green">HSR Layout</span>
+                <span class="session-tag tag-orange">Satsang Setup</span>
+              </div>
+              <div style="margin-top:6px;font-size:.76rem;color:#555;">Attendance Takers: 2 assigned &nbsp;<span class="taker-link">+ add attendance takers</span></div>
+            </div>
+            <div class="attended-count">
+              <div class="num">34</div>
+              <div class="lbl">attended</div>
+            </div>
+          </div>
+
+          <div class="offline-banner" style="font-size:.76rem;padding:8px 12px;">
+            📶 You are offline. Entries will sync when connectivity is restored.
+          </div>
+
+          <label class="form-label">Phone Number</label>
+          <input class="form-input-lg phone-focus" placeholder="Enter phone number…" value="9845001122" />
+          <label class="form-label">Name</label>
+          <input class="form-input-lg" value="Meena Iyer" />
+          <label class="form-label">Gender</label>
+          <select class="form-input-lg"><option>Female</option></select>
+          <label class="form-label">Area of Stay</label>
+          <input class="form-input-lg" value="Koramangala" />
+          <div class="submit-row">
+            <button class="btn-submit">✔ Submit &amp; Next</button>
+            <button class="btn-end-session">End Session</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Offline sync callout -->
+  <div class="sync-status" style="margin-bottom:36px;">
+    ✅ <strong>Back online!</strong> &nbsp; 6 queued attendance entries have been synced to the server automatically.
+  </div>
+
+  <!-- Campaigns List -->
+  <div class="feature-block" style="margin-bottom:36px;">
+    <div class="feature-text">
+      <h3>Campaigns — structured outreach</h3>
+      <p>A campaign is an outreach drive targeting a group of contacts. Create one for a special event, a follow-up drive, or re-engaging lapsed meditators. Assign volunteers and track every call.</p>
+      <ul>
+        <li>Create campaigns with a name and message template</li>
+        <li>Status badges (Pending, Completed, Skipped) at a glance</li>
+        <li>Each volunteer sees only their assigned contacts</li>
+        <li>Coordinator sees the full picture across all volunteers</li>
+      </ul>
+    </div>
+    <div>
+      <div class="app-shell">
+        <div class="app-topbar">
+          <div class="app-topbar-left">← Home &nbsp;|&nbsp; 📣 Campaigns</div>
+          <button class="btn-logout">Logout</button>
+        </div>
+        <div class="app-body">
+          <div class="campaign-card">
+            <div class="cname">Satsang Setup Reachout</div>
+            <div class="cbadge-row">
+              <span class="cbadge cbadge-blue">Total: 42</span>
+              <span class="cbadge cbadge-orange">Pending: 18</span>
+              <span class="cbadge cbadge-green">Completed: 21</span>
+              <span class="cbadge cbadge-grey">Skipped: 3</span>
+            </div>
+            <div class="campaign-meta">3 volunteers · Created Apr 10, 2026</div>
+          </div>
+          <div class="campaign-card">
+            <div class="cname">IE Initiation Day Reachout</div>
+            <div class="cbadge-row">
+              <span class="cbadge cbadge-blue">Total: 28</span>
+              <span class="cbadge cbadge-orange">Pending: 28</span>
+              <span class="cbadge cbadge-green">Completed: 0</span>
+              <span class="cbadge cbadge-grey">Skipped: 0</span>
+            </div>
+            <div class="campaign-meta">2 volunteers · Created May 1, 2026</div>
+          </div>
+          <div class="campaign-card">
+            <div class="cname">Sadhguru Sannidhi Seva</div>
+            <div class="cbadge-row">
+              <span class="cbadge cbadge-blue">Total: 15</span>
+              <span class="cbadge cbadge-orange">Pending: 4</span>
+              <span class="cbadge cbadge-green">Completed: 9</span>
+              <span class="cbadge cbadge-grey">Skipped: 2</span>
+            </div>
+            <div class="campaign-meta">1 volunteer · Created Apr 28, 2026</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Campaign Detail -->
+  <div class="feature-block reverse" style="margin-bottom:36px;">
+    <div class="feature-text">
+      <h3>Campaign detail — full call tracking</h3>
+      <p>Inside a campaign, the coordinator can see every call made by every volunteer: who was called, when, the feedback, and the outcome. Filter the call log by any column.</p>
+      <ul>
+        <li>Volunteers added/removed from a campaign at any time</li>
+        <li>Call message template visible to all volunteers</li>
+        <li>DND and Not Interested flags tracked per contact</li>
+        <li>Colored status pills: Completed, Pending, Skipped</li>
+      </ul>
+    </div>
+    <div>
+      <div class="app-shell">
+        <div class="app-topbar">
+          <div class="app-topbar-left">← All Campaigns</div>
+          <button class="btn-logout">Logout</button>
+        </div>
+        <div class="app-body">
+          <div style="font-weight:700;font-size:.92rem;margin-bottom:6px;">Satsang Setup Reachout</div>
+          <div class="cbadge-row" style="margin-bottom:10px;">
+            <span class="cbadge cbadge-blue">Total: 42</span>
+            <span class="cbadge cbadge-orange">Pending: 18</span>
+            <span class="cbadge cbadge-green">Completed: 21</span>
+            <span class="cbadge cbadge-grey">Skipped: 3</span>
+          </div>
+
+          <div class="vol-section-title">Volunteers (2)</div>
+          <div class="vol-row">
+            <div><div class="vol-info">Kiran Murthy</div><div class="vol-phone">9900112233</div></div>
+            <button class="btn-red" style="font-size:.72rem;padding:3px 9px;">Remove</button>
+          </div>
+          <div class="vol-row">
+            <div><div class="vol-info">Ananya Rao</div><div class="vol-phone">9964297517</div></div>
+            <button class="btn-red" style="font-size:.72rem;padding:3px 9px;">Remove</button>
+          </div>
+          <div class="add-vol-row">
+            <input class="form-input md" placeholder="Phone number…" />
+            <button class="btn-add">Add</button>
+          </div>
+
+          <div class="vol-section-title" style="margin-top:12px;">Call Log (3)</div>
+          <table class="call-log-table">
+            <thead>
+              <tr>
+                <th>Called At</th><th>Contact</th><th>Volunteer</th><th>Feedback</th><th>Status</th>
+              </tr>
+              <tr class="filter-row">
+                <td><input placeholder="filter…" /></td>
+                <td><input placeholder="filter…" /></td>
+                <td><input placeholder="filter…" /></td>
+                <td><input placeholder="filter…" /></td>
+                <td><input placeholder="filter…" /></td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>5/4/2026, 9:43 AM</td>
+                <td>Meena Iyer</td>
+                <td>Kiran Murthy</td>
+                <td>Will attend</td>
+                <td><span class="feedback-complete">Completed</span></td>
+              </tr>
+              <tr>
+                <td>5/5/2026, 11:10 AM</td>
+                <td>Suresh Babu</td>
+                <td>Ananya Rao</td>
+                <td>No answer</td>
+                <td><span class="cbadge cbadge-orange" style="font-size:.7rem;">Pending</span></td>
+              </tr>
+              <tr>
+                <td>5/6/2026, 3:22 PM</td>
+                <td>Divya Nair</td>
+                <td>Kiran Murthy</td>
+                <td>Not interested</td>
+                <td><span class="cbadge cbadge-grey" style="font-size:.7rem;">Skipped</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin: Center Config -->
+  <div class="feature-block" style="margin-bottom:36px;">
+    <div class="feature-text">
+      <h3>Center configuration — no code required</h3>
+      <p>Coordinators configure the center’s Programs, Areas, and Activities directly from the Admin panel. Changes reflect immediately across all dropdowns and session setup screens.</p>
+      <ul>
+        <li>Add, rename, or delete Programs (Satsang, Darshan, Isha Kriya…)</li>
+        <li>Add, rename, or delete Areas (HSR Layout, Bellandur, Koramangala…)</li>
+        <li>Add, rename, or delete Activities for attendance tracking</li>
+        <li>No downtime, no developer needed</li>
+      </ul>
+    </div>
+    <div>
+      <div class="app-shell">
+        <div class="app-topbar">
+          <div class="app-topbar-left">← Home &nbsp;|&nbsp; ⚙️ Admin Mode · Koramangala</div>
+          <button class="btn-logout">Logout</button>
+        </div>
+        <div class="app-body">
+          <div class="admin-tabs">
+            <button class="admin-tab admin-tab-red">👤 User Mode</button>
+            <button class="admin-tab admin-tab-blue">Center Configuration</button>
+            <button class="admin-tab admin-tab-grey">Access Control</button>
+          </div>
+
+          <div style="font-weight:700;font-size:.9rem;margin-bottom:10px;">⚙️ Center Settings</div>
+
+          <div class="config-section-title">Activities</div>
+          <div class="config-add-row">
+            <input class="form-input md" placeholder="New activity…" />
+            <button class="btn-add">Add</button>
+          </div>
+          <div class="config-item"><span class="config-item-label">Satsang Setup</span><div class="config-item-btns"><button class="btn-rename">Rename</button><button class="btn-red">Delete</button></div></div>
+          <div class="config-item"><span class="config-item-label">Savesoil Event</span><div class="config-item-btns"><button class="btn-rename">Rename</button><button class="btn-red">Delete</button></div></div>
+          <div class="config-item"><span class="config-item-label">Walkathon</span><div class="config-item-btns"><button class="btn-rename">Rename</button><button class="btn-red">Delete</button></div></div>
+
+          <div class="config-section-title" style="margin-top:12px;">Areas</div>
+          <div class="config-add-row">
+            <input class="form-input md" placeholder="New area…" />
+            <button class="btn-add">Add</button>
+          </div>
+          <div class="config-item"><span class="config-item-label">Bellandur</span><div class="config-item-btns"><button class="btn-rename">Rename</button><button class="btn-red">Delete</button></div></div>
+          <div class="config-item"><span class="config-item-label">HSR Layout</span><div class="config-item-btns"><button class="btn-rename">Rename</button><button class="btn-red">Delete</button></div></div>
+          <div class="config-item"><span class="config-item-label">Koramangala</span><div class="config-item-btns"><button class="btn-rename">Rename</button><button class="btn-red">Delete</button></div></div>
+
+          <div class="config-section-title" style="margin-top:12px;">Programs</div>
+          <div class="config-add-row">
+            <input class="form-input md" placeholder="New program…" />
+            <button class="btn-add">Add</button>
+          </div>
+          <div class="config-item"><span class="config-item-label">Darshan</span><div class="config-item-btns"><button class="btn-rename">Rename</button><button class="btn-red">Delete</button></div></div>
+          <div class="config-item"><span class="config-item-label">Satsang</span><div class="config-item-btns"><button class="btn-rename">Rename</button><button class="btn-red">Delete</button></div></div>
+          <div class="config-item"><span class="config-item-label">Isha Kriya</span><div class="config-item-btns"><button class="btn-rename">Rename</button><button class="btn-red">Delete</button></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin: Access Control -->
+  <div class="feature-block reverse" style="margin-bottom:36px;">
+    <div class="feature-text">
+      <h3>Access control — manage your team</h3>
+      <p>Grant access to any team member with their phone number. Choose their role: Coordinator, Attendance Taker. Update or revoke access at any time — no IT ticket needed.</p>
+      <ul>
+        <li><strong>Attendance Taker</strong> — can take attendance only</li>
+        <li><strong>Coordinator</strong> — can manage contacts, campaigns, and sessions</li>
+        <li>Access requests shown for approval before being granted</li>
+        <li>Remove access instantly if someone leaves the team</li>
+      </ul>
+    </div>
+    <div>
+      <div class="app-shell">
+        <div class="app-topbar">
+          <div class="app-topbar-left">← Home &nbsp;|&nbsp; ⚙️ Admin Mode · Koramangala</div>
+          <button class="btn-logout">Logout</button>
+        </div>
+        <div class="app-body">
+          <div class="admin-tabs">
+            <button class="admin-tab admin-tab-red">👤 User Mode</button>
+            <button class="admin-tab admin-tab-grey">Center Configuration</button>
+            <button class="admin-tab admin-tab-blue">Access Control</button>
+          </div>
+
+          <div style="font-weight:700;font-size:.9rem;margin-bottom:10px;">🔐 Access Management</div>
+
+          <div class="grant-form">
+            <div class="grant-form-title">Grant Access</div>
+            <div class="grant-form-grid">
+              <input class="form-input" placeholder="Search name…" />
+              <input class="form-input" placeholder="Phone number" />
+              <input class="form-input" placeholder="Full name" />
+              <select class="form-input">
+                <option>Attendance Taker</option>
+                <option>Center User (Coordinator)</option>
+              </select>
+            </div>
+            <div class="grant-form-row">
+              <button class="btn-grant">Grant Access</button>
+            </div>
+          </div>
+
+          <div style="font-weight:700;font-size:.82rem;color:#333;margin-bottom:8px;">Approved Users</div>
+
+          <div class="user-row">
+            <div class="user-row-top">
+              <div>
+                <div class="user-name">Vishal Kumar <span class="overall-tag">✓ Overall admin</span></div>
+                <div class="user-phone">9876543210</div>
+              </div>
+              <span class="role-badge role-badge-manager">Coordinator</span>
+            </div>
+            <div class="user-controls">
+              <select class="role-select"><option>Center User</option><option>Attendance Taker</option></select>
+              <button class="btn-update-role">Update Role</button>
+              <button class="btn-red" style="font-size:.73rem;padding:4px 10px;">Remove Access</button>
+            </div>
+          </div>
+
+          <div class="user-row">
+            <div class="user-row-top">
+              <div>
+                <div class="user-name">Kiran Murthy</div>
+                <div class="user-phone">9900112233</div>
+              </div>
+              <span class="role-badge role-badge-manager">Coordinator</span>
+            </div>
+            <div class="user-controls">
+              <select class="role-select"><option>Center User</option><option>Attendance Taker</option></select>
+              <button class="btn-update-role">Update Role</button>
+              <button class="btn-make-overall">Make Overall Admin</button>
+              <button class="btn-red" style="font-size:.73rem;padding:4px 10px;">Remove Access</button>
+            </div>
+          </div>
+
+          <div class="user-row">
+            <div class="user-row-top">
+              <div>
+                <div class="user-name">Priya Sharma</div>
+                <div class="user-phone">9900001111</div>
+              </div>
+              <span class="role-badge role-badge-taker">Attendance Taker</span>
+            </div>
+            <div class="user-controls">
+              <select class="role-select"><option>Attendance Taker</option><option>Center User</option></select>
+              <button class="btn-update-role">Update Role</button>
+              <button class="btn-make-overall">Make Overall Admin</button>
+              <button class="btn-red" style="font-size:.73rem;padding:4px 10px;">Remove Access</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════ ROLES TABLE ═══════════════════════════ -->
+<div class="section">
+  <div class="section-title">Who can do what</div>
+  <div class="section-desc">Roles are enforced server-side. Each person sees only what they need.</div>
+  <table class="roles-table">
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Attendance Taker</th>
+        <th>Coordinator</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Log in</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Take attendance in an assigned session</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>View contact list</td><td class="cross">✗</td><td class="check">✓</td></tr>
+      <tr><td>Add / edit / import contacts</td><td class="cross">✗</td><td class="check">✓</td></tr>
+      <tr><td>Create and manage attendance sessions</td><td class="cross">✗</td><td class="check">✓</td></tr>
+      <tr><td>Create and manage campaigns</td><td class="cross">✗</td><td class="check">✓</td></tr>
+      <tr><td>View campaign call logs</td><td class="cross">✗</td><td class="check">✓</td></tr>
+      <tr><td>Grant / revoke access to team members</td><td class="cross">✗</td><td class="check">✓</td></tr>
+      <tr><td>Configure Programs, Areas, Activities</td><td class="cross">✗</td><td class="check">✓</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════ OFFLINE ═══════════════════════════ -->
+<div class="section">
+  <div class="section-title">Works offline in the hall</div>
+  <div class="section-desc">Taking attendance in a venue with spotty Wi-Fi? No problem.</div>
+  <div class="ps-grid">
+    <div class="ps-card solution">
+      <h3>How it works</h3>
+      <ul>
+        <li>Attendance entries are saved locally on the device when offline</li>
+        <li>A yellow banner notifies the taker that offline mode is active</li>
+        <li>As soon as connectivity is restored, all queued entries sync automatically</li>
+        <li>No manual re-entry or reconciliation needed</li>
+        <li>Works on mobile browsers — no app installation required</li>
+      </ul>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="offline-banner">
+        📡 Offline mode active — 4 entries queued locally. They will sync when you reconnect.
+      </div>
+      <div class="sync-status">
+        ✅ Reconnected! 4 queued entries synced successfully. Total attended: 38.
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════ CLOSING CALLOUT ═══════════════════════════ -->
+<div class="callout">
+  <h2>Ready to use at your center</h2>
+  <p>The app is running and accessible to the team right now. Log in with your phone number and PIN to start taking attendance, managing contacts, or creating your next campaign.</p>
+</div>
+
+<!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+<footer>
+  Meditators Nurturing App · Your Center &nbsp;·&nbsp; Internal tool — not for external distribution &nbsp;·&nbsp; May 2026
+</footer>
+
+</div><!-- /.page -->
+</body>
+</html>

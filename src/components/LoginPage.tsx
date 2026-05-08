@@ -95,7 +95,7 @@ export function LoginPage() {
         }}
       >
         <h1 style={{ textAlign: 'center', marginBottom: '30px', color: 'var(--text-primary, #333)' }}>
-          Contact Manager Login
+          Meditators Nurturing App
         </h1>
 
         <form onSubmit={registrationRequired ? handleRegister : handleSubmit}>
