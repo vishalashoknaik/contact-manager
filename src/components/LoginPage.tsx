@@ -149,7 +149,7 @@ export function LoginPage() {
               required
             />
             <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary, #666)' }}>
-              Demo: phone <strong>9876543210</strong>, password <strong>9876543210</strong>
+              Demo: phone 9876543210, password 9876543210
             </p>
           </div>
 
