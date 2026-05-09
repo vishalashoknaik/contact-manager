@@ -95,7 +95,8 @@ export function LoginPage() {
         }}
       >
         <h1 style={{ textAlign: 'center', marginBottom: '30px', color: 'var(--text-primary, #333)' }}>
-            Volunteers Coordination
+          Volunteers Coordination
+        </h1>
 
         <form onSubmit={registrationRequired ? handleRegister : handleSubmit}>
           <div style={{ marginBottom: '20px' }}>
