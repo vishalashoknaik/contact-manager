@@ -39,7 +39,7 @@ describe('Authentication System', () => {
         </AuthProvider>
       )
 
-      expect(screen.getByText('Meditators Nurturing App')).toBeInTheDocument()
+      expect(screen.getByText('Volunteers Coordination')).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Enter your phone number')).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Enter your password')).toBeInTheDocument()
     })

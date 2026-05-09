@@ -217,7 +217,7 @@ describe('Home page', () => {
 
     const { container } = render(<Home />)
 
-    expect(screen.getByText(/Meditators Nurturing App/)).toBeInTheDocument()
+    expect(screen.getByText(/Volunteers Coordination/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Admin Mode/i }))
     await user.click(screen.getByRole('button', { name: 'Center Configuration' }))
