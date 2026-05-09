@@ -152,7 +152,7 @@ function HomeContent() {
         paddingBottom: 20
       }}>
         <div>
-          <h2>🌿 Meditators Nurturing App</h2>
+          <h2>🌿 Volunteers Coordination</h2>
           <p style={{ color: 'var(--text-secondary, #666)', marginTop: 5 }}>Version {VERSION}</p>
         </div>
       </div>

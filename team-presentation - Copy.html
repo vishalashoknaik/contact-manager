@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Volunteers Coordination — Presentation</title>
+<title>Meditators Nurturing App — Team Presentation</title>
 <style>
   /* ── Reset & Base ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -11,7 +11,7 @@
   a { color: inherit; text-decoration: none; }
 
   /* ── Layout ── */
-  .page { max-width: 960px; margin: 0 auto; padding: 0 48px 60px; }
+  .page { max-width: 1080px; margin: 0 auto; padding: 0 56px 60px; }
 
   /* ── Hero ── */
   .hero { background: linear-gradient(135deg, #6f42c1 0%, #0d6efd 100%); color: #fff; padding: 64px 40px 56px; text-align: center; border-radius: 0 0 24px 24px; margin-bottom: 48px; }
@@ -222,26 +222,26 @@
   footer { text-align: center; font-size: .8rem; color: #888; padding: 24px 0 16px; }
 
   /* ── Before/After visual ── */
-  .ba-section { display: flex; flex-direction: column; gap: 16px; }
+  .ba-section { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0; align-items: start; }
   .ba-col { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.08); overflow: hidden; }
-  .ba-col-header { padding: 16px 24px 14px; display: flex; align-items: center; gap: 10px; }
+  .ba-col-header { padding: 18px 24px 16px; display: flex; align-items: center; gap: 10px; }
   .ba-col.before .ba-col-header { background: linear-gradient(90deg,#fff0f1,#fff); border-bottom: 2px solid #f5c2c7; }
   .ba-col.after .ba-col-header { background: linear-gradient(90deg,#f0fff4,#fff); border-bottom: 2px solid #a3cfbb; }
   .ba-col-header .ba-icon { font-size: 1.5rem; }
   .ba-col-header h3 { font-size: 1rem; font-weight: 700; }
   .ba-col.before .ba-col-header h3 { color: #dc3545; }
   .ba-col.after .ba-col-header h3 { color: #198754; }
-  .ba-items { padding: 14px; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-  .ba-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid transparent; }
-  .ba-col.before .ba-item { background: #fff5f6; border-color: #f5c2c7; }
-  .ba-col.after .ba-item { background: #f2fff6; border-color: #b3e6c8; }
-  .ba-item-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: .95rem; flex-shrink: 0; margin-top: 1px; }
-  .ba-col.before .ba-item-icon { background: #ffd6da; }
-  .ba-col.after .ba-item-icon { background: #c3f0d8; }
-  .ba-item-text { font-size: .82rem; color: #333; line-height: 1.4; }
-  .ba-arrow { display: flex; align-items: center; justify-content: center; padding: 10px 0; font-size: 1.6rem; color: #6f42c1; opacity: .6; }
+  .ba-items { padding: 12px 0; }
+  .ba-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 20px; border-bottom: 1px solid #f3f4f6; }
+  .ba-item:last-child { border-bottom: none; }
+  .ba-item-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+  .ba-col.before .ba-item-icon { background: #fff0f1; }
+  .ba-col.after .ba-item-icon { background: #f0fff4; }
+  .ba-item-text { font-size: .88rem; color: #444; line-height: 1.45; padding-top: 8px; }
+  .ba-arrow { display: flex; align-items: center; justify-content: center; padding: 0 20px; font-size: 2rem; color: #6f42c1; opacity: .7; align-self: center; }
   @media (max-width: 700px) {
-    .ba-items { grid-template-columns: 1fr 1fr; }
+    .ba-section { grid-template-columns: 1fr; }
+    .ba-arrow { transform: rotate(90deg); padding: 10px 0; }
   }
 
   /* ── UC icon cards ── */
@@ -331,8 +331,7 @@
 
 <!-- ═══════════════════════════ HERO ═══════════════════════════ -->
 <div class="hero">
-  <h1>Volunteers Coordination</h1>
-  <p class="sub-title" style="font-size:.95rem;opacity:.8;margin-top:4px;">Volunteer &amp; Meditator Management for Isha Centers</p>
+  <h1>Meditators Nurturing App</h1>
   <p class="sub">A purpose-built tool for your center to manage meditators, track attendance, and run outreach campaigns — all in one place.</p>
   <span class="center-pill">📍 Koramangala Center</span>
 </div>
@@ -347,25 +346,21 @@
     <div class="ba-col before">
       <div class="ba-col-header"><span class="ba-icon">🟥</span><h3>Before — The Old Way</h3></div>
       <div class="ba-items">
-        <div class="ba-item"><div class="ba-item-icon">📸</div><div class="ba-item-text">Data lived in photos of paper sheets or buried Google Forms — scattered, hard to find later</div></div>
-        <div class="ba-item"><div class="ba-item-icon">🔀</div><div class="ba-item-text">No single source of truth — duplicates crept in, records kept appending, merging was a nightmare</div></div>
-        <div class="ba-item"><div class="ba-item-icon">📈</div><div class="ba-item-text">Contact list grew huge over years with no way to clean up or spot who was still active</div></div>
-        <div class="ba-item"><div class="ba-item-icon">👤</div><div class="ba-item-text">No full profile per person — couldn’t see how often they came or which satsangs, darshans, or programs they attended</div></div>
-        <div class="ba-item"><div class="ba-item-icon">📍</div><div class="ba-item-text">No way to filter by area or program inclination — every analysis was manual</div></div>
-        <div class="ba-item"><div class="ba-item-icon">📋</div><div class="ba-item-text">Attendance marked manually after sessions — if someone forgot, that data was lost forever</div></div>
-        <div class="ba-item"><div class="ba-item-icon">📤</div><div class="ba-item-text">No structured handoff — new team members had no context on who’s who</div></div>
+        <div class="ba-item"><div class="ba-item-icon">📜</div><div class="ba-item-text">Attendance tracked in paper registers or scattered spreadsheets</div></div>
+        <div class="ba-item"><div class="ba-item-icon">🕵️</div><div class="ba-item-text">No single view of who is actively engaged vs who has drifted away</div></div>
+        <div class="ba-item"><div class="ba-item-icon"></div><div class="ba-item-text">Volunteer coordination done manually for every session</div></div>
+        <div class="ba-item"><div class="ba-item-icon">📤</div><div class="ba-item-text">New team members had no structured handoff of contacts</div></div>
       </div>
     </div>
-    <div class="ba-arrow">↓ Now with Volunteers Coordination</div>
+    <div class="ba-arrow">→</div>
     <div class="ba-col after">
-      <div class="ba-col-header"><span class="ba-icon">🟢</span><h3>After — Volunteers Coordination</h3></div>
+      <div class="ba-col-header"><span class="ba-icon">🟢</span><h3>After — Meditators Nurturing App</h3></div>
       <div class="ba-items">
-        <div class="ba-item"><div class="ba-item-icon">🗂️</div><div class="ba-item-text">One clean database per center — every meditator is a single de-duplicated row</div></div>
-        <div class="ba-item"><div class="ba-item-icon">👤</div><div class="ba-item-text">Full engagement profile per person — attendance counts across satsangs, darshans, and every program</div></div>
-        <div class="ba-item"><div class="ba-item-icon">🎯</div><div class="ba-item-text">Instantly filter by area, program, or activity — spot the most active, recently active, or drifted meditators</div></div>
-        <div class="ba-item"><div class="ba-item-icon">📱</div><div class="ba-item-text">Digital attendance per session — works offline in the hall, syncs automatically when back online</div></div>
-        <div class="ba-item"><div class="ba-item-icon">⚡</div><div class="ba-item-text">Attendance takers assigned per session — no WhatsApp coordination, no missed sessions</div></div>
-        <div class="ba-item"><div class="ba-item-icon">👀</div><div class="ba-item-text">Role-based access — volunteers see their contacts; coordinators see everything; onboarding takes minutes</div></div>
+        <div class="ba-item"><div class="ba-item-icon">📱</div><div class="ba-item-text">Digital attendance per session with instant totals and full history</div></div>
+        <div class="ba-item"><div class="ba-item-icon">📊</div><div class="ba-item-text">Activity counts show each meditator’s engagement level at a glance</div></div>
+        <div class="ba-item"><div class="ba-item-icon">👀</div><div class="ba-item-text">Volunteers see only their assigned contacts; coordinators see all</div></div>
+        <div class="ba-item"><div class="ba-item-icon">⚡</div><div class="ba-item-text">Attendance takers assigned per session — no coordination overhead</div></div>
+        <div class="ba-item"><div class="ba-item-icon">📡</div><div class="ba-item-text">Offline support: works in the hall, syncs when back online</div></div>
       </div>
     </div>
   </div>
@@ -375,38 +370,38 @@
 
 <!-- ═══════════════════════════ USE CASES ═══════════════════════════ -->
 <div class="section">
-  <div class="section-title">Problems we solved</div>
-  <div class="section-desc">Six specific pain points our team faced every week — and what we built to fix them.</div>
+  <div class="section-title">What you can do</div>
+  <div class="section-desc">Six key workflows your center team uses every week.</div>
   <div class="uc-icon-grid">
     <div class="uc-icon-card">
       <div class="uc-ic-circle uc-ic-1">📊</div>
-      <h3>We couldn’t tell who was still active</h3>
-      <p>The contact list kept growing but we had no way to see who was regularly attending. Now every contact shows their count per activity, area, and program — drift is visible at a glance.</p>
+      <h3>Know who is engaged</h3>
+      <p>Every contact shows activity counts across sessions. Instantly spot consistent meditators and those who have drifted — filter by area, program, or activity.</p>
     </div>
     <div class="uc-icon-card">
       <div class="uc-ic-circle uc-ic-2">✅</div>
-      <h3>Attendance was always manual — and often lost</h3>
-      <p>If the person who took attendance forgot to enter it, that session was gone. Now volunteers mark attendance on their phones during the session. It works offline in the hall and syncs automatically.</p>
+      <h3>Take attendance digitally</h3>
+      <p>Create a session, pick programs and areas, assign takers, and let volunteers mark attendance on their phones. Totals update live. Works offline in the hall.</p>
     </div>
     <div class="uc-icon-card">
       <div class="uc-ic-circle uc-ic-3">📣</div>
-      <h3>Follow-up calls had no structure</h3>
-      <p>Campaign assignments and call notes were scattered across WhatsApp threads. Now each campaign has volunteers assigned, and every call — status, feedback, notes — is logged in one place.</p>
+      <h3>Run outreach campaigns</h3>
+      <p>Create a campaign, assign volunteers, and track every call — feedback, status, notes — all in one place. No more lost follow-up threads over WhatsApp.</p>
     </div>
     <div class="uc-icon-card">
       <div class="uc-ic-circle uc-ic-4">👥</div>
-      <h3>Managing the contact list was messy</h3>
-      <p>Data was duplicated, stale, or split across spreadsheets. Now contacts are imported via CSV or added one at a time, and bulk updates to area, program, or activity take a single click.</p>
+      <h3>Manage contacts easily</h3>
+      <p>Add contacts one at a time or import via CSV. Update area, program, or activity in bulk across multiple contacts with a single action.</p>
     </div>
     <div class="uc-icon-card">
       <div class="uc-ic-circle uc-ic-5">🔑</div>
-      <h3>New members had no proper access setup</h3>
-      <p>We used to share common logins or give everyone full access. Now each volunteer logs in with their own phone number and sees only what their role allows — set up in seconds by the coordinator.</p>
+      <h3>Assign roles without sharing logins</h3>
+      <p>Grant Attendance Taker or Coordinator access with one click. Each person logs in with their own phone number — no shared credentials.</p>
     </div>
     <div class="uc-icon-card">
       <div class="uc-ic-circle uc-ic-6">⚙️</div>
-      <h3>Every center has different programs and areas</h3>
-      <p>Hardcoded dropdowns didn’t match our center’s reality. Now programs, areas, and activities are configured from the Admin panel and the whole app updates instantly — no code changes needed.</p>
+      <h3>Configure the center your way</h3>
+      <p>Add your own Programs, Areas, and Activities from the Admin panel. Dropdowns across the app update immediately — no code changes needed.</p>
     </div>
   </div>
 </div>
@@ -433,7 +428,7 @@
     <div>
       <div class="login-shell">
         <div class="login-card">
-          <h2>Volunteers Coordination</h2>
+          <h2>Meditators Nurturing App</h2>
           <div class="login-field">
             <label>Phone Number</label>
             <input type="text" value="9876543210" readonly />
@@ -472,7 +467,7 @@
         </div>
         <div class="app-center-row">Center: <strong>Koramangala ▼</strong></div>
         <div class="app-body">
-          <div class="app-body-title">👥 Volunteers Coordination</div>
+          <div class="app-body-title">🌿 Meditators Nurturing App</div>
           <div class="app-version">Version v2.0.0</div>
           <div class="nav-row">
             <button class="nav-btn nav-btn-campaigns">📣 Campaigns</button>
@@ -524,7 +519,7 @@
             </tbody>
           </table>
           </div>
-          <div style="font-size:.65rem;color:#888;margin-top:4px;">🟢 Activities &nbsp; 🔵 Areas &nbsp; 🟠 Programs — columns expand with your center's config &nbsp;·&nbsp; ← scroll right to see all columns →</div>
+          <div style="font-size:.65rem;color:#888;margin-top:4px;">🟢 Activities &nbsp; 🔵 Areas &nbsp; 🟠 Programs — columns expand with your center's config</div>
         </div>
       </div>
     </div>
@@ -1014,7 +1009,7 @@
 
 <!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
 <footer>
-  Volunteers Coordination · Your Center &nbsp;·&nbsp; Internal tool — not for external distribution &nbsp;·&nbsp; May 2026
+  Meditators Nurturing App · Your Center &nbsp;·&nbsp; Internal tool — not for external distribution &nbsp;·&nbsp; May 2026
 </footer>
 
 </div><!-- /.page -->

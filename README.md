@@ -1,4 +1,4 @@
-# Meditators Nurturing App
+# Volunteers Coordination
 
 A web application for managing meditators, campaigns, and attendance for organizational centers. Built with Next.js 16, Node.js, and PostgreSQL.
 
@@ -19,7 +19,7 @@ A web application for managing meditators, campaigns, and attendance for organiz
 
 ## Project Overview
 
-Meditators Nurturing App is designed for organizations that operate across multiple centers (branches, locations, or chapters). Each center maintains its own isolated dataset—contacts, activities, areas, programs, campaigns, and attendance sessions—while a central admin can oversee all centers and switch between them.
+Volunteers Coordination is designed for organizations that operate across multiple centers (branches, locations, or chapters). Each center maintains its own isolated dataset—contacts, activities, areas, programs, campaigns, and attendance sessions—while a central admin can oversee all centers and switch between them.
 
 The application is offline-capable: attendance records are persisted locally and synced to the server when connectivity is restored.
 

@@ -14,13 +14,13 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Meditators Nurturing App',
+  title: 'Volunteers Coordination',
   description: 'Manage meditators by center with role-based access control',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Meditators Nurturing App'
+    title: 'Volunteers Coordination'
   }
 }
 

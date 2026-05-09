@@ -1,6 +1,6 @@
-# Meditators Nurturing App — Backend
+# Volunteers Coordination — Backend
 
-Express.js + Prisma + PostgreSQL backend API for Meditators Nurturing App.
+Express.js + Prisma + PostgreSQL backend API for Volunteers Coordination.
 
 ## Setup
 
