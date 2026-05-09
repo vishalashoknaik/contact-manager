@@ -95,8 +95,7 @@ export function LoginPage() {
         }}
       >
         <h1 style={{ textAlign: 'center', marginBottom: '30px', color: 'var(--text-primary, #333)' }}>
-          Meditators Nurturing App
-        </h1>
+            Volunteers Coordination
 
         <form onSubmit={registrationRequired ? handleRegister : handleSubmit}>
           <div style={{ marginBottom: '20px' }}>
@@ -134,7 +133,7 @@ export function LoginPage() {
                 color: 'var(--text-primary, #333)'
               }}
             >
-              Password (same as phone number)
+              Password
             </label>
             <input
               type="password"
@@ -150,7 +149,7 @@ export function LoginPage() {
               required
             />
             <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary, #666)' }}>
-              Tip: Your password is the same as your phone number
+              Demo: phone <strong>9876543210</strong>, password <strong>9876543210</strong>
             </p>
           </div>
 
