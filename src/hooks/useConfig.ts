@@ -60,15 +60,12 @@ export function useConfig() {
       setError('No center selected. Cannot update activities.')
       return
     }
-
-    const previous = activities
-    setActivitiesState(updated)
-
     if (!useBackend) {
-      setError('Backend unavailable. Cannot update activities.')
+      setError('Backend unavailable. Configuration changes cannot be saved. Please check your connection and try again.')
       return
     }
 
+    const previous = activities
     const added = updated.filter(item => !previous.includes(item))
     const removed = previous.filter(item => !updated.includes(item))
 
@@ -77,10 +74,11 @@ export function useConfig() {
         ...added.map(item => activitiesApi.create(item, selectedCenter)),
         ...removed.map(item => activitiesApi.delete(item, selectedCenter))
       ])
+      setActivitiesState(updated)
       setError(null)
     } catch (err) {
       console.error('Failed to sync activities:', err)
-      setError('Failed to sync activities to backend.')
+      setError('Failed to save activities. Changes were not applied.')
     }
   }
 
@@ -89,15 +87,12 @@ export function useConfig() {
       setError('No center selected. Cannot update areas.')
       return
     }
-
-    const previous = areas
-    setAreasState(updated)
-
     if (!useBackend) {
-      setError('Backend unavailable. Cannot update areas.')
+      setError('Backend unavailable. Configuration changes cannot be saved. Please check your connection and try again.')
       return
     }
 
+    const previous = areas
     const added = updated.filter(item => !previous.includes(item))
     const removed = previous.filter(item => !updated.includes(item))
 
@@ -106,10 +101,11 @@ export function useConfig() {
         ...added.map(item => areasApi.create(item, selectedCenter)),
         ...removed.map(item => areasApi.delete(item, selectedCenter))
       ])
+      setAreasState(updated)
       setError(null)
     } catch (err) {
       console.error('Failed to sync areas:', err)
-      setError('Failed to sync areas to backend.')
+      setError('Failed to save areas. Changes were not applied.')
     }
   }
 
@@ -118,15 +114,12 @@ export function useConfig() {
       setError('No center selected. Cannot update programs.')
       return
     }
-
-    const previous = programs
-    setProgramsState(updated)
-
     if (!useBackend) {
-      setError('Backend unavailable. Cannot update programs.')
+      setError('Backend unavailable. Configuration changes cannot be saved. Please check your connection and try again.')
       return
     }
 
+    const previous = programs
     const added = updated.filter(item => !previous.includes(item))
     const removed = previous.filter(item => !updated.includes(item))
 
@@ -135,10 +128,11 @@ export function useConfig() {
         ...added.map(item => programsApi.create(item, selectedCenter)),
         ...removed.map(item => programsApi.delete(item, selectedCenter))
       ])
+      setProgramsState(updated)
       setError(null)
     } catch (err) {
       console.error('Failed to sync programs:', err)
-      setError('Failed to sync programs to backend.')
+      setError('Failed to save programs. Changes were not applied.')
     }
   }
 

@@ -12,13 +12,6 @@ interface MessageTemplate {
   whatsappContent: string
 }
 
-const defaultTemplates: MessageTemplate[] = [
-  {
-    name: 'Default',
-    smsContent: 'Hi {name}, this is from {campaign}. Please call us back when convenient.',
-    whatsappContent: 'Hi {name}, this is from {campaign}. Please let us know a good time to connect.'
-  }
-]
 
 /** Mirrors the canEditTemplates expression in page.tsx */
 function canEdit(role: CenterRole | undefined | null): boolean {
@@ -29,10 +22,7 @@ function canEdit(role: CenterRole | undefined | null): boolean {
 function loadTemplatesForCampaign(
   messageTemplates: unknown
 ): MessageTemplate[] {
-  if (Array.isArray(messageTemplates) && messageTemplates.length > 0) {
-    return messageTemplates as MessageTemplate[]
-  }
-  return defaultTemplates
+  return Array.isArray(messageTemplates) ? messageTemplates as MessageTemplate[] : []
 }
 
 /** Mirrors the save logic in page.tsx: validates, trims, then pushes or updates */
@@ -110,18 +100,19 @@ describe('CampaignsPage - Message Templates Backend Tests', () => {
       expect(campaign.messageTemplates[1].name).toBe('Professional')
     })
 
-    it('verifies default template is used when campaign has no templates', () => {
-      const defaultTemplate = {
-        name: 'Default',
-        smsContent: 'Hi {name}, this is from {campaign}. Please call us back.',
-        whatsappContent: 'Hi {name}, this is from {campaign}. Please let us know a good time to connect.'
-      }
-
+    it('campaign with null messageTemplates loads as empty array — no defaults injected', () => {
       const campaign = { id: 'campaign-1', messageTemplates: null }
 
-      const templates = campaign.messageTemplates || [defaultTemplate]
-      expect(templates).toHaveLength(1)
-      expect(templates[0]).toEqual(defaultTemplate)
+      // Mirrors the loadTemplatesForCampaign logic in page.tsx
+      const templates = Array.isArray(campaign.messageTemplates) ? campaign.messageTemplates : []
+      expect(templates).toHaveLength(0)
+    })
+
+    it('campaign with empty array messageTemplates stays empty — no defaults injected', () => {
+      const campaign = { id: 'campaign-1', messageTemplates: [] }
+
+      const templates = Array.isArray(campaign.messageTemplates) ? campaign.messageTemplates : []
+      expect(templates).toHaveLength(0)
     })
 
     it('verifies templates support placeholder substitution', () => {
@@ -208,20 +199,20 @@ describe('CampaignsPage - canEditTemplates: all role variants', () => {
   it('null role (selectedCenterDetails is null) cannot edit', () => expect(canEdit(null)).toBe(false))
 })
 
-describe('CampaignsPage - default template content matches source', () => {
-  it('default template name is "Default"', () => {
-    expect(defaultTemplates[0].name).toBe('Default')
+describe('CampaignsPage - no hardcoded default templates (data integrity)', () => {
+  it('initial template state is empty — no defaults injected on mount', () => {
+    // Before any campaign is selected, state should be []
+    const initialState: MessageTemplate[] = []
+    expect(initialState).toHaveLength(0)
   })
-  it('default smsContent contains all three placeholders', () => {
-    expect(defaultTemplates[0].smsContent).toContain('{name}')
-    expect(defaultTemplates[0].smsContent).toContain('{campaign}')
+  it('loading a campaign with null templates yields empty — not a hardcoded default', () => {
+    expect(loadTemplatesForCampaign(null)).toEqual([])
+    expect(loadTemplatesForCampaign(null)).not.toContainEqual(
+      expect.objectContaining({ name: 'Default' })
+    )
   })
-  it('default whatsappContent contains all three placeholders', () => {
-    expect(defaultTemplates[0].whatsappContent).toContain('{name}')
-    expect(defaultTemplates[0].whatsappContent).toContain('{campaign}')
-  })
-  it('exactly one default template exists', () => {
-    expect(defaultTemplates).toHaveLength(1)
+  it('loading a campaign with empty array yields empty — not a hardcoded default', () => {
+    expect(loadTemplatesForCampaign([])).toEqual([])
   })
 })
 
@@ -230,18 +221,17 @@ describe('CampaignsPage - template loading from campaign', () => {
     const t = [{ name: 'A', smsContent: 'S', whatsappContent: 'W' }]
     expect(loadTemplatesForCampaign(t)).toEqual(t)
   })
-  it('falls back to defaults when messageTemplates is null', () => {
-    expect(loadTemplatesForCampaign(null)).toEqual(defaultTemplates)
+  it('returns empty array when messageTemplates is null — no default injected', () => {
+    expect(loadTemplatesForCampaign(null)).toEqual([])
   })
-  it('falls back to defaults when messageTemplates is empty array', () => {
-    // Edge case: empty array must NOT replace defaults — the guard is length > 0
-    expect(loadTemplatesForCampaign([])).toEqual(defaultTemplates)
+  it('returns empty array when messageTemplates is empty array — no default injected', () => {
+    expect(loadTemplatesForCampaign([])).toEqual([])
   })
-  it('falls back to defaults when messageTemplates is undefined', () => {
-    expect(loadTemplatesForCampaign(undefined)).toEqual(defaultTemplates)
+  it('returns empty array when messageTemplates is undefined', () => {
+    expect(loadTemplatesForCampaign(undefined)).toEqual([])
   })
-  it('falls back to defaults when messageTemplates is a non-array value', () => {
-    expect(loadTemplatesForCampaign('corrupt')).toEqual(defaultTemplates)
+  it('returns empty array when messageTemplates is a non-array value', () => {
+    expect(loadTemplatesForCampaign('corrupt')).toEqual([])
   })
   it('preserves multiple templates from campaign', () => {
     const t = [

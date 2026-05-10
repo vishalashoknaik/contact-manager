@@ -631,8 +631,8 @@ function AttendanceEntry({
     try {
       const attendees = await attendanceApi.listSessionAttendees(sessionId, centerId)
       setServerAttendees(attendees)
-    } catch {
-      // Best effort refresh
+    } catch (err) {
+      setSessionAccessError('Attendee list could not be refreshed after sync. The count above may be stale.')
     }
 
     return !hasFailure
@@ -1197,8 +1197,9 @@ export default function AttendancePage() {
         setAvailableSessions(sessions)
         setHasLoadedSessionsOnce(true)
         setSessionDataSyncing(false)
-      } catch {
+      } catch (err) {
         if (cancelled) return
+        setSessionError(err instanceof Error ? err.message : 'Failed to load attendance sessions. Please refresh.')
         setAvailableSessions([])
         setSessionDataSyncing(false)
       }

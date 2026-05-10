@@ -644,3 +644,21 @@ describe('AttendancePage', () => {
     expect(screen.queryByText('Delete Me')).not.toBeInTheDocument()
   })
 })
+
+describe('AttendancePage - error surfacing', () => {
+  it('shows an error message when listSessions fails on load', async () => {
+    mocks.listSessions.mockRejectedValueOnce(new Error('DB connection lost'))
+
+    const { render, screen, act, waitFor } = await import('@testing-library/react')
+    const React = await import('react')
+    const { default: AttendancePage } = await import('./page')
+
+    render(React.createElement(AttendancePage))
+
+    await act(async () => { await new Promise(r => setTimeout(r, 50)) })
+
+    await waitFor(() => {
+      expect(screen.getByText(/DB connection lost|Failed to load attendance sessions/i)).toBeInTheDocument()
+    })
+  })
+})

@@ -166,7 +166,7 @@ describe('useConfig', () => {
       await result.current.setActivities(['Walkathon', 'NewEvent'])
     })
 
-    expect(result.current.error).toMatch(/Failed to sync activities/)
+    expect(result.current.error).toMatch(/Failed to save activities/)
   })
 
   it('setActivities does not call API when backend is unavailable', async () => {
@@ -243,7 +243,7 @@ describe('useConfig', () => {
       await result.current.setAreas(['Area1', 'NewArea'])
     })
 
-    expect(result.current.error).toMatch(/Failed to sync areas/)
+    expect(result.current.error).toMatch(/Failed to save areas/)
   })
 
   it('setPrograms sets error when no center is selected', async () => {
@@ -287,7 +287,7 @@ describe('useConfig', () => {
       await result.current.setPrograms(['Program1', 'NewProgram'])
     })
 
-    expect(result.current.error).toMatch(/Failed to sync programs/)
+    expect(result.current.error).toMatch(/Failed to save programs/)
   })
 
   it('setActivities sets error when no center is selected', async () => {
@@ -326,4 +326,84 @@ describe('useConfig', () => {
     expect(result.current.areas).toEqual(['Area2'])
     expect(result.current.programs).toEqual(['Program2'])
   })
+
+  // ─── Data integrity: no optimistic updates ─────────────────────────────────
+
+  it('setActivities does NOT update local state when backend save fails', async () => {
+    vi.mocked(activitiesApi.create).mockRejectedValueOnce(new Error('Server error'))
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.activities).toEqual(['Walkathon'])
+
+    await act(async () => {
+      await result.current.setActivities(['Walkathon', 'NewEvent'])
+    })
+
+    // State must NOT change — backend failed, changes not persisted
+    expect(result.current.activities).toEqual(['Walkathon'])
+    expect(result.current.error).toMatch(/Failed to save activities/)
+  })
+
+  it('setAreas does NOT update local state when backend save fails', async () => {
+    vi.mocked(areasApi.create).mockRejectedValueOnce(new Error('Server error'))
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.areas).toEqual(['Area1'])
+
+    await act(async () => {
+      await result.current.setAreas(['Area1', 'NewArea'])
+    })
+
+    expect(result.current.areas).toEqual(['Area1'])
+    expect(result.current.error).toMatch(/Failed to save areas/)
+  })
+
+  it('setPrograms does NOT update local state when backend save fails', async () => {
+    vi.mocked(programsApi.create).mockRejectedValueOnce(new Error('Server error'))
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    expect(result.current.programs).toEqual(['Program1'])
+
+    await act(async () => {
+      await result.current.setPrograms(['Program1', 'NewProgram'])
+    })
+
+    expect(result.current.programs).toEqual(['Program1'])
+    expect(result.current.error).toMatch(/Failed to save programs/)
+  })
+
+  it('setActivities does NOT update local state when backend is unavailable', async () => {
+    vi.mocked(activitiesApi.getAll).mockRejectedValueOnce(new Error('down'))
+
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+    // State starts empty because load failed
+    expect(result.current.activities).toEqual([])
+    expect(result.current.useBackend).toBe(false)
+
+    await act(async () => {
+      await result.current.setActivities(['Walkathon'])
+    })
+
+    // Still empty — backend unavailable, nothing written
+    expect(result.current.activities).toEqual([])
+    expect(result.current.error).toMatch(/Backend unavailable/)
+  })
+
+  it('setActivities updates local state only after backend confirms', async () => {
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.setActivities(['Walkathon', 'Prayer'])
+    })
+
+    // Backend succeeded → state IS updated
+    expect(result.current.activities).toEqual(['Walkathon', 'Prayer'])
+    expect(result.current.error).toBeNull()
+  })
 })
+

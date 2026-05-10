@@ -209,6 +209,29 @@ The application is offline-capable: attendance records are persisted locally and
 
 ---
 
+## Data Integrity Policy
+
+This application enforces strict data integrity. There are **no dummy values, no hardcoded defaults, and no silent fallbacks** anywhere in the codebase.
+
+### Principles
+
+1. **No dummy/default values** — Users must configure everything explicitly. The app never pre-populates fields with fake data (e.g., sample message templates, hardcoded activities/areas/programs). If data is not configured, the UI shows an empty state and prompts the user to add it.
+
+2. **No optimistic updates** — Configuration changes (activities, areas, programs, message templates) are only reflected in the UI *after* the backend confirms a successful write. If the backend call fails, the local state is not modified and the user sees an error message.
+
+3. **All errors are surfaced** — Every backend failure must reach the user. There are no silent `catch` blocks that swallow errors. If a configuration load fails, a network call fails, or a save fails, the user is informed with a specific error message.
+
+4. **No fallback to stale or fake data** — If a required data load fails (e.g., config, sessions), the UI blocks the relevant feature and shows an error rather than proceeding with outdated or invented data.
+
+### Consequences for contributors
+
+- Do not add `|| defaultValue` patterns that hide missing configuration.
+- Do not silently catch API errors without setting an error state visible to the user.
+- Do not update React state before the corresponding API call succeeds.
+- Do not use hardcoded strings as initial state for user-configured data.
+
+---
+
 ## Architecture
 
 ```

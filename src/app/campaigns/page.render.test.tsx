@@ -39,7 +39,7 @@ vi.mock('@/lib/api/client', () => ({
   campaignsApi: campaignApiMocks
 }))
 
-// Minimal campaign fixture used across template UI tests
+// Minimal campaign fixture — no templates (for empty-state tests)
 const mockCampaign = {
   id: 'camp-1',
   name: 'Test Campaign',
@@ -52,9 +52,15 @@ const mockCampaign = {
   messageTemplates: null
 }
 
-async function renderWithCampaignDetail(role: string) {
+// Campaign fixture with one template (for role/edit tests)
+const mockCampaignWithTemplate = {
+  ...mockCampaign,
+  messageTemplates: [{ name: 'Friendly', smsContent: 'Hi {name}', whatsappContent: 'WA {name}' }]
+}
+
+async function renderWithCampaignDetail(role: string, useTemplates = true) {
   mockRole = role
-  campaignApiMocks.getAll.mockResolvedValue([mockCampaign])
+  campaignApiMocks.getAll.mockResolvedValue([useTemplates ? mockCampaignWithTemplate : mockCampaign])
   campaignApiMocks.getCallLogs.mockResolvedValue([])
   campaignApiMocks.getNextContact.mockResolvedValue({ done: true })
 
@@ -119,27 +125,68 @@ describe('CampaignsPage - role-based template UI visibility', () => {
   })
 
   it('USER role sees "+ Add Template" button in campaign detail', async () => {
-    await renderWithCampaignDetail('USER')
+    await renderWithCampaignDetail('USER', true)
     expect(screen.getByRole('button', { name: /\+ Add Template/i })).toBeInTheDocument()
   })
 
   it('ADMIN role sees "+ Add Template" button in campaign detail', async () => {
-    await renderWithCampaignDetail('ADMIN')
+    await renderWithCampaignDetail('ADMIN', true)
     expect(screen.getByRole('button', { name: /\+ Add Template/i })).toBeInTheDocument()
   })
 
   it('ATTENDANCE_TAKER role does NOT see "+ Add Template" button', async () => {
-    await renderWithCampaignDetail('ATTENDANCE_TAKER')
+    await renderWithCampaignDetail('ATTENDANCE_TAKER', true)
     expect(screen.queryByRole('button', { name: /\+ Add Template/i })).not.toBeInTheDocument()
   })
 
   it('ATTENDANCE_TAKER role does NOT see "Edit" button on templates', async () => {
-    await renderWithCampaignDetail('ATTENDANCE_TAKER')
+    await renderWithCampaignDetail('ATTENDANCE_TAKER', true)
     expect(screen.queryByRole('button', { name: /^Edit$/i })).not.toBeInTheDocument()
   })
 
   it('USER role sees "Edit" button on templates', async () => {
-    await renderWithCampaignDetail('USER')
+    await renderWithCampaignDetail('USER', true)
     expect(screen.getByRole('button', { name: /^Edit$/i })).toBeInTheDocument()
+  })
+})
+
+describe('CampaignsPage - empty templates state (no defaults)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockRole = 'USER'
+  })
+
+  it('shows no template radio buttons when campaign has no templates', async () => {
+    await renderWithCampaignDetail('USER', false)
+    // mockCampaign has messageTemplates: null → no defaults injected → no radio buttons
+    const radios = document.querySelectorAll('input[type="radio"][name="template"]')
+    expect(radios.length).toBe(0)
+  })
+
+  it('still shows "+ Add Template" button so user can configure templates', async () => {
+    await renderWithCampaignDetail('USER', false)
+    expect(screen.getByRole('button', { name: /\+ Add Template/i })).toBeInTheDocument()
+  })
+
+  it('shows error when saveTemplates backend call fails', async () => {
+    campaignApiMocks.updateTemplates.mockRejectedValue(new Error('Network error'))
+    await renderWithCampaignDetail('USER', false)
+
+    await userEvent.click(screen.getByRole('button', { name: /\+ Add Template/i }))
+    await act(async () => { await Promise.resolve() })
+
+    // Fill name, SMS, WhatsApp fields
+    const textareas = document.querySelectorAll('textarea')
+    const nameInput = document.querySelector('input[placeholder*="Friendly"]') as HTMLInputElement
+    if (nameInput) await userEvent.type(nameInput, 'Test')
+    if (textareas[0]) await userEvent.type(textareas[0], 'SMS text here')
+    if (textareas[1]) await userEvent.type(textareas[1], 'WA text here')
+
+    await userEvent.click(screen.getByRole('button', { name: /^Add Template$/i }))
+
+    // Debounce + async save
+    await act(async () => { await new Promise(r => setTimeout(r, 1000)) })
+
+    expect(screen.getByText(/Network error|Failed to save templates/i)).toBeInTheDocument()
   })
 })

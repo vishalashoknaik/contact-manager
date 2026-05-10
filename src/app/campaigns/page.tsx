@@ -18,13 +18,6 @@ interface MessageTemplate {
   whatsappContent: string
 }
 
-const defaultTemplates: MessageTemplate[] = [
-  {
-    name: 'Default',
-    smsContent: 'Hi {name}, this is from {campaign}. Please call us back when convenient.',
-    whatsappContent: 'Hi {name}, this is from {campaign}. Please let us know a good time to connect.'
-  }
-]
 
 export default function CampaignsPage() {
   const { user, selectedCenter, selectedCenterDetails, isLoggedIn } = useAuth()
@@ -49,7 +42,7 @@ export default function CampaignsPage() {
   const [editNotInterested, setEditNotInterested] = useState(false)
   const [editRemarks, setEditRemarks] = useState('')
   const [isSavingLog, setIsSavingLog] = useState(false)
-  const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>(defaultTemplates)
+  const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>([])
   const [selectedTemplateIndex, setSelectedTemplateIndex] = useState(0)
   const [editingTemplate, setEditingTemplate] = useState<{ index: number; name: string; smsContent: string; whatsappContent: string } | null>(null)
   const [isSavingTemplates, setIsSavingTemplates] = useState(false)
@@ -72,16 +65,12 @@ export default function CampaignsPage() {
   // Load templates from campaign data when a campaign is selected
   useEffect(() => {
     if (!selectedCampaign) {
-      setMessageTemplates(defaultTemplates)
+      setMessageTemplates([])
       setSelectedTemplateIndex(0)
       return
     }
     const templates = selectedCampaign.messageTemplates
-    if (Array.isArray(templates) && templates.length > 0) {
-      setMessageTemplates(templates as MessageTemplate[])
-    } else {
-      setMessageTemplates(defaultTemplates)
-    }
+    setMessageTemplates(Array.isArray(templates) ? templates as MessageTemplate[] : [])
     setSelectedTemplateIndex(0)
   }, [selectedCampaign?.id])
 
@@ -95,8 +84,8 @@ export default function CampaignsPage() {
       try {
         const saved = await campaignsApi.updateTemplates(selectedCampaign.id, updated, selectedCenter)
         setSelectedCampaign(saved)
-      } catch {
-        // silent – templates will still work locally
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save templates. Please try again.')
       } finally {
         setIsSavingTemplates(false)
       }
@@ -158,8 +147,8 @@ export default function CampaignsPage() {
       setCallLogs(logs)
       setNextPending(pending)
       setNextSkipped(skipped)
-    } catch {
-      // silent refresh failure
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh campaign data. The view may be outdated.')
     }
   }
 

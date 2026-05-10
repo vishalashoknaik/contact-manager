@@ -53,7 +53,9 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const selectedTemplate = messageTemplates[selectedTemplateIndex] || messageTemplates[0]
+  const selectedTemplate = messageTemplates.length > 0
+    ? (messageTemplates[selectedTemplateIndex] ?? messageTemplates[0])
+    : null
 
   const resetForm = useCallback(() => {
     setFeedback('COMPLETED')
@@ -139,12 +141,16 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
 
   const cc = current as CurrentContact
   const normalizedPhone = cc.contact.phone.replace(/\D/g, '')
-  const smsHref = `sms:${cc.contact.phone}?body=${encodeURIComponent(
-    applyTemplate(selectedTemplate.smsContent, { name: cc.contact.name, phone: cc.contact.phone, campaign: campaignName })
-  )}`
-  const whatsappHref = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(
-    applyTemplate(selectedTemplate.whatsappContent, { name: cc.contact.name, phone: cc.contact.phone, campaign: campaignName })
-  )}`
+  const smsHref = selectedTemplate
+    ? `sms:${cc.contact.phone}?body=${encodeURIComponent(
+        applyTemplate(selectedTemplate.smsContent, { name: cc.contact.name, phone: cc.contact.phone, campaign: campaignName })
+      )}`
+    : undefined
+  const whatsappHref = selectedTemplate
+    ? `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(
+        applyTemplate(selectedTemplate.whatsappContent, { name: cc.contact.name, phone: cc.contact.phone, campaign: campaignName })
+      )}`
+    : undefined
 
   return (
     <div style={card}>
@@ -160,6 +166,11 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
           {cc.contact.phone}
         </a>
         
+        {messageTemplates.length === 0 && (
+          <div style={{ marginTop: 12, padding: '8px 12px', borderRadius: 4, backgroundColor: '#fff3cd', border: '1px solid #ffeeba', color: '#856404', fontSize: 13 }}>
+            ⚠️ No message templates configured for this campaign. WhatsApp and SMS are disabled. Add templates in the campaign detail view.
+          </div>
+        )}
         {messageTemplates.length > 1 && (
           <div style={{ marginTop: 12, marginBottom: 12 }}>
             <label htmlFor="template-select" style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Message Template</label>
@@ -188,20 +199,28 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
           >
             Call
           </a>
-          <a
-            href={whatsappHref}
-            target="_blank"
-            rel="noreferrer"
-            style={{ padding: '8px 12px', borderRadius: 4, backgroundColor: '#25D366', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
-          >
-            WhatsApp
-          </a>
-          <a
-            href={smsHref}
-            style={{ padding: '8px 12px', borderRadius: 4, backgroundColor: '#0d6efd', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
-          >
-            SMS
-          </a>
+          {whatsappHref ? (
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noreferrer"
+              style={{ padding: '8px 12px', borderRadius: 4, backgroundColor: '#25D366', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
+            >
+              WhatsApp
+            </a>
+          ) : (
+            <span style={{ padding: '8px 12px', borderRadius: 4, backgroundColor: '#6c757d', color: '#fff', fontSize: 13, cursor: 'not-allowed', opacity: 0.6 }}>WhatsApp</span>
+          )}
+          {smsHref ? (
+            <a
+              href={smsHref}
+              style={{ padding: '8px 12px', borderRadius: 4, backgroundColor: '#0d6efd', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
+            >
+              SMS
+            </a>
+          ) : (
+            <span style={{ padding: '8px 12px', borderRadius: 4, backgroundColor: '#6c757d', color: '#fff', fontSize: 13, cursor: 'not-allowed', opacity: 0.6 }}>SMS</span>
+          )}
         </div>
       </div>
 
