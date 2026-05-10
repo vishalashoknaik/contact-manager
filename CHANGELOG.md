@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ---
 
+## [2.2.3] — 2026-05-10
+
+### Fixed
+- **Login: CORS blocking all requests from Vercel** — Root cause of persistent login failure. The backend CORS config only allowed origins listed in the `ALLOWED_ORIGINS` / `FRONTEND_URL` env var (defaulting to `localhost:3000`). Any request from `*.vercel.app` was rejected before even reaching the login handler, causing a network-level failure on mobile. Fixed by hardcoding `*.vercel.app` as a built-in always-allowed origin alongside localhost, so all Vercel deployments (including preview URLs) work without needing Render env var changes.
+
+---
+
 ## [2.2.2] — 2026-05-10
 
 ### Fixed

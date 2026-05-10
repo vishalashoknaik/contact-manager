@@ -15,11 +15,17 @@ const prisma = new PrismaClient()
 const PORT = process.env.PORT || 3001
 
 function parseAllowedOrigins() {
-  const configured = process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:3000'
-  return configured
+  const configured = process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || ''
+  const fromEnv = configured
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean)
+
+  // Always allow localhost for development and all Vercel deployments
+  const builtIn = ['http://localhost:3000', 'http://localhost:3001', '*.vercel.app']
+
+  // Merge, deduplicate
+  return Array.from(new Set([...builtIn, ...fromEnv]))
 }
 
 const allowedOrigins = parseAllowedOrigins()
