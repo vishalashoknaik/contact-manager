@@ -618,6 +618,14 @@ router.post('/submit', async (req: Request, res: Response) => {
       }
     })
 
+    // If this contact already has a session entry, this is a re-submission.
+    // Do NOT increment counts again — just update the entry details below.
+    const isResubmission = activeSession
+      ? !!(await prisma.attendanceSessionEntry.findUnique({
+          where: { sessionId_contactId: { sessionId: activeSession.id, contactId: contact.id } }
+        }))
+      : false
+
     // Increment attendance counts for each selected activity
     for (const activityName of activities as string[]) {
       let activity = await prisma.activity.findUnique({
@@ -631,7 +639,7 @@ router.post('/submit', async (req: Request, res: Response) => {
       await prisma.contactActivity.upsert({
         where: { contactId_activityId: { contactId: contact.id, activityId: activity.id } },
         create: { contactId: contact.id, activityId: activity.id, count: 1 },
-        update: { count: { increment: 1 } }
+        update: isResubmission ? {} : { count: { increment: 1 } }
       })
     }
 
@@ -648,7 +656,7 @@ router.post('/submit', async (req: Request, res: Response) => {
       await prisma.contactArea.upsert({
         where: { contactId_areaId: { contactId: contact.id, areaId: area.id } },
         create: { contactId: contact.id, areaId: area.id, count: 1 },
-        update: { count: { increment: 1 } }
+        update: isResubmission ? {} : { count: { increment: 1 } }
       })
     }
 
@@ -665,7 +673,7 @@ router.post('/submit', async (req: Request, res: Response) => {
       await prisma.contactProgram.upsert({
         where: { contactId_programId: { contactId: contact.id, programId: program.id } },
         create: { contactId: contact.id, programId: program.id, count: 1 },
-        update: { count: { increment: 1 } }
+        update: isResubmission ? {} : { count: { increment: 1 } }
       })
     }
 
@@ -691,7 +699,7 @@ router.post('/submit', async (req: Request, res: Response) => {
       })
     }
 
-    return res.status(201).json({ success: true, contactId: contact.id })
+    return res.status(201).json({ success: true, contactId: contact.id, isResubmission })
   } catch (err) {
     console.error('Attendance submit error:', err)
     res.status(500).json({ error: 'Failed to record attendance' })

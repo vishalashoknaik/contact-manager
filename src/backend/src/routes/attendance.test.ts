@@ -44,6 +44,7 @@ const mockPrisma = {
   },
   attendanceSessionEntry: {
     findMany: vi.fn(),
+    findUnique: vi.fn(),
     create: vi.fn(),
     upsert: vi.fn()
   },
@@ -740,6 +741,7 @@ describe('attendance route', () => {
       name: 'Session Person',
       phone: '1231231234'
     })
+    mockPrisma.attendanceSessionEntry.findUnique.mockResolvedValueOnce(null) // first submission
     mockPrisma.attendanceSessionEntry.upsert.mockResolvedValueOnce({ id: 'entry-22' })
 
     const response = await fetch(`${baseUrl}/api/attendance/submit`, {
@@ -1571,6 +1573,7 @@ describe('attendance route', () => {
     })
     mockPrisma.contact.findUnique.mockResolvedValueOnce(null)
     mockPrisma.contact.upsert.mockResolvedValueOnce({ id: 'contact-norm', name: 'Phone Person', phone: '(123) 456-7890' })
+    mockPrisma.attendanceSessionEntry.findUnique.mockResolvedValueOnce(null) // not a resubmission
     mockPrisma.attendanceSessionEntry.upsert.mockResolvedValueOnce({ id: 'entry-norm' })
 
     await fetch(`${baseUrl}/api/attendance/submit`, {
@@ -1592,6 +1595,43 @@ describe('attendance route', () => {
     const upsertCall = mockPrisma.attendanceSessionEntry.upsert.mock.calls[0][0]
     expect(upsertCall.create.contactPhone).toBe('1234567890')
     expect(upsertCall.update.contactPhone).toBe('1234567890')
+  })
+
+  it('POST /submit does NOT increment counts when the same contact re-submits in the same session', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111', canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1', centerId, endedAt: null,
+      volunteers: [{ volunteerPhone: '1111111111' }]
+    })
+    mockPrisma.contact.findUnique.mockResolvedValueOnce({ id: 'contact-existing' })
+    mockPrisma.contact.upsert.mockResolvedValueOnce({ id: 'contact-existing', name: 'Eve', phone: '5555555555' })
+    // Signal that this is a re-submission — entry already exists
+    mockPrisma.attendanceSessionEntry.findUnique.mockResolvedValueOnce({ id: 'entry-existing' })
+    mockPrisma.activity.findUnique.mockResolvedValueOnce({ id: 'activity-1' })
+    mockPrisma.contactActivity.upsert.mockResolvedValueOnce({})
+    mockPrisma.attendanceSessionEntry.upsert.mockResolvedValueOnce({ id: 'entry-existing' })
+
+    const response = await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({
+        name: 'Eve', phone: '5555555555', sessionId: 'session-1',
+        activities: ['Walkathon'], areas: [], programs: []
+      })
+    })
+
+    expect(response.status).toBe(201)
+    const data = await response.json()
+    expect(data.isResubmission).toBe(true)
+
+    // The upsert update for a re-submission must NOT increment the count
+    const activityUpsert = mockPrisma.contactActivity.upsert.mock.calls[0][0]
+    expect(activityUpsert.update).toEqual({}) // empty — no increment
   })
 
   it('POST /submit returns 401 when sessionId is provided but auth header is missing', async () => {
