@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ---
 
+## [2.2.1] — 2026-05-10
+
+### Fixed
+- **Production login broken on non-`vercel.app` domains**: The API URL detection only routed to the production backend when the hostname ended with `.vercel.app`. Any other deployed domain (custom domain, preview URL, etc.) silently fell back to `http://localhost:3001/api`, causing "Cannot reach the server" on real devices. Now routes to production backend for any non-`localhost` / non-`127.0.0.1` hostname.
+
+---
+
 ## [2.2.0] — 2026-05-10
 
 ### Changed (Breaking — Data Integrity Overhaul)
