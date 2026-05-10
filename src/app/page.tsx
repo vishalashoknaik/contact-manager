@@ -23,7 +23,7 @@ import { CampaignModal } from '@/components/CampaignModal'
 import { contactsApi } from '@/lib/api/client'
 import type { Contact } from '@/lib/types'
 
-const VERSION = 'v2.0.0'
+const VERSION = `v${process.env.NEXT_PUBLIC_APP_VERSION ?? '2.2.0'}`
 
 function HomeContent() {
   const router = useRouter()

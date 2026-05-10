@@ -231,6 +231,11 @@ export function LoginPage() {
               }}
             >
               {error}
+              {(error.toLowerCase().includes('login failed') || error.toLowerCase().includes('server')) && (
+                <p style={{ marginTop: '8px', fontSize: '13px', color: '#a00' }}>
+                  The server may be starting up after a period of inactivity. Wait 20–30 seconds and try again.
+                </p>
+              )}
             </div>
           )}
 

@@ -145,8 +145,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      setError(registrationError.message || 'Login failed')
-      throw err
+      const raw = registrationError.message || ''
+      const isNetworkError =
+        raw === 'Failed to fetch' ||
+        raw.toLowerCase().includes('networkerror') ||
+        raw.toLowerCase().includes('network request failed') ||
+        raw.toLowerCase().includes('load failed')
+      const message = isNetworkError
+        ? 'Cannot reach the server. Check your connection — the server may take a moment to start if it has been idle.'
+        : raw || 'Login failed'
+
+      setError(message)
+      throw Object.assign(new Error(message), registrationError)
     } finally {
       setIsLoading(false)
     }
