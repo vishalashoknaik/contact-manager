@@ -1160,7 +1160,7 @@ function AttendanceEntry({
 export default function AttendancePage() {
   const router = useRouter()
   const { isLoggedIn, isLoading, selectedCenter, selectedCenterDetails } = useAuth()
-  const { activities, areas, programs } = useConfig()
+  const { activities, areas, programs, isLoaded: configLoaded, error: configError } = useConfig()
   const centerLabel = selectedCenterDetails?.name || selectedCenter || 'Unknown Center'
   const storageKey = selectedCenter ? getStorageKey(selectedCenter) : ''
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -1329,20 +1329,32 @@ export default function AttendancePage() {
           }}
         />
       ) : (
-        <SetupScreen
-          activities={activities}
-          areas={areas}
-          programs={programs}
-          sessions={availableSessions}
-          onResume={selected => {
-            const resumedSession = {
-              name: selected.name,
-              activities: selected.activities,
-              areas: selected.areas,
-              programs: selected.programs
-            }
-            setSession(resumedSession)
-            setSessionId(selected.id)
+        <>
+          {!configLoaded && (
+            <div style={{ padding: '16px 20px', color: 'var(--text-secondary, #666)', fontSize: 14 }}>
+              Loading configuration…
+            </div>
+          )}
+          {configLoaded && configError && (
+            <div style={{ margin: '12px 16px', padding: '10px 14px', borderRadius: 6, backgroundColor: '#fff3cd', border: '1px solid #ffeeba', color: '#856404', fontSize: 14 }}>
+              ⚠️ {configError} Programs, areas, and activities may not be up to date.
+            </div>
+          )}
+          {configLoaded && (
+            <SetupScreen
+              activities={activities}
+              areas={areas}
+              programs={programs}
+              sessions={availableSessions}
+              onResume={selected => {
+                const resumedSession = {
+                  name: selected.name,
+                  activities: selected.activities,
+                  areas: selected.areas,
+                  programs: selected.programs
+                }
+                setSession(resumedSession)
+                setSessionId(selected.id)
             setSessionVolunteers(selected.volunteers)
           }}
           onReopen={async selected => {
@@ -1414,6 +1426,8 @@ export default function AttendancePage() {
             }
           }}
         />
+          )}
+        </>
       )}
       {sessionError && (
         <div style={{ padding: '0 20px 20px', color: '#842029', fontSize: 14 }}>

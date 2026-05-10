@@ -47,7 +47,9 @@ vi.mock('@/hooks/useConfig', () => ({
   useConfig: () => ({
     activities: ['Walkathon'],
     areas: ['Downtown'],
-    programs: ['Youth Program']
+    programs: ['Youth Program'],
+    isLoaded: true,
+    error: null
   })
 }))
 

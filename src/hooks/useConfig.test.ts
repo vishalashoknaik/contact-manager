@@ -64,10 +64,10 @@ describe('useConfig', () => {
 
     expect(result.current.useBackend).toBe(false)
     expect(result.current.error).toMatch(/Backend unavailable/)
-    // Falls back to hard-coded defaults
-    expect(result.current.activities).toEqual(['Walkathon'])
-    expect(result.current.areas).toEqual(['Area1'])
-    expect(result.current.programs).toEqual(['Program1'])
+    // Returns empty arrays on failure so the UI shows "not configured" rather than fake defaults
+    expect(result.current.activities).toEqual([])
+    expect(result.current.areas).toEqual([])
+    expect(result.current.programs).toEqual([])
   })
 
   it('setActivities calls create for newly added items', async () => {

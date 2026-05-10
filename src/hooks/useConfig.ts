@@ -10,9 +10,9 @@ import { useAuth } from '@/hooks/useAuth'
  */
 export function useConfig() {
   const { isLoggedIn, isLoading: authLoading, selectedCenter } = useAuth()
-  const [activities, setActivitiesState] = useState<string[]>(['Walkathon'])
-  const [areas, setAreasState] = useState<string[]>(['Area1'])
-  const [programs, setProgramsState] = useState<string[]>(['Program1'])
+  const [activities, setActivitiesState] = useState<string[]>([])
+  const [areas, setAreasState] = useState<string[]>([])
+  const [programs, setProgramsState] = useState<string[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [useBackend, setUseBackend] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,9 +37,9 @@ export function useConfig() {
           programsApi.getAll(selectedCenter)
         ])
 
-        setActivitiesState(Array.isArray(apiActivities) ? apiActivities : ['Walkathon'])
-        setAreasState(Array.isArray(apiAreas) ? apiAreas : ['Area1'])
-        setProgramsState(Array.isArray(apiPrograms) ? apiPrograms : ['Program1'])
+        setActivitiesState(Array.isArray(apiActivities) ? apiActivities : [])
+        setAreasState(Array.isArray(apiAreas) ? apiAreas : [])
+        setProgramsState(Array.isArray(apiPrograms) ? apiPrograms : [])
         setUseBackend(true)
         setError(null)
       } catch (err) {
