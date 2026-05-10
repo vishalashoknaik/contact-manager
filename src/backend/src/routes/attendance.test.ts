@@ -904,4 +904,783 @@ describe('attendance route', () => {
     expect(mockPrisma.contact.upsert).not.toHaveBeenCalled()
     expect(mockPrisma.attendanceSessionEntry.upsert).not.toHaveBeenCalled()
   })
+
+  // ─── GET /sessions ─────────────────────────────────────────────────────────
+
+  it('GET /sessions returns all sessions for the authenticated actor', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findMany.mockResolvedValueOnce([
+      {
+        id: 'session-list-1',
+        name: 'Morning Session',
+        centerId,
+        activities: ['Walkathon'],
+        areas: ['Downtown'],
+        programs: ['Youth Program'],
+        createdAt: new Date('2026-05-02T10:00:00.000Z'),
+        endedAt: null,
+        volunteers: [{ volunteerPhone: '1111111111', volunteer: { phone: '1111111111', name: 'Volunteer One' } }],
+        _count: { volunteers: 1, entries: 7 }
+      }
+    ])
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions`, {
+      headers: { 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(200)
+    const data = await response.json() as Array<{ id: string; attendeeCount: number; volunteers: Array<{ phone: string }> }>
+    expect(data).toHaveLength(1)
+    expect(data[0].id).toBe('session-list-1')
+    expect(data[0].attendeeCount).toBe(7)
+    expect(data[0].volunteers[0].phone).toBe('1111111111')
+  })
+
+  it('GET /sessions returns 400 when X-Center-ID header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions`, {
+      headers: { ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(400)
+    const data = await response.json() as { error: string }
+    expect(data.error).toBe('Center ID is required')
+  })
+
+  it('GET /sessions returns 401 when authorization header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions`, {
+      headers: { 'X-Center-ID': centerId }
+    })
+
+    expect(response.status).toBe(401)
+  })
+
+  it('GET /sessions returns 403 when user does not have attendance access for the center', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId: 'other-center', isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions`, {
+      headers: { 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(403)
+    expect(mockPrisma.attendanceSession.findMany).not.toHaveBeenCalled()
+  })
+
+  it('GET /sessions allows canAccessAllCenters admin without explicit center membership', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: true,
+      centers: []
+    })
+    mockPrisma.attendanceSession.findMany.mockResolvedValueOnce([])
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions`, {
+      headers: { 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(200)
+    const data = await response.json() as unknown[]
+    expect(data).toHaveLength(0)
+  })
+
+  // ─── GET /sessions/active ──────────────────────────────────────────────────
+
+  it('GET /sessions/active returns the active session when one exists', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-active',
+      name: 'Active Session',
+      centerId,
+      activities: ['Walkathon'],
+      areas: [],
+      programs: [],
+      createdAt: new Date('2026-05-02T10:00:00.000Z'),
+      endedAt: null,
+      volunteers: [{ volunteerPhone: '1111111111', volunteer: { phone: '1111111111', name: 'Vol One' } }]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/active`, {
+      headers: { 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(200)
+    const data = await response.json() as { active: boolean; session?: { id: string } }
+    expect(data.active).toBe(true)
+    expect(data.session?.id).toBe('session-active')
+  })
+
+  it('GET /sessions/active returns { active: false } when no active session exists', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce(null)
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/active`, {
+      headers: { 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(200)
+    const data = await response.json() as { active: boolean; session?: unknown }
+    expect(data.active).toBe(false)
+    expect(data.session).toBeUndefined()
+  })
+
+  it('GET /sessions/active returns 400 when X-Center-ID header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/active`, {
+      headers: { ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(400)
+  })
+
+  it('GET /sessions/active returns 401 when auth header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/active`, {
+      headers: { 'X-Center-ID': centerId }
+    })
+
+    expect(response.status).toBe(401)
+  })
+
+  // ─── POST /sessions/start — error cases ───────────────────────────────────
+
+  it('POST /sessions/start returns 400 when session name is blank', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({ name: '   ', activities: [], areas: [], programs: [] })
+    })
+
+    expect(response.status).toBe(400)
+    const data = await response.json() as { error: string }
+    expect(data.error).toBe('Session name is required')
+    expect(mockPrisma.attendanceSession.create).not.toHaveBeenCalled()
+  })
+
+  it('POST /sessions/start returns 400 when X-Center-ID header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaderFor('1111111111') },
+      body: JSON.stringify({ name: 'Morning', activities: [], areas: [], programs: [] })
+    })
+
+    expect(response.status).toBe(400)
+  })
+
+  it('POST /sessions/start returns 403 when user lacks attendance access', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: []
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({ name: 'Morning', activities: [], areas: [], programs: [] })
+    })
+
+    expect(response.status).toBe(403)
+    expect(mockPrisma.attendanceSession.create).not.toHaveBeenCalled()
+  })
+
+  it('POST /sessions/start strips empty strings and whitespace from activity/area/program lists', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.create.mockResolvedValueOnce({
+      id: 'session-trim',
+      name: 'Trimmed',
+      centerId,
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth'],
+      createdAt: new Date(),
+      endedAt: null,
+      volunteers: [{ volunteerPhone: '1111111111', volunteer: { phone: '1111111111', name: 'V' } }]
+    })
+
+    await fetch(`${baseUrl}/api/attendance/sessions/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({ name: 'Trimmed', activities: ['  Walkathon  ', ''], areas: ['  Downtown  '], programs: [' Youth '] })
+    })
+
+    const createCall = mockPrisma.attendanceSession.create.mock.calls[0][0]
+    expect(createCall.data.activities).toEqual(['Walkathon'])
+    expect(createCall.data.areas).toEqual(['Downtown'])
+    expect(createCall.data.programs).toEqual(['Youth'])
+  })
+
+  // ─── POST /sessions/:id/volunteers — error cases ──────────────────────────
+
+  it('POST /sessions/:id/volunteers returns 400 when volunteerPhone is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/volunteers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({})
+    })
+
+    expect(response.status).toBe(400)
+    const data = await response.json() as { error: string }
+    expect(data.error).toBe('volunteerPhone is required')
+  })
+
+  it('POST /sessions/:id/volunteers returns 404 when session does not exist or is ended', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce(null)
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/missing-session/volunteers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({ volunteerPhone: '2222222222' })
+    })
+
+    expect(response.status).toBe(404)
+  })
+
+  it('POST /sessions/:id/volunteers returns 403 when actor is not a session volunteer', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      endedAt: null,
+      volunteers: [{ volunteerPhone: '9999999999', volunteer: { phone: '9999999999', name: 'Other' } }]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/volunteers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({ volunteerPhone: '2222222222' })
+    })
+
+    expect(response.status).toBe(403)
+    expect(mockPrisma.user.findUnique).toHaveBeenCalledTimes(1)
+  })
+
+  // ─── POST /sessions/:id/end ────────────────────────────────────────────────
+
+  it('POST /sessions/:id/end marks the session as ended', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      endedAt: null,
+      volunteers: [{ volunteerPhone: '1111111111' }]
+    })
+    mockPrisma.attendanceSession.update.mockResolvedValueOnce({ id: 'session-1', endedAt: new Date() })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/end`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(200)
+    const data = await response.json() as { success: boolean }
+    expect(data.success).toBe(true)
+    expect(mockPrisma.attendanceSession.update).toHaveBeenCalledWith({
+      where: { id: 'session-1' },
+      data: { endedAt: expect.any(Date) as Date }
+    })
+  })
+
+  it('POST /sessions/:id/end returns 400 when X-Center-ID header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/end`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(400)
+  })
+
+  it('POST /sessions/:id/end returns 401 when auth header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/end`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId }
+    })
+
+    expect(response.status).toBe(401)
+  })
+
+  it('POST /sessions/:id/end returns 404 when session does not exist', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce(null)
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/missing/end`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(404)
+    expect(mockPrisma.attendanceSession.update).not.toHaveBeenCalled()
+  })
+
+  it('POST /sessions/:id/end returns 403 when actor is not a session volunteer', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      endedAt: null,
+      volunteers: [{ volunteerPhone: '9999999999' }]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/end`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(403)
+    expect(mockPrisma.attendanceSession.update).not.toHaveBeenCalled()
+  })
+
+  // ─── GET /sessions/:id/attendees — missing cases ──────────────────────────
+
+  it('GET /sessions/:id/attendees returns 404 when session not found', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce(null)
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/missing/attendees`, {
+      headers: { 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(404)
+    expect(mockPrisma.attendanceSessionEntry.findMany).not.toHaveBeenCalled()
+  })
+
+  it('GET /sessions/:id/attendees returns 400 when X-Center-ID header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/attendees`, {
+      headers: { ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(400)
+  })
+
+  it('GET /sessions/:id/attendees returns 401 when auth header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/session-1/attendees`, {
+      headers: { 'X-Center-ID': centerId }
+    })
+
+    expect(response.status).toBe(401)
+  })
+
+  // ─── GET /lookup — missing cases ──────────────────────────────────────────
+
+  it('GET /lookup returns { found: false } when contact does not exist', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.contact.findUnique.mockResolvedValueOnce(null)
+
+    const response = await fetch(`${baseUrl}/api/attendance/lookup?phone=0000000000`, {
+      headers: { 'X-Center-ID': centerId }
+    })
+
+    expect(response.status).toBe(200)
+    const data = await response.json() as { found: boolean; contact?: unknown }
+    expect(data.found).toBe(false)
+    expect(data.contact).toBeUndefined()
+  })
+
+  it('GET /lookup returns 400 when phone query param is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/lookup`, {
+      headers: { 'X-Center-ID': centerId }
+    })
+
+    expect(response.status).toBe(400)
+    const data = await response.json() as { error: string }
+    expect(data.error).toBe('Phone is required')
+  })
+
+  it('GET /lookup returns 400 when X-Center-ID header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/lookup?phone=1234567890`)
+
+    expect(response.status).toBe(400)
+    const data = await response.json() as { error: string }
+    expect(data.error).toBe('Center ID is required')
+  })
+
+  // ─── POST /submit — missing edge cases ───────────────────────────────────
+
+  it('POST /submit returns 400 when name or phone is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId },
+      body: JSON.stringify({ activities: [], areas: [], programs: [] })
+    })
+
+    expect(response.status).toBe(400)
+    const data = await response.json() as { error: string }
+    expect(data.error).toBe('Name and phone are required')
+  })
+
+  it('POST /submit returns 400 when X-Center-ID header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Person', phone: '9999999999', activities: [], areas: [], programs: [] })
+    })
+
+    expect(response.status).toBe(400)
+    const data = await response.json() as { error: string }
+    expect(data.error).toBe('Center ID is required')
+  })
+
+  it('POST /submit returns 403 when actor is not a volunteer in the specified session', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      endedAt: null,
+      volunteers: [{ volunteerPhone: '9999999999' }]
+    })
+
+    const response = await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({
+        name: 'Person',
+        phone: '5555555555',
+        gender: 'Male',
+        ieDate: '2026',
+        areaOfStay: 'Downtown',
+        sessionId: 'session-1',
+        activities: [],
+        areas: [],
+        programs: []
+      })
+    })
+
+    expect(response.status).toBe(403)
+    expect(mockPrisma.contact.upsert).not.toHaveBeenCalled()
+  })
+
+  it('POST /submit auto-creates an activity that does not exist in the center', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.contact.findUnique.mockResolvedValueOnce(null)
+    mockPrisma.contact.upsert.mockResolvedValueOnce({ id: 'contact-new' })
+    mockPrisma.activity.findUnique.mockResolvedValueOnce(null)
+    mockPrisma.activity.create.mockResolvedValueOnce({ id: 'activity-new', name: 'Brand New Activity', centerId })
+
+    const response = await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId },
+      body: JSON.stringify({
+        name: 'New Person',
+        phone: '8888888888',
+        gender: 'Male',
+        ieDate: '2026',
+        areaOfStay: 'North',
+        activities: ['Brand New Activity'],
+        areas: [],
+        programs: []
+      })
+    })
+
+    expect(response.status).toBe(201)
+    expect(mockPrisma.activity.create).toHaveBeenCalledWith({ data: { name: 'Brand New Activity', centerId } })
+    expect(mockPrisma.contactActivity.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ contactId: 'contact-new', activityId: 'activity-new' }) })
+    )
+  })
+
+  it('POST /submit auto-creates area and program when they do not exist', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.contact.findUnique.mockResolvedValueOnce(null)
+    mockPrisma.contact.upsert.mockResolvedValueOnce({ id: 'contact-ap' })
+    mockPrisma.area.findUnique.mockResolvedValueOnce(null)
+    mockPrisma.area.create.mockResolvedValueOnce({ id: 'area-new', name: 'New Area', centerId })
+    mockPrisma.program.findUnique.mockResolvedValueOnce(null)
+    mockPrisma.program.create.mockResolvedValueOnce({ id: 'program-new', name: 'New Program', centerId })
+
+    await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId },
+      body: JSON.stringify({
+        name: 'Area Program Person',
+        phone: '7777777777',
+        gender: 'Female',
+        ieDate: '2026',
+        areaOfStay: 'East',
+        activities: [],
+        areas: ['New Area'],
+        programs: ['New Program']
+      })
+    })
+
+    expect(mockPrisma.area.create).toHaveBeenCalledWith({ data: { name: 'New Area', centerId } })
+    expect(mockPrisma.program.create).toHaveBeenCalledWith({ data: { name: 'New Program', centerId } })
+    expect(mockPrisma.contactArea.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ contactId: 'contact-ap', areaId: 'area-new' }) })
+    )
+    expect(mockPrisma.contactProgram.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ contactId: 'contact-ap', programId: 'program-new' }) })
+    )
+  })
+
+  it('POST /submit does not create a session entry when no sessionId is provided', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.contact.findUnique.mockResolvedValueOnce(null)
+    mockPrisma.contact.upsert.mockResolvedValueOnce({ id: 'contact-3' })
+
+    const response = await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId },
+      body: JSON.stringify({
+        name: 'Person',
+        phone: '7777777777',
+        gender: 'Female',
+        ieDate: '2026',
+        areaOfStay: 'East',
+        activities: [],
+        areas: [],
+        programs: []
+      })
+    })
+
+    expect(response.status).toBe(201)
+    expect(mockPrisma.attendanceSessionEntry.upsert).not.toHaveBeenCalled()
+  })
+
+  it('POST /submit normalizes phone before storing in the session entry', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce({
+      id: 'session-1',
+      centerId,
+      endedAt: null,
+      volunteers: [{ volunteerPhone: '1111111111' }]
+    })
+    mockPrisma.contact.findUnique.mockResolvedValueOnce(null)
+    mockPrisma.contact.upsert.mockResolvedValueOnce({ id: 'contact-norm', name: 'Phone Person', phone: '(123) 456-7890' })
+    mockPrisma.attendanceSessionEntry.upsert.mockResolvedValueOnce({ id: 'entry-norm' })
+
+    await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({
+        name: 'Phone Person',
+        phone: '(123) 456-7890',
+        gender: 'Male',
+        ieDate: '2026',
+        areaOfStay: 'West',
+        sessionId: 'session-1',
+        activities: [],
+        areas: [],
+        programs: []
+      })
+    })
+
+    const upsertCall = mockPrisma.attendanceSessionEntry.upsert.mock.calls[0][0]
+    expect(upsertCall.create.contactPhone).toBe('1234567890')
+    expect(upsertCall.update.contactPhone).toBe('1234567890')
+  })
+
+  it('POST /submit returns 401 when sessionId is provided but auth header is missing', async () => {
+    const baseUrl = await startTestServer()
+
+    const response = await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId },
+      body: JSON.stringify({
+        name: 'Person',
+        phone: '9999999999',
+        gender: 'Male',
+        ieDate: '2026',
+        areaOfStay: 'Downtown',
+        sessionId: 'session-1',
+        activities: [],
+        areas: [],
+        programs: []
+      })
+    })
+
+    expect(response.status).toBe(401)
+  })
+
+  it('POST /submit returns 404 when the provided sessionId is not active', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce(null)
+
+    const response = await fetch(`${baseUrl}/api/attendance/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({
+        name: 'Person',
+        phone: '9999999999',
+        gender: 'Male',
+        ieDate: '2026',
+        areaOfStay: 'Downtown',
+        sessionId: 'ended-session',
+        activities: [],
+        areas: [],
+        programs: []
+      })
+    })
+
+    expect(response.status).toBe(404)
+    expect(mockPrisma.contact.findUnique).not.toHaveBeenCalled()
+  })
+
+  it('POST /sessions/:id/reopen returns 404 when session does not exist', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce(null)
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/missing/reopen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(404)
+    expect(mockPrisma.attendanceSession.update).not.toHaveBeenCalled()
+  })
+
+  it('DELETE /sessions/:id returns 404 when session does not exist', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '1111111111',
+      canAccessAllCenters: false,
+      centers: [{ centerId, isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+    mockPrisma.attendanceSession.findFirst.mockResolvedValueOnce(null)
+
+    const response = await fetch(`${baseUrl}/api/attendance/sessions/missing`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId, ...authHeaderFor('1111111111') }
+    })
+
+    expect(response.status).toBe(404)
+    expect(mockPrisma.attendanceSession.delete).not.toHaveBeenCalled()
+  })
 })

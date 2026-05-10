@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -17,6 +17,15 @@ const mocks = vi.hoisted(() => ({
   listSessionAttendees: vi.fn(),
   lookup: vi.fn(),
   submit: vi.fn()
+}))
+
+// Mutable config state so individual tests can override isLoaded / error
+const configState = vi.hoisted(() => ({
+  activities: ['Walkathon'] as string[],
+  areas: ['Downtown'] as string[],
+  programs: ['Youth Program'] as string[],
+  isLoaded: true,
+  error: null as string | null
 }))
 
 vi.mock('next/navigation', () => ({
@@ -44,13 +53,7 @@ vi.mock('@/hooks/useAuth', () => ({
 }))
 
 vi.mock('@/hooks/useConfig', () => ({
-  useConfig: () => ({
-    activities: ['Walkathon'],
-    areas: ['Downtown'],
-    programs: ['Youth Program'],
-    isLoaded: true,
-    error: null
-  })
+  useConfig: () => configState
 }))
 
 vi.mock('@/lib/api/client', () => ({
@@ -105,6 +108,13 @@ describe('AttendancePage', () => {
     mocks.listSessionAttendees.mockReset()
     mocks.lookup.mockReset()
     mocks.submit.mockReset()
+
+    // Reset config state to defaults
+    configState.activities = ['Walkathon']
+    configState.areas = ['Downtown']
+    configState.programs = ['Youth Program']
+    configState.isLoaded = true
+    configState.error = null
 
     mocks.listSessions.mockResolvedValue([])
     mocks.getActiveSession.mockResolvedValue({ active: false })
@@ -732,6 +742,426 @@ describe('AttendancePage - error surfacing', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/DB connection lost|Failed to load attendance sessions/i)).toBeInTheDocument()
+    })
+  })
+})
+
+describe('AttendancePage - session creation', () => {
+  beforeEach(() => {
+    window.dispatchEvent(new Event('online'))
+    localStorage.clear()
+    mocks.listSessions.mockReset()
+    mocks.startSession.mockReset()
+    mocks.listSessionAttendees.mockReset()
+    mocks.lookup.mockReset()
+    mocks.submit.mockReset()
+    configState.isLoaded = true
+    configState.error = null
+    mocks.listSessions.mockResolvedValue([])
+    mocks.listSessionAttendees.mockResolvedValue([])
+    mocks.startSession.mockResolvedValue({
+      id: 'session-new',
+      name: 'My Session',
+      centerId: 'center-1',
+      activities: ['Walkathon'],
+      areas: [],
+      programs: [],
+      createdAt: new Date().toISOString(),
+      endedAt: null,
+      volunteers: [{ phone: '1111111111', name: 'Primary Volunteer' }]
+    })
+  })
+
+  it('creates a new session when a name is typed and an activity is selected', async () => {
+    const user = userEvent.setup()
+
+    render(<AttendancePage />)
+
+    await waitFor(() => expect(screen.getByLabelText(/session name/i)).toBeInTheDocument())
+
+    await user.clear(screen.getByLabelText(/session name/i))
+    await user.type(screen.getByLabelText(/session name/i), 'My Session')
+    await user.click(screen.getByRole('checkbox', { name: 'Walkathon' }))
+    await user.click(screen.getByRole('button', { name: /start attendance/i }))
+
+    await waitFor(() => {
+      expect(mocks.startSession).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'My Session', activities: ['Walkathon'] }),
+        'center-1'
+      )
+    })
+
+    expect(screen.getByPlaceholderText('Enter phone and press Enter')).toBeInTheDocument()
+  })
+
+  it('shows an error when startSession API call fails', async () => {
+    const user = userEvent.setup()
+
+    mocks.startSession.mockRejectedValueOnce(new Error('Database unavailable'))
+
+    render(<AttendancePage />)
+
+    await waitFor(() => expect(screen.getByLabelText(/session name/i)).toBeInTheDocument())
+
+    await user.type(screen.getByLabelText(/session name/i), 'Failed Session')
+    await user.click(screen.getByRole('checkbox', { name: 'Walkathon' }))
+    await user.click(screen.getByRole('button', { name: /start attendance/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Database unavailable/i)).toBeInTheDocument()
+    })
+
+    expect(screen.queryByPlaceholderText('Enter phone and press Enter')).not.toBeInTheDocument()
+  })
+
+  it('Start Attendance button is disabled until at least one program/area/activity is checked', async () => {
+    const user = userEvent.setup()
+
+    render(<AttendancePage />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /start attendance/i })).toBeInTheDocument())
+
+    expect(screen.getByRole('button', { name: /start attendance/i })).toBeDisabled()
+
+    await user.click(screen.getByRole('checkbox', { name: 'Downtown' }))
+
+    expect(screen.getByRole('button', { name: /start attendance/i })).not.toBeDisabled()
+  })
+
+  it('shows "No programs, areas, or activities configured" when config is empty', async () => {
+    configState.activities = []
+    configState.areas = []
+    configState.programs = []
+
+    render(<AttendancePage />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/no programs, areas, or activities configured yet/i)).toBeInTheDocument()
+    })
+  })
+
+  it('shows config error banner when configLoaded=true and configError is set', async () => {
+    configState.error = 'Could not connect to config server'
+
+    render(<AttendancePage />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/could not connect to config server/i)).toBeInTheDocument()
+    })
+  })
+
+  it('shows loading placeholder when config is not yet loaded', async () => {
+    configState.isLoaded = false
+
+    render(<AttendancePage />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/loading configuration/i)).toBeInTheDocument()
+    })
+
+    expect(screen.queryByRole('button', { name: /start attendance/i })).not.toBeInTheDocument()
+  })
+
+  it('shows reopen error in setup screen when reopen API call fails', async () => {
+    const user = userEvent.setup()
+
+    mocks.listSessions.mockResolvedValueOnce([
+      {
+        ...{ id: 'session-ended', name: 'Ended Session', centerId: 'center-1', activities: ['Walkathon'], areas: ['Downtown'], programs: ['Youth Program'], createdAt: new Date().toISOString(), volunteers: [{ phone: '1111111111', name: 'V' }] },
+        endedAt: new Date().toISOString()
+      }
+    ])
+    mocks.reopenSession.mockRejectedValueOnce(new Error('Session locked'))
+
+    render(<AttendancePage />)
+
+    await user.click(await screen.findByRole('button', { name: /reopen/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/session locked/i)).toBeInTheDocument()
+    })
+  })
+
+  it('delete is skipped when user cancels the confirmation dialog', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    mocks.listSessions.mockResolvedValueOnce([{ id: 'session-keep', name: 'Keep Me', centerId: 'center-1', activities: ['Walkathon'], areas: [], programs: [], createdAt: new Date().toISOString(), endedAt: null, volunteers: [{ phone: '1111111111', name: 'V' }] }])
+
+    render(<AttendancePage />)
+
+    await user.click(await screen.findByRole('button', { name: /delete/i }))
+
+    await waitFor(() => {
+      expect(mocks.deleteSession).not.toHaveBeenCalled()
+    })
+
+    expect(screen.getByText('Keep Me')).toBeInTheDocument()
+  })
+})
+
+describe('AttendancePage - contact lookup', () => {
+  beforeEach(() => {
+    window.dispatchEvent(new Event('online'))
+    localStorage.clear()
+    mocks.listSessions.mockReset()
+    mocks.listSessionAttendees.mockReset()
+    mocks.lookup.mockReset()
+    mocks.submit.mockReset()
+    mocks.endSession.mockReset()
+    mocks.listSessions.mockResolvedValue([])
+    mocks.listSessionAttendees.mockResolvedValue([])
+    mocks.endSession.mockResolvedValue({ success: true })
+    configState.isLoaded = true
+    configState.error = null
+  })
+
+  it('auto-fills form fields when a known contact is found on lookup', async () => {
+    const user = userEvent.setup()
+
+    mocks.lookup.mockResolvedValueOnce({
+      found: true,
+      contact: { id: 'c1', name: 'Jane Doe', phone: '9000000001', gender: 'Female', ieDate: '2025 Batch', areaOfStay: 'North End' }
+    })
+
+    await renderAndResumeSession(user)
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9000000001')
+    fireEvent.blur(screen.getByPlaceholderText('Enter phone and press Enter'))
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Full name')).toHaveValue('Jane Doe')
+    })
+
+    expect(screen.getByPlaceholderText('IE Date')).toHaveValue('2025 Batch')
+    expect(screen.getByPlaceholderText('Neighbourhood / area')).toHaveValue('North End')
+    expect(screen.getByText(/contact found/i)).toBeInTheDocument()
+  })
+
+  it('falls back to new-contact mode when lookup API throws an error', async () => {
+    const user = userEvent.setup()
+
+    mocks.lookup.mockRejectedValueOnce(new Error('Network timeout'))
+
+    await renderAndResumeSession(user)
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9111111111')
+    fireEvent.blur(screen.getByPlaceholderText('Enter phone and press Enter'))
+
+    await waitFor(() => {
+      // 'New contact' badge (orange span next to phone input) should be present
+      expect(screen.getAllByText(/new contact/i).length).toBeGreaterThan(0)
+    })
+
+    expect(screen.queryByText(/contact found/i)).not.toBeInTheDocument()
+  })
+
+  it('does not require gender/IE Date/area for a contact already in the session', async () => {
+    const user = userEvent.setup()
+
+    // Existing contact — already in server attendees list
+    mocks.listSessionAttendees
+      .mockResolvedValueOnce([{ id: 'e1', name: 'Bob', phone: '9222222222', submittedAt: new Date().toISOString() }])
+      .mockResolvedValue([{ id: 'e1', name: 'Bob', phone: '9222222222', submittedAt: new Date().toISOString() }])
+    mocks.lookup.mockResolvedValue({ found: true, contact: { id: 'c2', name: 'Bob', phone: '9222222222', gender: 'Male', ieDate: '2024', areaOfStay: 'West' } })
+    mocks.submit.mockResolvedValue({ success: true })
+
+    await renderAndResumeSession(user)
+
+    // Wait for attendees to load
+    await waitFor(() => expect(mocks.listSessionAttendees).toHaveBeenCalled())
+
+    // Type the already-in-session phone and submit without filling required fields
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9222222222')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Bob')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    // Should not show the "required" error
+    await waitFor(() => expect(mocks.submit).toHaveBeenCalled())
+    expect(screen.queryByText(/gender, ie date, and area of stay are required/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('AttendancePage - submit behavior', () => {
+  beforeEach(() => {
+    window.dispatchEvent(new Event('online'))
+    localStorage.clear()
+    mocks.listSessions.mockReset()
+    mocks.listSessionAttendees.mockReset()
+    mocks.lookup.mockReset()
+    mocks.submit.mockReset()
+    mocks.endSession.mockReset()
+    mocks.listSessions.mockResolvedValue([])
+    mocks.listSessionAttendees.mockResolvedValue([])
+    mocks.endSession.mockResolvedValue({ success: true })
+    configState.isLoaded = true
+    configState.error = null
+  })
+
+  it('shows success flash and clears form after a successful submit', async () => {
+    const user = userEvent.setup()
+
+    mocks.lookup.mockResolvedValue({ found: false })
+    mocks.submit.mockResolvedValue({ success: true })
+    mocks.listSessionAttendees.mockResolvedValue([])
+
+    await renderAndResumeSession(user)
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9300000001')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Carol')
+    await user.selectOptions(screen.getByRole('combobox'), 'Female')
+    await user.type(screen.getByPlaceholderText('IE Date'), '2026')
+    await user.type(screen.getByPlaceholderText('Neighbourhood / area'), 'South')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => {
+      // Success flash: "✅ Carol recorded — next person ready" (name is in <strong>)
+      const strong = document.querySelector('strong')
+      expect(strong?.textContent).toBe('Carol')
+    })
+
+    // Form should be cleared
+    expect(screen.getByPlaceholderText('Full name')).toHaveValue('')
+    expect(screen.getByPlaceholderText('Enter phone and press Enter')).toHaveValue('')
+  })
+
+  it('shows error banner and marks pending record on submit network error', async () => {
+    const user = userEvent.setup()
+
+    mocks.lookup.mockResolvedValue({ found: false })
+    mocks.submit.mockRejectedValue(new Error('Connection refused'))
+
+    await renderAndResumeSession(user)
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9400000001')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Dave')
+    await user.selectOptions(screen.getByRole('combobox'), 'Male')
+    await user.type(screen.getByPlaceholderText('IE Date'), '2026')
+    await user.type(screen.getByPlaceholderText('Neighbourhood / area'), 'East')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/connection refused/i)).toBeInTheDocument()
+    })
+
+    // Open attendees to verify the record is marked as pending with error
+    await user.click(screen.getByRole('button', { name: /session attendees/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/Pending sync: Connection refused/i)).toBeInTheDocument()
+    })
+  })
+
+  it('phones with punctuation are treated as duplicates of the same digits-only phone', async () => {
+    const user = userEvent.setup()
+
+    // Server returns the attendee with a formatted phone
+    mocks.listSessionAttendees
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ id: 'e1', name: 'Eve', phone: '9500000001', submittedAt: new Date().toISOString() }])
+    mocks.lookup.mockResolvedValue({ found: false })
+    mocks.submit.mockResolvedValue({ success: true })
+
+    await renderAndResumeSession(user)
+
+    // First submit with plain digits
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9500000001')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Eve')
+    await user.selectOptions(screen.getByRole('combobox'), 'Female')
+    await user.type(screen.getByPlaceholderText('IE Date'), '2026')
+    await user.type(screen.getByPlaceholderText('Neighbourhood / area'), 'North')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => expect(mocks.submit).toHaveBeenCalledTimes(1))
+
+    // Second submit with formatted number — should be recognised as same person
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9500000001')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Eve Again')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/attendance record.*already existed.*updated/i)).toBeInTheDocument()
+    })
+  })
+
+  it('ends session cleanly and returns to setup when no pending records remain', async () => {
+    const user = userEvent.setup()
+
+    mocks.listSessionAttendees.mockResolvedValue([])
+    mocks.endSession.mockResolvedValue({ success: true })
+
+    await renderAndResumeSession(user)
+
+    await user.click(screen.getByRole('button', { name: /end session/i }))
+
+    await waitFor(() => {
+      expect(mocks.endSession).toHaveBeenCalledWith('session-1', 'center-1')
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Attendance Setup - Center One')).toBeInTheDocument()
+    })
+  })
+})
+
+describe('AttendancePage - volunteer management', () => {
+  beforeEach(() => {
+    window.dispatchEvent(new Event('online'))
+    localStorage.clear()
+    mocks.listSessions.mockReset()
+    mocks.listSessionAttendees.mockReset()
+    mocks.addSessionVolunteer.mockReset()
+    mocks.listSessions.mockResolvedValue([])
+    mocks.listSessionAttendees.mockResolvedValue([])
+    mocks.addSessionVolunteer.mockResolvedValue({
+      id: 'session-1',
+      name: 'Test Session',
+      centerId: 'center-1',
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date().toISOString(),
+      endedAt: null,
+      volunteers: [
+        { phone: '1111111111', name: 'Primary Volunteer' },
+        { phone: '2222222222', name: 'New Volunteer' }
+      ]
+    })
+    configState.isLoaded = true
+    configState.error = null
+  })
+
+  it('adds a second volunteer via the attendance takers panel', async () => {
+    const user = userEvent.setup()
+
+    await renderAndResumeSession(user)
+
+    await user.click(screen.getByRole('button', { name: /\+ attendance takers/i }))
+
+    const volunteerInput = screen.getByPlaceholderText('Attendance taker phone')
+    await user.type(volunteerInput, '2222222222')
+    await user.click(screen.getByRole('button', { name: /\+ Add/i }))
+
+    await waitFor(() => {
+      expect(mocks.addSessionVolunteer).toHaveBeenCalledWith('session-1', '2222222222', 'center-1')
+    })
+
+    // Input cleared after success
+    expect(volunteerInput).toHaveValue('')
+  })
+
+  it('shows an error when the add volunteer API call fails', async () => {
+    const user = userEvent.setup()
+
+    mocks.addSessionVolunteer.mockRejectedValueOnce(new Error('Volunteer not found in this center'))
+
+    await renderAndResumeSession(user)
+
+    await user.click(screen.getByRole('button', { name: /\+ attendance takers/i }))
+    await user.type(screen.getByPlaceholderText('Attendance taker phone'), '9999999999')
+    await user.click(screen.getByRole('button', { name: /\+ Add/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Volunteer not found in this center/i)).toBeInTheDocument()
     })
   })
 })
