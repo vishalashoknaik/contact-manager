@@ -95,20 +95,20 @@ describe('CampaignsPage - Message Templates Backend Tests', () => {
 describe('CampaignsPage - Role-Based Template Access', () => {
   it('verifies USER role can edit templates', () => {
     const userRole = 'USER'
-    const canEditTemplates = userRole === 'USER'
+    const canEditTemplates = userRole === 'USER' || userRole === 'ADMIN'
     expect(canEditTemplates).toBe(true)
   })
 
   it('verifies ATTENDANCE_TAKER role cannot edit templates', () => {
     const userRole = 'ATTENDANCE_TAKER'
-    const canEditTemplates = userRole === 'USER'
+    const canEditTemplates = userRole === 'USER' || userRole === 'ADMIN'
     expect(canEditTemplates).toBe(false)
   })
 
-  it('verifies ADMIN role cannot edit templates (only USER)', () => {
+  it('verifies ADMIN role can edit templates', () => {
     const userRole = 'ADMIN'
-    const canEditTemplates = userRole === 'USER'
-    expect(canEditTemplates).toBe(false)
+    const canEditTemplates = userRole === 'USER' || userRole === 'ADMIN'
+    expect(canEditTemplates).toBe(true)
   })
 })
 

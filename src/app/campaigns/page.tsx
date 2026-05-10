@@ -54,7 +54,7 @@ export default function CampaignsPage() {
   const [editingTemplate, setEditingTemplate] = useState<{ index: number; name: string; smsContent: string; whatsappContent: string } | null>(null)
   const [isSavingTemplates, setIsSavingTemplates] = useState(false)
   const templateSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const canEditTemplates = selectedCenterDetails?.role === 'USER'
+  const canEditTemplates = selectedCenterDetails?.role === 'USER' || selectedCenterDetails?.role === 'ADMIN'
   const [hasLoadedCampaignsOnce, setHasLoadedCampaignsOnce] = useState(false)
   const { isOnline, showLongSyncNotice, showOfflineWarning } = useSyncStatus({ isSyncing: isLoading })
 
