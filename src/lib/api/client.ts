@@ -77,9 +77,15 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * Auth API
  */
 export const authApi = {
-  /** Fire-and-forget health ping — wakes the backend on Render free tier */
-  ping: () => {
-    fetch(`${API_BASE_URL}/health`, { method: 'GET' }).catch(() => {/* intentional no-op */})
+  /**
+   * Ping the backend health endpoint.
+   * Resolves (any HTTP status) when the server is up.
+   * Rejects only on a network-level failure (server not yet awake).
+   */
+  ping: async () => {
+    await fetch(`${API_BASE_URL}/health`, { method: 'GET' })
+    // Any HTTP response — even 4xx/5xx — means the server is running.
+    // Only a network error (fetch rejects) means the server is not up yet.
   },
 
   login: async (phone: string, password: string) => {

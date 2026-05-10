@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { LoginPage } from '@/components/LoginPage'
 import { CenterSelector } from '@/components/CenterSelector'
 import { useAuth, AuthProvider } from '@/hooks/useAuth'
@@ -11,6 +11,18 @@ vi.mock('next/navigation', () => ({
     push: vi.fn()
   })
 }))
+
+// Mock authApi.ping to be a no-op so it doesn't consume fetch mocks set up by individual tests
+vi.mock('@/lib/api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api/client')>()
+  return {
+    ...actual,
+    authApi: {
+      ...actual.authApi,
+      ping: vi.fn().mockResolvedValue(undefined)
+    }
+  }
+})
 
 // Mock fetch for login endpoint
 global.fetch = vi.fn()
@@ -238,6 +250,67 @@ describe('Authentication System', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Invalid credentials/)).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('LoginPage — server warm-up behaviour', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('does NOT show warming-up notice when ping resolves immediately', async () => {
+      // ping is mocked to resolve immediately (no delay) → notice never appears
+      render(<AuthProvider><LoginPage /></AuthProvider>)
+      await new Promise(r => setTimeout(r, 50))
+      expect(screen.queryByText(/Server is starting up/i)).not.toBeInTheDocument()
+    })
+
+    it('shows warming-up notice after 3 seconds if ping keeps failing', async () => {
+      vi.useFakeTimers()
+      const { authApi } = await import('@/lib/api/client')
+      vi.mocked(authApi.ping).mockRejectedValue(new Error('Failed to fetch'))
+
+      render(<AuthProvider><LoginPage /></AuthProvider>)
+
+      // Before 3s: no notice
+      await act(async () => { await vi.advanceTimersByTimeAsync(2900) })
+      expect(screen.queryByText(/Server is starting up/i)).not.toBeInTheDocument()
+
+      // After 3s timer fires, React flushes the state update via act
+      await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+      expect(screen.getByText(/Server is starting up/i)).toBeInTheDocument()
+    })
+
+    it('clears warming-up notice when ping eventually succeeds', async () => {
+      vi.useFakeTimers()
+      const { authApi } = await import('@/lib/api/client')
+      vi.mocked(authApi.ping)
+        .mockRejectedValueOnce(new Error('Failed to fetch'))
+        .mockResolvedValueOnce(undefined)
+
+      render(<AuthProvider><LoginPage /></AuthProvider>)
+
+      // Advance 3s so the notice appears (ping already rejected)
+      await act(async () => { await vi.advanceTimersByTimeAsync(3100) })
+      expect(screen.getByText(/Server is starting up/i)).toBeInTheDocument()
+
+      // Advance 5s for the retry to fire and ping to resolve
+      await act(async () => { await vi.advanceTimersByTimeAsync(5100) })
+      expect(screen.queryByText(/Server is starting up/i)).not.toBeInTheDocument()
+    })
+
+    it('shows friendly network error message on login when server is unreachable', async () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error('Failed to fetch'))
+
+      render(<AuthProvider><LoginPage /></AuthProvider>)
+
+      fireEvent.change(screen.getByPlaceholderText('Enter your phone number'), { target: { value: '9876543210' } })
+      fireEvent.change(screen.getByPlaceholderText('Enter your password'), { target: { value: '9876543210' } })
+      fireEvent.click(screen.getByRole('button', { name: /login/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/Cannot reach the server/i)).toBeInTheDocument()
       })
     })
   })

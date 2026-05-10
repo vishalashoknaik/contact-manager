@@ -15,18 +15,46 @@ export function LoginPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [serverWakingUp, setServerWakingUp] = useState(false)
   const wakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelledRef = useRef(false)
   const router = useRouter()
   const { login, register, isLoading } = useAuth()
 
-  // Pre-warm the backend the moment the login page loads.
-  // On Render free tier, the service sleeps after inactivity and takes ~30s to wake.
-  // This ping fires immediately so the backend is ready by the time the user clicks Login.
+  // Pre-warm the backend and track whether it's actually reachable.
+  // Shows a "starting up" notice only while the server is cold, clears it
+  // the moment any HTTP response is received (even 4xx = server is running).
   useEffect(() => {
-    authApi.ping()
-    // If still loading after 3s, show a subtle "waking up" notice
-    wakeTimerRef.current = setTimeout(() => setServerWakingUp(true), 3000)
+    cancelledRef.current = false
+
+    const checkServer = async () => {
+      try {
+        await authApi.ping()
+        // Server responded — clear any warning immediately
+        if (!cancelledRef.current) {
+          setServerWakingUp(false)
+          if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current)
+        }
+      } catch {
+        if (cancelledRef.current) return
+        // Network-level failure: server not yet up. Show notice after 3s.
+        if (!wakeTimerRef.current) {
+          wakeTimerRef.current = setTimeout(() => {
+            if (!cancelledRef.current) setServerWakingUp(true)
+          }, 3000)
+        }
+        // Retry in 5s
+        retryTimerRef.current = setTimeout(() => {
+          if (!cancelledRef.current) checkServer()
+        }, 5000)
+      }
+    }
+
+    checkServer()
+
     return () => {
+      cancelledRef.current = true
       if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current)
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
     }
   }, [])
 
@@ -46,7 +74,9 @@ export function LoginPage() {
     e.preventDefault()
     resetMessages()
     setServerWakingUp(false)
+    cancelledRef.current = true
     if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current)
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
 
     try {
       const result = await login(phone, password)
@@ -248,7 +278,7 @@ export function LoginPage() {
                 fontSize: '13px'
               }}
             >
-              ⏳ Server is starting up — it may take up to 30 seconds on first use. Ready to log you in once it wakes.
+              ⏳ Server is starting up after a period of inactivity. This can take up to 30 seconds. The notice will disappear once it&apos;s ready.
             </div>
           )}
 

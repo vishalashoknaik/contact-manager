@@ -9,6 +9,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ---
 
+## [2.2.4] — 2026-05-10
+
+### Fixed
+- **Login: "Server is starting up" notice no longer misleading** — The notice previously appeared after 3 s and never cleared, even when the server was already up. Now the backend is pinged continuously with a 5 s retry loop. The warning only appears if the ping fails (server genuinely cold) and disappears automatically the moment any HTTP response is received — proving the server is awake.
+- **`authApi.ping` now returns a promise** so callers can react to success/failure. Previously fire-and-forget.
+
+### Added
+- 8 new tests covering the warm-up behaviour: notice not shown when server responds immediately; notice appears after 3 s on network failure; notice clears after server wakes; friendly "Cannot reach the server" message on network-error login
+- 3 new tests for `authApi.ping`: hits `/health`, resolves on any HTTP response, rejects only on network error
+- 1 test confirming URL routing to `localhost:3001` in test/dev environment
+
+---
+
 ## [2.2.3] — 2026-05-10
 
 ### Fixed
