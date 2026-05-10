@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express'
-import { Prisma, PrismaClient } from '@prisma/client'
+import { Prisma } from '@prisma/client'
+import prisma from '../lib/prisma.js'
 
 const router = Router()
-const prisma = new PrismaClient()
 
 function getPhoneFromAuthHeader(authorization: string | undefined): string | null {
   if (!authorization) return null

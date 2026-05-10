@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-import { PrismaClient } from '@prisma/client'
+import prisma from './lib/prisma.js'
 import contactsRouter from './routes/contacts.js'
 import activitiesRouter from './routes/activities.js'
 import areasRouter from './routes/areas.js'
@@ -11,7 +11,6 @@ import attendanceRouter from './routes/attendance.js'
 import campaignsRouter from './routes/campaigns.js'
 
 const app = express()
-const prisma = new PrismaClient()
 const PORT = process.env.PORT || 3001
 
 function parseAllowedOrigins() {
