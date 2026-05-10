@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -610,18 +610,91 @@ describe('AttendancePage', () => {
     })
 
     await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9999999999')
-    await user.type(screen.getByPlaceholderText('Full name'), 'Offline Person')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Offline Person Updated')
     await user.selectOptions(screen.getByRole('combobox'), 'Female')
     await user.type(screen.getByPlaceholderText('IE Date'), '2026 Batch')
     await user.type(screen.getByPlaceholderText('Neighbourhood / area'), 'Downtown')
     await user.click(screen.getByRole('button', { name: /submit & next/i }))
 
+    // Should show an info notice (not an error), record is updated not duplicated
     await waitFor(() => {
-      expect(screen.getByText(/already counted in this session/i)).toBeInTheDocument()
+      expect(screen.getByText(/attendance record.*already existed.*updated/i)).toBeInTheDocument()
     })
 
     await user.click(screen.getByRole('button', { name: /session attendees/i }))
+    // Still only one entry for this phone
     expect(screen.getAllByText('9999999999').length).toBe(1)
+  })
+
+  it('re-submitting same phone updates the record and shows a notice, not an error', async () => {
+    const user = userEvent.setup()
+
+    const attendeeAfterFirst = [{ id: 'e1', name: 'Alice', phone: '9000000001', submittedAt: new Date().toISOString() }]
+    mocks.lookup.mockResolvedValue({ found: false })
+    mocks.submit.mockResolvedValue({ success: true })
+    mocks.listSessionAttendees
+      .mockResolvedValueOnce([])               // initial load
+      .mockResolvedValueOnce(attendeeAfterFirst) // after first submit
+      .mockResolvedValue(attendeeAfterFirst)     // subsequent calls
+
+    await renderAndResumeSession(user)
+
+    // First submit
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9000000001')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Alice')
+    await user.selectOptions(screen.getByRole('combobox'), 'Female')
+    await user.type(screen.getByPlaceholderText('IE Date'), '2026 Batch')
+    await user.type(screen.getByPlaceholderText('Neighbourhood / area'), 'Downtown')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => expect(mocks.submit).toHaveBeenCalledTimes(1))
+
+    // Second submit with same phone — should go through and show info notice
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9000000001')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Alice Updated')
+    await user.selectOptions(screen.getByRole('combobox'), 'Female')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => {
+      // Info notice shown, not an error
+      expect(screen.getByText(/attendance record.*already existed.*updated/i)).toBeInTheDocument()
+    })
+
+    // Both submits hit the server — backend upsert ensures no duplicate DB row
+    expect(mocks.submit).toHaveBeenCalledTimes(2)
+  })
+
+  it('person appears exactly once in session attendees after online submit', async () => {
+    // Regression: previously pending record was dropped BEFORE listSessionAttendees resolved.
+    // During that window the person was in neither list → a concurrent re-submit could slip through.
+    // The fix: always refresh server list BEFORE removing the optimistic pending record.
+    const user = userEvent.setup()
+
+    const attendee = { id: 'e2', name: 'Bob', phone: '8000000001', submittedAt: new Date().toISOString() }
+    mocks.lookup.mockResolvedValue({ found: false })
+    mocks.submit.mockResolvedValue({ success: true })
+    mocks.listSessionAttendees
+      .mockResolvedValueOnce([])      // initial load
+      .mockResolvedValue([attendee])  // after submit and any background retries
+
+    await renderAndResumeSession(user)
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '8000000001')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Bob')
+    await user.selectOptions(screen.getByRole('combobox'), 'Male')
+    await user.type(screen.getByPlaceholderText('IE Date'), '2025 Batch')
+    await user.type(screen.getByPlaceholderText('Neighbourhood / area'), 'Uptown')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => expect(mocks.submit).toHaveBeenCalled())
+
+    // After submit resolves, Bob should appear in the attendees panel exactly once
+    const attendeesBtn = await screen.findByRole('button', { name: /session attendees/i })
+    await user.click(attendeesBtn)
+    await waitFor(() => {
+      const panel = attendeesBtn.closest('aside') ?? attendeesBtn.parentElement!
+      expect(within(panel).getAllByText('Bob').length).toBe(1)
+    })
   })
 
   it('deletes a session from setup after confirmation', async () => {

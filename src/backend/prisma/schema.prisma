@@ -256,6 +256,7 @@ model AttendanceSessionEntry {
   submittedByPhone String?
   createdAt       DateTime          @default(now())
 
+  @@unique([sessionId, contactId])
   @@map("attendance_session_entries")
 }
 

@@ -368,6 +368,7 @@ function AttendanceEntry({
   const [lookupStatus, setLookupStatus] = useState<'idle' | 'loading' | 'found' | 'new'>('idle')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitNotice, setSubmitNotice] = useState<string | null>(null)
   const [lastSubmitted, setLastSubmitted] = useState<string | null>(null)
   const [records, setRecords] = useState<PersistedAttendanceRecord[]>(() => {
     const persisted = loadPersistedAttendanceState(storageKey)
@@ -529,18 +530,11 @@ function AttendanceEntry({
 
     setSubmitting(true)
     setSubmitError(null)
+    setSubmitNotice(null)
 
     try {
       const effectiveLookupStatus =
         lookupStatus === 'found' ? 'found' : await performPhoneLookup(form.phone.trim())
-
-      if (
-        effectiveLookupStatus === 'new' &&
-        (!form.gender || !form.ieDate.trim() || !form.areaOfStay.trim())
-      ) {
-        setSubmitError('Gender, IE Date, and Area of Stay are required for new contacts')
-        return
-      }
 
       const payload: AttendancePayload = {
         name: form.name.trim(),
@@ -554,9 +548,17 @@ function AttendanceEntry({
       }
 
       const normalizedPhone = normalizePhoneKey(payload.phone)
-      const alreadyCounted = sessionAttendees.some(item => normalizePhoneKey(item.phone) === normalizedPhone)
-      if (alreadyCounted) {
-        setSubmitError('This phone number is already counted in this session.')
+      const existingEntry = sessionAttendees.find(item => normalizePhoneKey(item.phone) === normalizedPhone)
+      const isUpdate = !!existingEntry
+
+      // Only enforce required fields for brand-new contacts not already in the session.
+      // Re-submissions of an existing attendee are allowed without all fields.
+      if (
+        !isUpdate &&
+        effectiveLookupStatus === 'new' &&
+        (!form.gender || !form.ieDate.trim() || !form.areaOfStay.trim())
+      ) {
+        setSubmitError('Gender, IE Date, and Area of Stay are required for new contacts')
         return
       }
 
@@ -574,14 +576,26 @@ function AttendanceEntry({
         status: 'pending'
       }
 
-      setRecords(prev => [optimisticRecord, ...prev])
+      // For re-submissions of the same person: replace the existing pending record
+      // rather than prepending a new one, so the list count stays the same.
+      if (isUpdate) {
+        setRecords(prev => {
+          const filtered = prev.filter(r => normalizePhoneKey(r.phone) !== normalizedPhone)
+          return [optimisticRecord, ...filtered]
+        })
+      } else {
+        setRecords(prev => [optimisticRecord, ...prev])
+      }
 
       if (isOnline) {
         await attendanceApi.submit({ ...payload, sessionId }, centerId)
 
-        setRecords(prev => prev.filter(record => record.id !== recordId))
+        // Refresh server attendees FIRST, then drop the pending record.
+        // This prevents a brief window where the person is in neither list,
+        // which would allow a duplicate submit to pass the alreadyCounted check.
         const attendees = await attendanceApi.listSessionAttendees(sessionId, centerId)
         setServerAttendees(attendees)
+        setRecords(prev => prev.filter(record => record.id !== recordId))
       }
 
       setLastSubmitted(form.name.trim())
@@ -590,7 +604,9 @@ function AttendanceEntry({
       setShowSessionAttendees(false)
       lastLookupPhoneRef.current = ''
 
-      if (!isOnline) {
+      if (isUpdate) {
+        setSubmitNotice(`Attendance record for ${payload.name} already existed — updated with the latest details provided.`)
+      } else if (!isOnline) {
         setSubmitError(OFFLINE_SAVED_MESSAGE)
       }
     } catch (err: any) {
@@ -894,6 +910,23 @@ function AttendanceEntry({
           </div>
         )}
 
+        {/* Update notice (re-submission of existing attendee) */}
+        {submitNotice && (
+          <div
+            style={{
+              backgroundColor: '#cff4fc',
+              border: '1px solid #9eeaf9',
+              color: '#055160',
+              padding: '8px 14px',
+              borderRadius: 6,
+              marginBottom: 16,
+              fontSize: 14
+            }}
+          >
+            ℹ️ {submitNotice}
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit}>
           {/* Phone — lookup trigger */}
@@ -910,6 +943,7 @@ function AttendanceEntry({
                   setField('phone', e.target.value)
                   setLookupStatus('idle')
                   setShowSessionAttendees(false)
+                  setSubmitNotice(null)
                   lastLookupPhoneRef.current = ''
                 }}
                 onBlur={handlePhoneLookup}

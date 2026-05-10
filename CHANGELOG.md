@@ -9,6 +9,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ---
 
+## [2.3.0] — 2026-05-10
+
+### Fixed
+- **Attendance: duplicate submissions update the record, not add a new count** — Previously, submitting the same person twice (network retry, two volunteers, re-entry by mistake) created a second database row and inflated the session and activity/program counts. Three-layer fix:
+  1. **DB**: Added `@@unique([sessionId, contactId])` constraint on `AttendanceSessionEntry` so the database itself enforces one row per person per session.
+  2. **Backend**: Changed `attendanceSessionEntry.create` → `upsert` (keyed on `sessionId_contactId`) so a re-submission updates the existing row instead of inserting a duplicate.
+  3. **Frontend**: Re-submissions now proceed (no blocking error). The existing pending record is replaced in the optimistic list rather than a new entry being added, and an informational notice is shown: "Attendance record already existed — updated with the latest details provided."
+- **Attendance: required-fields validation no longer blocks re-submissions** — Previously entering a phone already in the session still required gender/IE Date/area of stay. These are only required for brand-new contacts not yet in the session.
+- **Attendance race condition** — Pending record was previously removed from state before `listSessionAttendees` resolved. During that brief window the person was in neither list, allowing a concurrent submit to slip through. Fixed: server list is always refreshed first, then the optimistic record is dropped.
+
+### Added
+- Manual Prisma migration for the unique constraint: `20260510180000_add_attendance_entry_unique_constraint`
+- 3 new regression tests covering the re-submission and race-condition fixes
+- Updated backend route test to assert `upsert` (with `where`/`create`/`update`) instead of `create`
+
+---
+
 ## [2.2.4] — 2026-05-10
 
 ### Fixed

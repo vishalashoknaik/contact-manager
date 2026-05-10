@@ -671,13 +671,23 @@ router.post('/submit', async (req: Request, res: Response) => {
     }
 
     if (activeSession) {
-      await prisma.attendanceSessionEntry.create({
-        data: {
+      await prisma.attendanceSessionEntry.upsert({
+        where: {
+          sessionId_contactId: {
+            sessionId: activeSession.id,
+            contactId: contact.id
+          }
+        },
+        create: {
           sessionId: activeSession.id,
           contactId: contact.id,
           contactName: contact.name,
           contactPhone: normalizePhone(contact.phone),
           submittedByPhone: sessionActorPhone
+        },
+        update: {
+          contactName: contact.name,
+          contactPhone: normalizePhone(contact.phone)
         }
       })
     }

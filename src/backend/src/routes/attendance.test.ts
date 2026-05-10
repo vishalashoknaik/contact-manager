@@ -44,7 +44,8 @@ const mockPrisma = {
   },
   attendanceSessionEntry: {
     findMany: vi.fn(),
-    create: vi.fn()
+    create: vi.fn(),
+    upsert: vi.fn()
   },
   attendanceSessionVolunteer: {
     create: vi.fn()
@@ -739,7 +740,7 @@ describe('attendance route', () => {
       name: 'Session Person',
       phone: '1231231234'
     })
-    mockPrisma.attendanceSessionEntry.create.mockResolvedValueOnce({ id: 'entry-22' })
+    mockPrisma.attendanceSessionEntry.upsert.mockResolvedValueOnce({ id: 'entry-22' })
 
     const response = await fetch(`${baseUrl}/api/attendance/submit`, {
       method: 'POST',
@@ -762,13 +763,23 @@ describe('attendance route', () => {
     })
 
     expect(response.status).toBe(201)
-    expect(mockPrisma.attendanceSessionEntry.create).toHaveBeenCalledWith({
-      data: {
+    expect(mockPrisma.attendanceSessionEntry.upsert).toHaveBeenCalledWith({
+      where: {
+        sessionId_contactId: {
+          sessionId: 'session-1',
+          contactId: 'contact-22'
+        }
+      },
+      create: {
         sessionId: 'session-1',
         contactId: 'contact-22',
         contactName: 'Session Person',
         contactPhone: '1231231234',
         submittedByPhone: '1111111111'
+      },
+      update: {
+        contactName: 'Session Person',
+        contactPhone: '1231231234'
       }
     })
   })
@@ -891,6 +902,6 @@ describe('attendance route', () => {
 
     expect(response.status).toBe(404)
     expect(mockPrisma.contact.upsert).not.toHaveBeenCalled()
-    expect(mockPrisma.attendanceSessionEntry.create).not.toHaveBeenCalled()
+    expect(mockPrisma.attendanceSessionEntry.upsert).not.toHaveBeenCalled()
   })
 })
