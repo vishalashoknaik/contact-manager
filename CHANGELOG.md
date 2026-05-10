@@ -9,6 +9,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ---
 
+## [2.2.2] — 2026-05-10
+
+### Fixed
+- **Login: backend pre-warm on page load** — `LoginPage` now fires a silent health ping to the Render backend as soon as it mounts. On Render free tier, the server sleeps after inactivity and needs ~30 s to wake; the ping starts that process immediately, so it is usually ready by the time the user types their credentials and clicks Login.
+- **Login: "warming up" notice** — If the backend ping hasn't returned within 3 s (server is cold), a yellow notice appears: *"Server is starting up — ready to log you in once it wakes."* This replaces the confusing "Cannot reach the server" failure with a clear, actionable state.
+- **Login error hint expanded** to also match "cannot reach" in the error text.
+
+---
+
 ## [2.2.1] — 2026-05-10
 
 ### Fixed

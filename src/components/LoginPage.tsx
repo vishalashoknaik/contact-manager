@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { authApi } from '@/lib/api/client'
 import type { CenterOption } from '@/lib/types/auth'
 
 export function LoginPage() {
@@ -12,8 +13,22 @@ export function LoginPage() {
   const [registrationRequired, setRegistrationRequired] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [serverWakingUp, setServerWakingUp] = useState(false)
+  const wakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const router = useRouter()
   const { login, register, isLoading } = useAuth()
+
+  // Pre-warm the backend the moment the login page loads.
+  // On Render free tier, the service sleeps after inactivity and takes ~30s to wake.
+  // This ping fires immediately so the backend is ready by the time the user clicks Login.
+  useEffect(() => {
+    authApi.ping()
+    // If still loading after 3s, show a subtle "waking up" notice
+    wakeTimerRef.current = setTimeout(() => setServerWakingUp(true), 3000)
+    return () => {
+      if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current)
+    }
+  }, [])
 
   const resetRegistrationState = () => {
     setRegistrationRequired(false)
@@ -30,6 +45,8 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     resetMessages()
+    setServerWakingUp(false)
+    if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current)
 
     try {
       const result = await login(phone, password)
@@ -219,6 +236,22 @@ export function LoginPage() {
             </>
           )}
 
+          {serverWakingUp && !error && (
+            <div
+              style={{
+                backgroundColor: 'var(--panel-bg, #fff8e1)',
+                border: '1px solid #ffe082',
+                color: '#7a5a00',
+                padding: '10px 12px',
+                borderRadius: '4px',
+                marginBottom: '16px',
+                fontSize: '13px'
+              }}
+            >
+              ⏳ Server is starting up — it may take up to 30 seconds on first use. Ready to log you in once it wakes.
+            </div>
+          )}
+
           {error && (
             <div
               style={{
@@ -231,9 +264,9 @@ export function LoginPage() {
               }}
             >
               {error}
-              {(error.toLowerCase().includes('login failed') || error.toLowerCase().includes('server')) && (
+              {(error.toLowerCase().includes('login failed') || error.toLowerCase().includes('server') || error.toLowerCase().includes('cannot reach')) && (
                 <p style={{ marginTop: '8px', fontSize: '13px', color: '#a00' }}>
-                  The server may be starting up after a period of inactivity. Wait 20–30 seconds and try again.
+                  Wait 20–30 seconds and try again — the server may still be starting up.
                 </p>
               )}
             </div>

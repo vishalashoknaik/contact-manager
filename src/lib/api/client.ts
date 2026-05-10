@@ -77,6 +77,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * Auth API
  */
 export const authApi = {
+  /** Fire-and-forget health ping — wakes the backend on Render free tier */
+  ping: () => {
+    fetch(`${API_BASE_URL}/health`, { method: 'GET' }).catch(() => {/* intentional no-op */})
+  },
+
   login: async (phone: string, password: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
