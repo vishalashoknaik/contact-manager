@@ -618,13 +618,35 @@ router.post('/submit', async (req: Request, res: Response) => {
       }
     })
 
-    // If this contact already has a session entry, this is a re-submission.
-    // Do NOT increment counts again — just update the entry details below.
-    const isResubmission = activeSession
-      ? !!(await prisma.attendanceSessionEntry.findUnique({
-          where: { sessionId_contactId: { sessionId: activeSession.id, contactId: contact.id } }
-        }))
-      : false
+    // Atomically determine whether this is a new submission or a re-submission.
+    // createMany with skipDuplicates attempts to INSERT the session entry; if the
+    // unique constraint fires (contact already recorded in this session), it skips
+    // silently and returns count=0.  This is race-safe: two concurrent requests
+    // for the same person both attempt the INSERT — exactly one succeeds, one gets
+    // count=0.  Only the request that created the row (count=1) increments counts.
+    let isResubmission = false
+
+    if (activeSession) {
+      const created = await prisma.attendanceSessionEntry.createMany({
+        data: [{
+          sessionId: activeSession.id,
+          contactId: contact.id,
+          contactName: contact.name,
+          contactPhone: normalizePhone(contact.phone),
+          submittedByPhone: sessionActorPhone
+        }],
+        skipDuplicates: true
+      })
+      isResubmission = created.count === 0
+
+      // If it was a re-submission, update the entry's name/phone to the latest values.
+      if (isResubmission) {
+        await prisma.attendanceSessionEntry.update({
+          where: { sessionId_contactId: { sessionId: activeSession.id, contactId: contact.id } },
+          data: { contactName: contact.name, contactPhone: normalizePhone(contact.phone) }
+        })
+      }
+    }
 
     // Increment attendance counts for each selected activity
     for (const activityName of activities as string[]) {
@@ -674,28 +696,6 @@ router.post('/submit', async (req: Request, res: Response) => {
         where: { contactId_programId: { contactId: contact.id, programId: program.id } },
         create: { contactId: contact.id, programId: program.id, count: 1 },
         update: isResubmission ? {} : { count: { increment: 1 } }
-      })
-    }
-
-    if (activeSession) {
-      await prisma.attendanceSessionEntry.upsert({
-        where: {
-          sessionId_contactId: {
-            sessionId: activeSession.id,
-            contactId: contact.id
-          }
-        },
-        create: {
-          sessionId: activeSession.id,
-          contactId: contact.id,
-          contactName: contact.name,
-          contactPhone: normalizePhone(contact.phone),
-          submittedByPhone: sessionActorPhone
-        },
-        update: {
-          contactName: contact.name,
-          contactPhone: normalizePhone(contact.phone)
-        }
       })
     }
 

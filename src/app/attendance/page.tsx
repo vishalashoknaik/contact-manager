@@ -590,9 +590,11 @@ function AttendanceEntry({
       if (isOnline) {
         await attendanceApi.submit({ ...payload, sessionId }, centerId)
 
-        // Refresh server attendees FIRST, then drop the pending record.
-        // This prevents a brief window where the person is in neither list,
-        // which would allow a duplicate submit to pass the alreadyCounted check.
+        // Mark as synced immediately so retryPendingRecords never re-submits
+        // this record even if the subsequent listSessionAttendees call fails.
+        setRecords(prev => prev.map(r => r.id === recordId ? { ...r, status: 'synced' } : r))
+
+        // Refresh server attendees list, then remove the now-synced record.
         const attendees = await attendanceApi.listSessionAttendees(sessionId, centerId)
         setServerAttendees(attendees)
         setRecords(prev => prev.filter(record => record.id !== recordId))

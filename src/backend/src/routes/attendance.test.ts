@@ -46,6 +46,8 @@ const mockPrisma = {
     findMany: vi.fn(),
     findUnique: vi.fn(),
     create: vi.fn(),
+    createMany: vi.fn(),
+    update: vi.fn(),
     upsert: vi.fn()
   },
   attendanceSessionVolunteer: {
@@ -741,8 +743,8 @@ describe('attendance route', () => {
       name: 'Session Person',
       phone: '1231231234'
     })
-    mockPrisma.attendanceSessionEntry.findUnique.mockResolvedValueOnce(null) // first submission
-    mockPrisma.attendanceSessionEntry.upsert.mockResolvedValueOnce({ id: 'entry-22' })
+    // First submission: createMany returns count=1 (entry was created)
+    mockPrisma.attendanceSessionEntry.createMany.mockResolvedValueOnce({ count: 1 })
 
     const response = await fetch(`${baseUrl}/api/attendance/submit`, {
       method: 'POST',
@@ -765,25 +767,18 @@ describe('attendance route', () => {
     })
 
     expect(response.status).toBe(201)
-    expect(mockPrisma.attendanceSessionEntry.upsert).toHaveBeenCalledWith({
-      where: {
-        sessionId_contactId: {
-          sessionId: 'session-1',
-          contactId: 'contact-22'
-        }
-      },
-      create: {
+    expect(mockPrisma.attendanceSessionEntry.createMany).toHaveBeenCalledWith({
+      data: [{
         sessionId: 'session-1',
         contactId: 'contact-22',
         contactName: 'Session Person',
         contactPhone: '1231231234',
         submittedByPhone: '1111111111'
-      },
-      update: {
-        contactName: 'Session Person',
-        contactPhone: '1231231234'
-      }
+      }],
+      skipDuplicates: true
     })
+    // First submission — update should NOT have been called
+    expect(mockPrisma.attendanceSessionEntry.update).not.toHaveBeenCalled()
   })
 
   it('rejects reopening a session when actor is not in session volunteers', async () => {
@@ -904,7 +899,7 @@ describe('attendance route', () => {
 
     expect(response.status).toBe(404)
     expect(mockPrisma.contact.upsert).not.toHaveBeenCalled()
-    expect(mockPrisma.attendanceSessionEntry.upsert).not.toHaveBeenCalled()
+    expect(mockPrisma.attendanceSessionEntry.createMany).not.toHaveBeenCalled()
   })
 
   // ─── GET /sessions ─────────────────────────────────────────────────────────
@@ -1554,7 +1549,7 @@ describe('attendance route', () => {
     })
 
     expect(response.status).toBe(201)
-    expect(mockPrisma.attendanceSessionEntry.upsert).not.toHaveBeenCalled()
+    expect(mockPrisma.attendanceSessionEntry.createMany).not.toHaveBeenCalled()
   })
 
   it('POST /submit normalizes phone before storing in the session entry', async () => {
@@ -1573,8 +1568,8 @@ describe('attendance route', () => {
     })
     mockPrisma.contact.findUnique.mockResolvedValueOnce(null)
     mockPrisma.contact.upsert.mockResolvedValueOnce({ id: 'contact-norm', name: 'Phone Person', phone: '(123) 456-7890' })
-    mockPrisma.attendanceSessionEntry.findUnique.mockResolvedValueOnce(null) // not a resubmission
-    mockPrisma.attendanceSessionEntry.upsert.mockResolvedValueOnce({ id: 'entry-norm' })
+    // First submission: createMany returns count=1
+    mockPrisma.attendanceSessionEntry.createMany.mockResolvedValueOnce({ count: 1 })
 
     await fetch(`${baseUrl}/api/attendance/submit`, {
       method: 'POST',
@@ -1592,9 +1587,8 @@ describe('attendance route', () => {
       })
     })
 
-    const upsertCall = mockPrisma.attendanceSessionEntry.upsert.mock.calls[0][0]
-    expect(upsertCall.create.contactPhone).toBe('1234567890')
-    expect(upsertCall.update.contactPhone).toBe('1234567890')
+    const createManyCall = mockPrisma.attendanceSessionEntry.createMany.mock.calls[0][0]
+    expect(createManyCall.data[0].contactPhone).toBe('1234567890')
   })
 
   it('POST /submit does NOT increment counts when the same contact re-submits in the same session', async () => {
@@ -1610,11 +1604,11 @@ describe('attendance route', () => {
     })
     mockPrisma.contact.findUnique.mockResolvedValueOnce({ id: 'contact-existing' })
     mockPrisma.contact.upsert.mockResolvedValueOnce({ id: 'contact-existing', name: 'Eve', phone: '5555555555' })
-    // Signal that this is a re-submission — entry already exists
-    mockPrisma.attendanceSessionEntry.findUnique.mockResolvedValueOnce({ id: 'entry-existing' })
+    // Re-submission: createMany returns count=0 (entry already existed)
+    mockPrisma.attendanceSessionEntry.createMany.mockResolvedValueOnce({ count: 0 })
+    mockPrisma.attendanceSessionEntry.update.mockResolvedValueOnce({ id: 'entry-existing' })
     mockPrisma.activity.findUnique.mockResolvedValueOnce({ id: 'activity-1' })
     mockPrisma.contactActivity.upsert.mockResolvedValueOnce({})
-    mockPrisma.attendanceSessionEntry.upsert.mockResolvedValueOnce({ id: 'entry-existing' })
 
     const response = await fetch(`${baseUrl}/api/attendance/submit`, {
       method: 'POST',
