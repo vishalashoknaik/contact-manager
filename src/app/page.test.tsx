@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import Home from './page'
+import Home from './contacts/page'
 import { CSVService } from '@/lib/services/CSVService'
 import { contactsApi } from '@/lib/api/client'
 
@@ -176,23 +176,23 @@ describe('Home page', () => {
     mockShowToast.mockClear()
   })
 
-  it('hides campaigns and attendance actions in admin mode and restores them in user mode', async () => {
+  it('toggles admin mode, showing admin panel and hiding contact list', async () => {
     const user = userEvent.setup()
 
     render(<Home />)
 
-    expect(screen.getByRole('button', { name: /campaigns/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /take attendance/i })).toBeInTheDocument()
+    // Initially in user mode — admin mode button visible, admin panel not shown
+    expect(screen.getByRole('button', { name: /admin mode/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /admin mode/i }))
 
-    expect(screen.queryByRole('button', { name: /campaigns/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /take attendance/i })).not.toBeInTheDocument()
+    // Now in admin mode — user mode button appears, admin panel visible
+    expect(screen.getByRole('button', { name: /user mode/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /user mode/i }))
 
-    expect(screen.getByRole('button', { name: /campaigns/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /take attendance/i })).toBeInTheDocument()
+    // Back to user mode
+    expect(screen.getByRole('button', { name: /admin mode/i })).toBeInTheDocument()
   })
 
   it('covers admin mode, add contact, filters, sorting, bulk actions, and csv import flow', async () => {

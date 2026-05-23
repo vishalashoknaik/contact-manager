@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'
 import { ServerWarmupBanner } from '@/components/ServerWarmupBanner'
-import { AppNav } from '@/components/AppNav'
+import { SidebarNav } from '@/components/SidebarNav'
 import { ToastProvider } from '@/components/ui/Toast'
 
 const geistSans = Geist({
@@ -47,12 +47,14 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <ToastProvider>
-            <AppNav />
-            <ServerWarmupBanner>
-              <main style={{ flex: 1 }}>
-                {children}
-              </main>
-            </ServerWarmupBanner>
+            <SidebarNav />
+            <div className="main-content-with-sidebar">
+              <ServerWarmupBanner>
+                <main style={{ flex: 1 }}>
+                  {children}
+                </main>
+              </ServerWarmupBanner>
+            </div>
           </ToastProvider>
         </AuthProvider>
       </body>

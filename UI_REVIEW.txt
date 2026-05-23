@@ -1,0 +1,433 @@
+================================================================================
+  VOLUNTEERS COORDINATION APP — UI/UX REVIEW
+  Date: May 23, 2026
+  Reviewer role: Senior UI/UX Engineer
+================================================================================
+
+OVERALL RATING: 5.2 / 10
+
+The application is functionally complete but visually underdeveloped. It reads
+like an internal tool built for speed of delivery, not user experience. Every
+major UI dimension is analysed below with a score and specific improvement
+suggestions.
+
+--------------------------------------------------------------------------------
+1. VISUAL DESIGN / AESTHETICS                                         3 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- Every component uses inline style={{...}} objects. There is no design system.
+- Colours are raw hex literals scattered across 10+ files:
+  #4CAF50, #dc3545, #0d6efd, #198754, #6f42c1, etc.
+- globals.css imports Tailwind but only defines CSS variables and bare resets.
+  Tailwind utility classes are not used in any component.
+- The header is a plain <h2> with a leaf emoji. No logo, no brand identity,
+  no consistent visual language.
+- Buttons are all rectangular with 3-4px border-radius. No visual weight
+  hierarchy — primary, secondary, and destructive actions look similar.
+- Shadows are minimal (only the login card has one). Cards blend into the page.
+
+Improvements:
+- Commit to Tailwind (already installed). Remove all inline style objects and
+  replace with utility classes across every component.
+- Create a design token set: primary, danger, success, muted, surface, border
+  — map to CSS variables and tailwind.config.ts.
+- Add a proper app logo/wordmark in the header.
+- Adopt consistent border-radius: rounded-lg everywhere instead of mixed
+  3px / 4px / 6px / 8px / 20px.
+- Apply consistent shadow-sm / shadow-md to cards and panels.
+- Replace emoji-only button labels with icon + text pairs using a proper
+  icon library (e.g., heroicons or lucide-react).
+
+--------------------------------------------------------------------------------
+2. LAYOUT & INFORMATION ARCHITECTURE                                  4 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- The home page is a single long vertical scroll:
+  header → nav buttons → admin panel → add contact form → bulk actions → table.
+  No sidebar, no tab bar, no clear zone separation.
+- The contacts table (the core view) is buried at the bottom below three
+  other sections.
+- "Admin Mode" is toggled by a button that reorganises the entire page — jarring.
+- Campaigns and Attendance are separate routes but navigation is just a row
+  of emoji buttons stacked on the home page.
+
+Improvements:
+- Introduce a persistent top navigation bar or left sidebar with clear labels:
+  Contacts | Campaigns | Attendance | Admin.
+- Home page should lead immediately with the contacts table. It is the primary
+  content — everything else is secondary.
+- Move "Add Contact", "CSV Import", and "Bulk Actions" into a collapsible
+  panel or a right-side drawer so the table is maximised by default.
+- Admin view should be a separate /admin route or a slide-in panel, not an
+  in-page toggle that restructures the layout.
+- Use a two-column layout on desktop: narrow left sidebar for actions,
+  wide right area for the contacts table.
+
+--------------------------------------------------------------------------------
+3. NAVIGATION & WAYFINDING                                            4 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- Three separate pages (Home, Campaigns, Attendance) but no persistent nav.
+  To go from Campaigns back to Contacts you must use the browser back button.
+- No breadcrumbs in the campaign detail/call flow.
+- router.push('/') is used for back-navigation — does not preserve scroll or
+  tab state.
+- The Campaigns page has three sub-views (list, detail, call) driven by a
+  local `view` state variable. URL does not change — deep linking is impossible
+  and the browser back button does not work within the campaign flow.
+
+Improvements:
+- Add a sticky <nav> header (60px tall) present on all pages.
+- Use URL params for campaign sub-views:
+    /campaigns          → list
+    /campaigns/[id]     → detail
+    /campaigns/[id]/call → call screen
+- Add breadcrumbs inside the campaign flow:
+    Campaigns › Campaign Name › Call Screen
+- Highlight the active nav item with a visual indicator (underline, filled
+  background, or left border).
+
+--------------------------------------------------------------------------------
+4. TYPOGRAPHY                                                         5 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- Geist Sans is set at the layout level — a good choice.
+- Heading levels are inconsistent: <h2> for the page title, <h4> for section
+  titles. No <h1> anywhere on the home page.
+- Font sizes in the contacts table are hardcoded to 13px — too small on
+  high-density displays and mobile.
+- font-family: 'system-ui, -apple-system, sans-serif' is repeated inline in
+  page containers, overriding the layout-level Geist Sans.
+
+Improvements:
+- Define a typographic scale in tailwind.config.ts:
+    text-xs  = 12px
+    text-sm  = 14px
+    text-base = 16px
+    text-lg  = 18px
+    text-xl  = 20px
+    text-2xl = 24px
+- Fix heading hierarchy: <h1> for the page name, <h2> for major sections,
+  <h3> for sub-sections. Never skip levels.
+- Remove all inline fontFamily overrides. Trust the layout-level font.
+- Minimum table body font size: 14px.
+- Use font-weight: 600 for labels, 400 for body, 700 for headings.
+
+--------------------------------------------------------------------------------
+5. COLOUR SYSTEM & THEMING                                            5 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- CSS custom properties in globals.css are well-structured (--bg-primary,
+  --text-primary, --border-color, etc.) and dark mode is supported via
+  prefers-color-scheme. Solid foundation.
+- Action colours are hard-coded in component files and ignore the CSS variable
+  system entirely.
+- Dark mode works for backgrounds/text but button colours remain light-mode
+  values — poor contrast in dark mode.
+- Status badge colours in CampaignCallScreen (#d1e7dd, #e9ecef) are not part
+  of the variable system.
+
+Improvements:
+- Extend the CSS variable set:
+    --color-primary, --color-primary-hover
+    --color-danger,  --color-danger-hover
+    --color-success, --color-success-hover
+    --color-warning
+    --color-muted
+- Add dark-mode overrides for all action colours in globals.css.
+- Map these to Tailwind via tailwind.config.ts so classes like bg-primary,
+  text-danger work everywhere.
+- All components must use these variables — zero raw hex values in TSX files.
+
+--------------------------------------------------------------------------------
+6. FORM UX                                                            5 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- The login form is clean and the most polished part of the app.
+- ContactForm has inputs with no visible labels — only placeholders.
+  Placeholders disappear when the user starts typing (accessibility failure).
+- "Add Contact" form and "Bulk Actions" bar are side-by-side with flexWrap,
+  creating an inconsistent layout when content wraps on smaller screens.
+- Error messages appear inline but have no icon, are plain red text, and
+  vanish on the next interaction.
+- window.confirm() is used for delete confirmation — native browser dialogs
+  cannot be styled and are inconsistent across browsers/OS.
+- No field-level validation. Phone format is only enforced server-side;
+  the user only sees the error after submit.
+
+Improvements:
+- Every input must have a visible <label> element above it, not just a
+  placeholder.
+- Replace window.confirm() with a styled in-app confirmation dialog component
+  (Modal with Cancel / Confirm buttons).
+- Add real-time phone number format validation with an inline hint:
+  "Format: +91 XXXXX XXXXX"
+- Implement a global toast/snackbar system (top-right floating notifications)
+  for all operation outcomes: "Contact saved", "Delete failed", etc.
+- Use a toast for success, an inline alert for blocking errors (form errors),
+  and a modal for destructive confirmations.
+- Group the Add Contact form into a Card with a distinct background to
+  visually separate it from the table area.
+
+--------------------------------------------------------------------------------
+7. DATA TABLE (CONTACTS TABLE)                                        5 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- Sticky headers and sticky filter row are implemented — good.
+- Horizontal scrolling is required because the table has 15+ dynamic columns
+  (activities, areas, programs, interests, DND flags).
+  On mobile this is unusable.
+- Boolean columns (Not Interested, Center Change, DND) render true/false text.
+- Filter inputs in header cells create excessive visual noise — the filter row
+  looks identical to the data header row.
+- No row hover highlight. Scanning horizontally across a wide table is
+  difficult without a highlighted active row.
+- No pagination — all contacts load at once. With hundreds of contacts this
+  will degrade both performance and usability.
+
+Improvements:
+- Add row hover background highlight:
+    tbody tr:hover { background: var(--selected-item-bg); }
+- Render boolean columns as coloured pills or icons:
+    true  → red "DND" badge
+    false → nothing (empty cell, not "false")
+- Add a Columns toggle button that shows/hides columns. This is critical for
+  a wide dynamic table.
+- Implement virtual scrolling (e.g., @tanstack/react-virtual) or server-side
+  pagination with a page size selector (25 / 50 / 100 per page).
+- Visually separate the filter row from the header row:
+  use a slightly different shade and a clear divider line between them.
+- Consider a row density toggle: Compact (13px, 6px padding) vs
+  Comfortable (14px, 10px padding).
+- Add a row count indicator: "Showing 45 of 312 contacts"
+
+--------------------------------------------------------------------------------
+8. MOBILE RESPONSIVENESS                                              4 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- button, input, select { min-height: 44px } is set globally — good for
+  touch targets.
+- The contacts table with minWidth: 1200 is essentially unusable on mobile
+  without horizontal scroll.
+- The Campaign Call Screen uses maxWidth: 540, margin: '0 auto' — the most
+  mobile-friendly view in the app.
+- The attendance setup screen has chip-style checkboxes — also works on mobile.
+- There are no responsive breakpoints beyond flexWrap: wrap.
+- The home page action buttons stack as a grid of tall buttons on small screens.
+
+Improvements:
+- Contacts table needs a mobile-specific view at < 768px:
+    - Card/list view: each contact is a card showing Name, Phone, key metrics.
+    - Or: pin Name + Phone columns, rest are swipeable.
+- Use a responsive CSS Grid for the home page action buttons:
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))
+- Admin Panel sections should use a responsive two-column layout on desktop,
+  single column on mobile.
+- The Campaigns page list should display as cards on mobile, not a table.
+- Add a floating action button (+) on mobile for "Add Contact" instead of
+  keeping the form permanently visible.
+
+--------------------------------------------------------------------------------
+9. LOADING & FEEDBACK STATES                                          6 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- Full-page spinner overlay during bulk update — good implementation.
+- ServerWarmupBanner for cold-start backend — well designed.
+- SyncStatusNotices for offline/sync warnings — appropriate.
+- Campaign call screen shows completed/skipped counts as badges — good.
+- Contacts table shows nothing while loading — no skeleton, no spinner.
+- Button loading states are inconsistent: some show "Updating…", some show
+  "Saving…", some have no loading state at all.
+- The attendance page's sync indicator is a small badge — easy to miss.
+
+Improvements:
+- Add skeleton rows (animated shimmer) to the contacts table while loading.
+  Show 8-10 skeleton rows matching the column layout.
+- Standardise all async-action button states:
+    idle     → label text
+    loading  → spinner icon + "Saving…" (disabled)
+    success  → checkmark icon + "Saved" (brief, then reverts)
+    error    → kept at idle, toast shown
+- Add a slim progress bar at the top of the page during background API calls
+  (similar to YouTube's red progress bar).
+- The ServerWarmupBanner should show a more prominent animation — the current
+  text-only notice is easy to dismiss mentally.
+
+--------------------------------------------------------------------------------
+10. ACCESSIBILITY                                                     4 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- role="status" aria-live="polite" on the update overlay — good.
+- htmlFor/id pairing in the attendance chip group — good.
+- Most interactive elements lack aria-label, especially emoji buttons.
+- Colour alone conveys state (active admin button turns blue) with no other
+  indicator.
+- No skip-to-content link.
+- Sortable table headers have userSelect: 'none' but no visible focus ring.
+- Contact table checkboxes have no aria-label — screen readers cannot identify
+  which contact they belong to.
+
+Improvements:
+- Add aria-label to all icon/emoji buttons:
+    <button aria-label="Open campaigns">📣 Campaigns</button>
+- Add visible focus rings to all interactive elements:
+    :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+- Add aria-sort attributes to sortable table columns:
+    aria-sort="ascending" | "descending" | "none"
+- Add aria-label to each row checkbox:
+    aria-label={`Select ${contact.name}`}
+- Add a skip-to-main-content link at the top of the layout.
+- Never rely on colour alone for state. Add a checkmark, underline, or
+  bold weight alongside any colour change.
+- All modals must trap keyboard focus and restore it on close.
+- Error messages should use role="alert" so screen readers announce them.
+
+--------------------------------------------------------------------------------
+11. CONSISTENCY                                                       4 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- Border-radius values: 3px, 4px, 6px, 8px, 20px — no rule, all ad hoc.
+- Button padding: 8px 16px, 8px 8px, 10px 24px, 12px 16px — varies per file.
+- Some components define style objects at the top of the render function
+  (good), others define them inline mid-JSX (bad).
+- Campaign page uses clamp(12px, 3vw, 20px) for padding; home page uses
+  padding: 20 — inconsistent.
+- Error messages use three different presentation patterns:
+    a) Inline red text (#dc3545)
+    b) Yellow banner (backgroundColor: '#fff3cd')
+    c) Plain text with no visual container
+- Section titles: some use <h4>, some <h3>, some are bold <div> text.
+
+Improvements:
+- Create a shared src/components/ui/ folder with primitive components:
+    Button.tsx   — size, variant (primary/secondary/danger/ghost) props
+    Card.tsx     — consistent padding, border, border-radius, shadow
+    Input.tsx    — label + input + error message as one unit
+    Select.tsx   — same as Input
+    Badge.tsx    — size, variant (success/warning/danger/neutral)
+    Modal.tsx    — overlay, focus trap, close on Escape
+    Toast.tsx    — slide-in notifications with auto-dismiss
+    Alert.tsx    — inline contextual messages (error/warning/info/success)
+- All page and feature components use these primitives — zero inline styles
+  outside of the ui/ folder.
+- Enforce a single spacing scale: 4px base unit (4, 8, 12, 16, 20, 24, 32...).
+
+--------------------------------------------------------------------------------
+12. EMPTY STATES & ERROR HANDLING                                     5 / 10
+--------------------------------------------------------------------------------
+
+Current state:
+- When there are no contacts, the contacts table simply does not render.
+  No message, no illustration, no call-to-action.
+- When there are no campaigns, the list is blank — no guidance.
+- Error banners use a yellow warning colour for errors (mixed semantics).
+- The "All done!" state in CampaignCallScreen (✅ + message) is the best
+  empty state in the entire app — use this as the model.
+
+Improvements:
+- Every list and table needs an empty state:
+    Icon/illustration + Headline + Supporting text + CTA button
+  Examples:
+    Contacts:  "No contacts yet — Import a CSV or add the first contact."
+               [+ Add Contact] [Import CSV]
+    Campaigns: "No campaigns yet — select contacts and start a campaign."
+               [Go to Contacts]
+    Call logs: "No calls logged yet for this campaign."
+- Distinguish alert types visually and semantically:
+    Error   → red background, red border, exclamation icon
+    Warning → amber background, amber border, warning icon
+    Info    → blue background, blue border, info icon
+    Success → green background, green border, check icon
+- All error states should suggest a recovery action where possible:
+    "Failed to load contacts. [Retry]"
+
+--------------------------------------------------------------------------------
+SUMMARY SCORECARD
+--------------------------------------------------------------------------------
+
+  Dimension                          Score
+  ─────────────────────────────────────────
+  Visual Design / Aesthetics          3/10
+  Layout & Information Architecture   4/10
+  Navigation & Wayfinding             4/10
+  Typography                          5/10
+  Colour System & Theming             5/10
+  Form UX                             5/10
+  Data Table UX                       5/10
+  Mobile Responsiveness               4/10
+  Loading & Feedback States           6/10
+  Accessibility                       4/10
+  Consistency                         4/10
+  Empty States & Error Handling       5/10
+  ─────────────────────────────────────────
+  OVERALL                            5.2/10
+
+--------------------------------------------------------------------------------
+TOP 5 HIGHEST-IMPACT CHANGES (priority order)
+--------------------------------------------------------------------------------
+
+1. PERSISTENT TOP NAVIGATION BAR
+   One component that eliminates the biggest navigation confusion across all
+   three pages. Provides wayfinding, reduces cognitive load, and makes the
+   app feel like a real product rather than a collection of pages.
+
+2. SHARED UI COMPONENT LIBRARY (src/components/ui/)
+   Button, Card, Input, Select, Modal, Toast, Alert, Badge.
+   Eliminates all style inconsistency in one pass. Every subsequent feature
+   is built with these primitives, not raw inline styles.
+
+3. TAILWIND MIGRATION
+   Remove all inline styles from page and feature components.
+   The CSS variable system in globals.css is already correct — Tailwind just
+   makes the token system usable via class names. This is a one-time effort
+   with permanent compound returns.
+
+4. CONTACTS TABLE: COLUMN VISIBILITY TOGGLE + ROW HOVER + PAGINATION
+   The contacts table is the heart of the application. Making it scannable,
+   manageable, and performant (virtual scroll or pagination) has the highest
+   daily-use impact of any single change.
+
+5. CONFIRMATION DIALOG + GLOBAL TOAST NOTIFICATION SYSTEM
+   Replaces window.confirm() and scattered inline feedback text with a
+   professional notification layer. Affects every single write operation in
+   the app (add, update, delete, import, bulk update) — high leverage change.
+
+--------------------------------------------------------------------------------
+RECOMMENDED IMPLEMENTATION ORDER
+--------------------------------------------------------------------------------
+
+Phase 1 — Foundation (do first, everything else builds on this):
+  a) Create src/components/ui/ with Button, Card, Input, Select, Badge
+  b) Add the design token set to globals.css and tailwind.config.ts
+  c) Add Modal, Toast, and Alert components
+
+Phase 2 — Shell:
+  a) Persistent top navigation bar
+  b) Fix URL routing for campaigns (list / detail / call)
+  c) Add breadcrumbs
+
+Phase 3 — Table & Data:
+  a) Row hover, boolean badge columns, filter row visual separation
+  b) Column visibility toggle
+  c) Pagination or virtual scroll
+
+Phase 4 — Polish:
+  a) Empty states for every list/table
+  b) Skeleton loading states
+  c) Mobile-specific contacts view (cards at < 768px)
+  d) Accessibility audit pass (focus rings, aria-labels, aria-sort)
+
+================================================================================
+  END OF REPORT
+================================================================================

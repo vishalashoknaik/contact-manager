@@ -201,3 +201,77 @@ textarea {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ── App shell layout (sidebar + main content) ─────────────────────── */
+.app-sidebar {
+  /* Visible on desktop, hidden on mobile via media query below */
+}
+
+.main-content-with-sidebar {
+  margin-left: 200px;
+  min-height: 100vh;
+}
+
+.bottom-nav-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-sidebar {
+    display: none !important;
+  }
+
+  .main-content-with-sidebar {
+    margin-left: 0;
+    padding-bottom: 68px; /* space for bottom tab bar */
+  }
+
+  .bottom-nav-mobile {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background-color: var(--nav-bg);
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+    z-index: 100;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* ── Slide-in drawer ───────────────────────────────────────────────── */
+@keyframes drawer-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes drawer-out {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(100%); opacity: 0; }
+}
+
+/* ── Progress ring animation ───────────────────────────────────────── */
+@keyframes ring-fill {
+  from { stroke-dashoffset: var(--ring-circumference); }
+  to   { stroke-dashoffset: var(--ring-offset); }
+}
+
+/* ── Sidebar nav link hover ────────────────────────────────────────── */
+.sidebar-nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+/* ── Skeleton shimmer ──────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--border-color) 25%, var(--panel-bg) 50%, var(--border-color) 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 4px;
+}

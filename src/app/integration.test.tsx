@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import Home from './page'
+import Home from './contacts/page'
 import { ContactService } from '@/lib/services/ContactService'
 
 // Mock Toast so tests don't need a ToastProvider wrapper
