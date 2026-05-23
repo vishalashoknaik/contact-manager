@@ -170,12 +170,11 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
 
   return (
     <div style={card}>
-      {/* Call overview summary bar */}
+      {/* Call overview summary bar — Completed and Skipped only */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {(
           [
             { label: 'Completed', count: completedCount, color: '#198754', bg: '#d1e7dd' },
-            { label: 'Pending',   count: pendingCount,   color: '#b45309', bg: '#fef3c7' },
             { label: 'Skipped',   count: skippedCount,   color: '#6c757d', bg: '#e9ecef' }
           ] as const
         ).map(({ label, count, color, bg }) => (

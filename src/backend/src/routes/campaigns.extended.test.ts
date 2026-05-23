@@ -39,7 +39,13 @@ const mockPrisma = {
     findMany: vi.fn()
   },
   contact: {
-    update: vi.fn()
+    update: vi.fn(),
+    findFirst: vi.fn(),
+    upsert: vi.fn()
+  },
+  user: {
+    findUnique: vi.fn(),
+    create: vi.fn()
   },
   $transaction: vi.fn(async (ops: Array<Promise<unknown>>) => Promise.all(ops))
 }
@@ -250,8 +256,11 @@ describe('PUT /api/campaigns/:id/volunteers', () => {
 
   it('replaces volunteer list and returns updated campaign', async () => {
     mockPrisma.user.findUnique
-      .mockResolvedValueOnce(makeUser('1111111111')) // actor
-      .mockResolvedValueOnce(null)                   // target volunteer (no existing user)
+      .mockResolvedValueOnce(makeUser('1111111111'))                          // actor
+      .mockResolvedValueOnce(null)                                           // ensure-user: no existing user
+      .mockResolvedValueOnce({ phone: '9999999999', canAccessAllCenters: false, centers: [] }) // auto-grant loop
+    mockPrisma.contact.findFirst.mockResolvedValueOnce({ name: 'New Person', phone: '9999999999', centerId: 'center-1' })
+    mockPrisma.user.create.mockResolvedValueOnce({ phone: '9999999999', name: 'New Person' })
     mockPrisma.campaign.findFirst
       .mockResolvedValueOnce(makeCampaignRow())  // guard lookup
       .mockResolvedValueOnce({                   // final fetch
@@ -269,6 +278,55 @@ describe('PUT /api/campaigns/:id/volunteers', () => {
       body: JSON.stringify({ volunteerPhones: ['9999999999'] })
     })
     expect(res.status).toBe(200)
+  })
+
+  it('creates contact and user on the fly when phone is not in DB and newVolunteerDetails supplied', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(makeUser('1111111111'))  // actor
+      .mockResolvedValueOnce(null)                    // ensure-user: no existing user
+      .mockResolvedValueOnce(null)                    // auto-grant loop: user just created
+    mockPrisma.contact.findFirst.mockResolvedValueOnce(null) // no existing contact
+    mockPrisma.contact.upsert.mockResolvedValueOnce({ phone: '8888888888', name: 'Brand New', centerId: 'center-1' })
+    mockPrisma.user.create.mockResolvedValueOnce({ phone: '8888888888', name: 'Brand New' })
+    mockPrisma.campaign.findFirst
+      .mockResolvedValueOnce(makeCampaignRow())
+      .mockResolvedValueOnce({ ...makeCampaignRow(), volunteers: [{ volunteerPhone: '8888888888', volunteer: { phone: '8888888888', name: 'Brand New' } }] })
+    mockPrisma.campaignVolunteer.deleteMany.mockResolvedValueOnce({})
+    mockPrisma.campaignVolunteer.create.mockResolvedValueOnce({})
+    mockPrisma.$transaction.mockResolvedValueOnce([{}, {}])
+    mockPrisma.userCenter.create.mockResolvedValueOnce({})
+
+    const baseUrl = await startTestServer()
+    const res = await fetch(`${baseUrl}/api/campaigns/campaign-1/volunteers`, {
+      method: 'PUT',
+      headers: { ...CENTER_HEADERS, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({
+        volunteerPhones: ['8888888888'],
+        newVolunteerDetails: [{ phone: '8888888888', name: 'Brand New' }]
+      })
+    })
+    expect(res.status).toBe(200)
+    expect(mockPrisma.contact.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ phone: '8888888888', name: 'Brand New' })
+    }))
+    expect(mockPrisma.user.create).toHaveBeenCalledWith({ data: { phone: '8888888888', name: 'Brand New' } })
+  })
+
+  it('returns 400 when phone not in DB and no newVolunteerDetails provided', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(makeUser('1111111111'))  // actor
+      .mockResolvedValueOnce(null)                    // ensure-user: no existing user
+    mockPrisma.contact.findFirst.mockResolvedValueOnce(null) // no contact either
+    mockPrisma.campaign.findFirst.mockResolvedValueOnce(makeCampaignRow())
+
+    const baseUrl = await startTestServer()
+    const res = await fetch(`${baseUrl}/api/campaigns/campaign-1/volunteers`, {
+      method: 'PUT',
+      headers: { ...CENTER_HEADERS, ...authHeaderFor('1111111111') },
+      body: JSON.stringify({ volunteerPhones: ['7777777777'] })
+    })
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toMatchObject({ error: expect.stringContaining('7777777777') })
   })
 })
 

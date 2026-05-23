@@ -8,13 +8,19 @@ interface ContactSearchInputProps {
   onSelect: (contact: Contact) => void
   placeholder?: string
   disabled?: boolean
+  /** Called whenever the typed text changes — lets the parent track raw input */
+  onQueryChange?: (value: string) => void
+  /** Called when the user presses Enter with no dropdown item selected — lets parent handle unknown phones */
+  onRawAdd?: (value: string) => void
 }
 
 export function ContactSearchInput({
   contacts,
   onSelect,
   placeholder = 'Search by name or phone',
-  disabled = false
+  disabled = false,
+  onQueryChange,
+  onRawAdd
 }: ContactSearchInputProps) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
@@ -34,6 +40,11 @@ export function ContactSearchInput({
         .slice(0, 10)
     : []
 
+  function updateQuery(value: string) {
+    setQuery(value)
+    onQueryChange?.(value)
+  }
+
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -51,23 +62,31 @@ export function ContactSearchInput({
   }, [query])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open) return
     if (e.key === 'ArrowDown') {
+      if (!open) return
       e.preventDefault()
       setActiveIndex(i => Math.min(i + 1, suggestions.length - 1))
     } else if (e.key === 'ArrowUp') {
+      if (!open) return
       e.preventDefault()
       setActiveIndex(i => Math.max(i - 1, 0))
-    } else if (e.key === 'Enter' && activeIndex >= 0) {
+    } else if (e.key === 'Enter') {
       e.preventDefault()
-      selectContact(suggestions[activeIndex])
+      if (open && activeIndex >= 0) {
+        selectContact(suggestions[activeIndex])
+      } else if (query.trim()) {
+        // No dropdown selection — let parent handle the raw text (e.g. unknown phone)
+        onRawAdd?.(query.trim())
+        updateQuery('')
+        setOpen(false)
+      }
     } else if (e.key === 'Escape') {
       setOpen(false)
     }
   }
 
   function selectContact(contact: Contact) {
-    setQuery('')
+    updateQuery('')
     setOpen(false)
     setActiveIndex(-1)
     onSelect(contact)
@@ -88,7 +107,7 @@ export function ContactSearchInput({
       <input
         type="text"
         value={query}
-        onChange={e => setQuery(e.target.value)}
+        onChange={e => updateQuery(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}

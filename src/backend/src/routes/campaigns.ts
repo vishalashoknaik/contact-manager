@@ -239,9 +239,41 @@ router.put('/:id/volunteers', async (req: Request, res: Response) => {
     })
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' })
 
-    const { volunteerPhones } = req.body as { volunteerPhones: string[] }
+    const { volunteerPhones, newVolunteerDetails = [] } = req.body as {
+      volunteerPhones: string[]
+      newVolunteerDetails?: { phone: string; name: string }[]
+    }
     if (!Array.isArray(volunteerPhones)) {
       return res.status(400).json({ error: 'volunteerPhones array is required' })
+    }
+
+    // CampaignVolunteer.volunteerPhone is a FK to User.phone.
+    // Contacts who have never logged in won't have a User row yet.
+    // Auto-create a User (and Contact if needed) so the FK can be satisfied.
+    for (const phone of volunteerPhones) {
+      const existingUser = await prisma.user.findUnique({ where: { phone } })
+      if (!existingUser) {
+        const contact = await prisma.contact.findFirst({ where: { phone, centerId } })
+        if (contact) {
+          // Contact exists but never logged in — create a minimal User
+          await prisma.user.create({ data: { phone, name: contact.name } })
+        } else {
+          // Not in contacts either — require caller to supply name via newVolunteerDetails
+          const detail = newVolunteerDetails.find(d => d.phone === phone)
+          if (!detail) {
+            return res.status(400).json({
+              error: `No user or contact found with phone ${phone}. Use the "Create new" form to supply a name.`
+            })
+          }
+          // Create Contact + User on the fly
+          await prisma.contact.upsert({
+            where: { phone_centerId: { phone, centerId } },
+            update: {},
+            create: { phone, name: detail.name, centerId }
+          })
+          await prisma.user.create({ data: { phone, name: detail.name } })
+        }
+      }
     }
 
     // Replace volunteer list

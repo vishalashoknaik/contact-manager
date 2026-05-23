@@ -362,7 +362,7 @@ function AttendanceEntry({
   session: SessionConfig
   storageKey: string
   volunteers: Array<{ phone: string; name: string }>
-  onAddVolunteer: (phone: string) => Promise<void>
+  onAddVolunteer: (phone: string, name?: string) => Promise<void>
   onEndSession: () => Promise<void>
 }) {
   const [form, setForm] = useState<AttendeeForm>(EMPTY_FORM)
@@ -380,6 +380,8 @@ function AttendanceEntry({
   const [showAddVolunteer, setShowAddVolunteer] = useState(false)
   const [newVolunteerPhone, setNewVolunteerPhone] = useState('')
   const [addingVolunteer, setAddingVolunteer] = useState(false)
+  const [pendingNewVolPhone, setPendingNewVolPhone] = useState<string | null>(null)
+  const [pendingNewVolName, setPendingNewVolName] = useState('')
   const [sessionAccessError, setSessionAccessError] = useState<string | null>(null)
   const [serverAttendees, setServerAttendees] = useState<AttendanceSessionAttendee[]>([])
   const [attendeeDataSyncing, setAttendeeDataSyncing] = useState(true)
@@ -739,19 +741,35 @@ function AttendanceEntry({
     boxShadow: '0 10px 30px rgba(0, 0, 0, 0.06)'
   }
 
-  async function handleAddVolunteer(phoneOverride?: string) {
+  async function handleAddVolunteer(phoneOverride?: string, nameOverride?: string) {
     const phone = (phoneOverride ?? newVolunteerPhone).trim()
     if (!phone) return
+    // If contacts are loaded and phone not found, prompt for name
+    if (!nameOverride && contactList.length > 0 && !contactList.some(c => c.phone === phone)) {
+      setPendingNewVolPhone(phone)
+      setNewVolunteerPhone('')
+      setSessionAccessError(null)
+      return
+    }
     setAddingVolunteer(true)
     setSessionAccessError(null)
     try {
-      await onAddVolunteer(phone)
+      await onAddVolunteer(phone, nameOverride)
       setNewVolunteerPhone('')
+      setPendingNewVolPhone(null)
+      setPendingNewVolName('')
     } catch (err: any) {
       setSessionAccessError(err?.message || 'Failed to add volunteer to this attendance session')
     } finally {
       setAddingVolunteer(false)
     }
+  }
+
+  async function handleCreateAndAddTaker() {
+    if (!pendingNewVolPhone) return
+    const name = pendingNewVolName.trim()
+    if (!name) { setSessionAccessError('Name is required'); return }
+    await handleAddVolunteer(pendingNewVolPhone, name)
   }
 
   return (
@@ -841,42 +859,86 @@ function AttendanceEntry({
                     Add Attendance Taker
                   </label>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {contactList.length > 0 ? (
-                      <ContactSearchInput
-                        contacts={contactList}
-                        placeholder="Search by name or phone"
-                        disabled={addingVolunteer}
-                        onSelect={c => void handleAddVolunteer(c.phone)}
-                      />
-                    ) : (
-                      <input
-                        type="tel"
-                        placeholder="Attendance taker phone"
-                        value={newVolunteerPhone}
-                        onChange={e => setNewVolunteerPhone(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && void handleAddVolunteer()}
-                        style={{ ...inputStyle, maxWidth: 180, flex: 1 }}
-                      />
+                    {!pendingNewVolPhone && (
+                      <>
+                        {contactList.length > 0 ? (
+                          <ContactSearchInput
+                            contacts={contactList}
+                            placeholder="Search by name or phone"
+                            disabled={addingVolunteer}
+                            onSelect={c => void handleAddVolunteer(c.phone)}
+                            onQueryChange={v => setNewVolunteerPhone(v)}
+                            onRawAdd={v => void handleAddVolunteer(v)}
+                          />
+                        ) : (
+                          <input
+                            type="tel"
+                            placeholder="Attendance taker phone"
+                            value={newVolunteerPhone}
+                            onChange={e => setNewVolunteerPhone(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && void handleAddVolunteer()}
+                            style={{ ...inputStyle, maxWidth: 180, flex: 1 }}
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => void handleAddVolunteer()}
+                          disabled={addingVolunteer || !newVolunteerPhone.trim()}
+                          style={{
+                            padding: '8px 12px', borderRadius: 6, border: 'none',
+                            backgroundColor: addingVolunteer || !newVolunteerPhone.trim() ? '#adb5bd' : '#198754',
+                            color: '#fff',
+                            cursor: addingVolunteer || !newVolunteerPhone.trim() ? 'not-allowed' : 'pointer',
+                            fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {addingVolunteer ? 'Adding…' : '+ Add'}
+                        </button>
+                      </>
                     )}
-                    {contactList.length === 0 && (
-                      <button
-                        type="button"
-                        onClick={() => void handleAddVolunteer()}
-                        disabled={addingVolunteer || !newVolunteerPhone.trim()}
-                        style={{
-                          padding: '8px 12px',
-                          borderRadius: 6,
-                          border: 'none',
-                          backgroundColor: addingVolunteer || !newVolunteerPhone.trim() ? '#adb5bd' : '#198754',
-                          color: '#fff',
-                          cursor: addingVolunteer || !newVolunteerPhone.trim() ? 'not-allowed' : 'pointer',
-                          fontWeight: 600,
-                          fontSize: 13,
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {addingVolunteer ? 'Adding…' : '+ Add'}
-                      </button>
+
+                    {pendingNewVolPhone && (
+                      <div style={{ width: '100%' }}>
+                        <div style={{ fontSize: 13, marginBottom: 8 }}>
+                          <strong>{pendingNewVolPhone}</strong> is not in your contacts. Enter their name to add them.
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                          <input
+                            value={pendingNewVolName}
+                            onChange={e => setPendingNewVolName(e.target.value)}
+                            placeholder="Full name *"
+                            style={{ ...inputStyle, flex: '1 1 180px' }}
+                            onKeyDown={e => e.key === 'Enter' && void handleCreateAndAddTaker()}
+                            autoFocus
+                          />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => void handleCreateAndAddTaker()}
+                            disabled={addingVolunteer}
+                            style={{
+                              padding: '8px 12px', borderRadius: 6, border: 'none',
+                              backgroundColor: '#198754', color: '#fff',
+                              cursor: 'pointer', fontWeight: 600, fontSize: 13
+                            }}
+                          >
+                            {addingVolunteer ? 'Adding…' : 'Create & Add'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setPendingNewVolPhone(null); setPendingNewVolName(''); setSessionAccessError(null) }}
+                            disabled={addingVolunteer}
+                            style={{
+                              padding: '8px 12px', borderRadius: 6, border: 'none',
+                              backgroundColor: '#6c757d', color: '#fff',
+                              cursor: 'pointer', fontSize: 13
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1398,11 +1460,13 @@ export default function AttendancePage() {
           session={session}
           storageKey={storageKey}
           volunteers={sessionVolunteers}
-          onAddVolunteer={async volunteerPhone => {
+          onAddVolunteer={async (volunteerPhone, volunteerName) => {
             if (!selectedCenter || !sessionId) {
               throw new Error('Attendance session is not ready yet. Please try again.')
             }
-            const updated = await attendanceApi.addSessionVolunteer(sessionId, volunteerPhone, selectedCenter)
+            const updated = volunteerName
+              ? await attendanceApi.addSessionVolunteer(sessionId, volunteerPhone, selectedCenter, volunteerName)
+              : await attendanceApi.addSessionVolunteer(sessionId, volunteerPhone, selectedCenter)
             setSessionVolunteers(updated.volunteers)
           }}
           onEndSession={async () => {

@@ -220,7 +220,7 @@ router.post('/sessions/:id/volunteers', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Attendance access is required' })
     }
 
-    const { volunteerPhone } = req.body as { volunteerPhone?: string }
+    const { volunteerPhone, volunteerName } = req.body as { volunteerPhone?: string; volunteerName?: string }
     if (!volunteerPhone?.trim()) {
       return res.status(400).json({ error: 'volunteerPhone is required' })
     }
@@ -264,7 +264,7 @@ router.post('/sessions/:id/volunteers', async (req: Request, res: Response) => {
       const contact = await prisma.contact.findFirst({
         where: { centerId, phone: { in: [normalizedPhone, volunteerPhone.trim()] } }
       })
-      const userName = contact?.name ?? normalizedPhone
+      const userName = volunteerName?.trim() || contact?.name || normalizedPhone
       // Auto-create user account so they can log in later
       target = await prisma.user.create({
         data: { phone: normalizedPhone, name: userName },

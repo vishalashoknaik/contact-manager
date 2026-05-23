@@ -11,7 +11,9 @@ const mockPrisma = {
     update: vi.fn()
   },
   contact: {
-    update: vi.fn()
+    update: vi.fn(),
+    findFirst: vi.fn(),
+    upsert: vi.fn()
   },
   campaign: {
     create: vi.fn(),
@@ -367,7 +369,12 @@ describe('campaign routes', () => {
         centers: [{ centerId: 'center-1', isApproved: true, role: 'USER' }]
       })
       .mockResolvedValueOnce({
-        phone: '9000000001',
+        phone: '9000000001',       // ensure-user: volunteer already exists
+        canAccessAllCenters: false,
+        centers: []
+      })
+      .mockResolvedValueOnce({
+        phone: '9000000001',       // auto-grant loop
         canAccessAllCenters: false,
         centers: []
       })
@@ -421,7 +428,12 @@ describe('campaign routes', () => {
         centers: [{ centerId: 'center-1', isApproved: true, role: 'ADMIN' }]
       })
       .mockResolvedValueOnce({
-        phone: '9000000002',
+        phone: '9000000002',       // ensure-user: volunteer already exists
+        canAccessAllCenters: false,
+        centers: [{ centerId: 'center-1', isApproved: false, role: 'USER' }]
+      })
+      .mockResolvedValueOnce({
+        phone: '9000000002',       // auto-grant loop
         canAccessAllCenters: false,
         centers: [{ centerId: 'center-1', isApproved: false, role: 'USER' }]
       })

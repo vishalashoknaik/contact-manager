@@ -411,12 +411,12 @@ export const attendanceApi = {
     return handleResponse<AttendanceSession>(response)
   },
 
-  addSessionVolunteer: async (sessionId: string, volunteerPhone: string, centerId?: string) => {
+  addSessionVolunteer: async (sessionId: string, volunteerPhone: string, centerId?: string, volunteerName?: string) => {
     const resolvedCenterId = resolveCenterId(centerId)
     const response = await fetch(`${API_BASE_URL}/attendance/sessions/${encodeURIComponent(sessionId)}/volunteers`, {
       method: 'POST',
       headers: getHeaders(resolvedCenterId),
-      body: JSON.stringify({ volunteerPhone })
+      body: JSON.stringify({ volunteerPhone, volunteerName })
     })
     return handleResponse<AttendanceSession>(response)
   },
@@ -627,12 +627,12 @@ export const campaignsApi = {
     return handleResponse<Campaign>(response)
   },
 
-  setVolunteers: async (id: string, volunteerPhones: string[], centerId?: string): Promise<Campaign> => {
+  setVolunteers: async (id: string, volunteerPhones: string[], centerId?: string, newVolunteerDetails?: { phone: string; name: string }[]): Promise<Campaign> => {
     const resolvedCenterId = resolveCenterId(centerId)
     const response = await fetch(`${API_BASE_URL}/campaigns/${id}/volunteers`, {
       method: 'PUT',
       headers: getHeaders(resolvedCenterId),
-      body: JSON.stringify({ volunteerPhones })
+      body: JSON.stringify({ volunteerPhones, newVolunteerDetails })
     })
     return handleResponse<Campaign>(response)
   },

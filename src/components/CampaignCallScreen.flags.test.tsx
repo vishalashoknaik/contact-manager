@@ -210,22 +210,21 @@ describe('CampaignCallScreen — call overview summary bar', () => {
     )
 
     expect(within(screen.getByTestId('call-count-completed')).getByText('3')).toBeInTheDocument()
-    expect(within(screen.getByTestId('call-count-pending')).getByText('7')).toBeInTheDocument()
     expect(within(screen.getByTestId('call-count-skipped')).getByText('2')).toBeInTheDocument()
     expect(screen.getByTestId('call-count-completed')).toHaveTextContent('Completed')
-    expect(screen.getByTestId('call-count-pending')).toHaveTextContent('Pending')
     expect(screen.getByTestId('call-count-skipped')).toHaveTextContent('Skipped')
+    expect(screen.queryByTestId('call-count-pending')).not.toBeInTheDocument()
   })
 
   it('defaults counts to 0 when props are omitted', () => {
     render(<CampaignCallScreen {...defaultProps} />)
 
     expect(within(screen.getByTestId('call-count-completed')).getByText('0')).toBeInTheDocument()
-    expect(within(screen.getByTestId('call-count-pending')).getByText('0')).toBeInTheDocument()
     expect(within(screen.getByTestId('call-count-skipped')).getByText('0')).toBeInTheDocument()
+    expect(screen.queryByTestId('call-count-pending')).not.toBeInTheDocument()
   })
 
-  it('increments completed and decrements pending after submit in pending mode', async () => {
+  it('increments completed after submit in pending mode', async () => {
     const user = userEvent.setup()
     mocks.submitCallLog.mockResolvedValueOnce({
       success: true,
@@ -250,7 +249,6 @@ describe('CampaignCallScreen — call overview summary bar', () => {
 
     await waitFor(() => {
       expect(within(screen.getByTestId('call-count-completed')).getByText('2')).toBeInTheDocument()
-      expect(within(screen.getByTestId('call-count-pending')).getByText('4')).toBeInTheDocument()
     })
   })
 
@@ -278,7 +276,6 @@ describe('CampaignCallScreen — call overview summary bar', () => {
     await user.click(screen.getByRole('button', { name: 'Skip & Get Next' }))
 
     await waitFor(() => {
-      expect(within(screen.getByTestId('call-count-pending')).getByText('2')).toBeInTheDocument()
       expect(within(screen.getByTestId('call-count-skipped')).getByText('2')).toBeInTheDocument()
     })
   })

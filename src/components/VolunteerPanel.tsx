@@ -20,36 +20,32 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
   const [volunteers, setVolunteers] = useState<CampaignVolunteer[]>(campaign.volunteers)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // When a typed phone is not found in contacts, pendingNewPhone holds it so the user can supply a name
+  const [pendingNewPhone, setPendingNewPhone] = useState<string | null>(null)
+  const [pendingNewName, setPendingNewName] = useState('')
   const { isOnline, showLongSyncNotice, showOfflineWarning } = useSyncStatus({ isSyncing: isLoading })
 
   useEffect(() => {
     setVolunteers(campaign.volunteers)
   }, [campaign.id, campaign.volunteers])
 
-  const handleAddVolunteer = async (phoneOverride?: string) => {
-    const phone = (phoneOverride ?? addPhone).trim()
-    if (!phone) return
+  const commitAdd = async (phone: string, nameOverride?: string) => {
     const already = volunteers.some(v => v.phone === phone)
-    if (already) {
-      setError('This person is already a volunteer')
-      return
-    }
+    if (already) { setError('This person is already a volunteer'); return }
 
     const previousVolunteers = volunteers
-    const optimisticVolunteer: CampaignVolunteer = {
-      phone,
-      name: phone === currentUserPhone ? 'You' : ''
-    }
-
     setError(null)
-    setVolunteers([...volunteers, optimisticVolunteer])
+    setVolunteers([...volunteers, { phone, name: nameOverride ?? (phone === currentUserPhone ? 'You' : '') }])
     setAddPhone('')
     setIsLoading(true)
     try {
       const phones = [...previousVolunteers.map(v => v.phone), phone]
-      const updated = await campaignsApi.setVolunteers(campaign.id, phones, centerId)
+      const newDetails = nameOverride ? [{ phone, name: nameOverride }] : undefined
+      const updated = await campaignsApi.setVolunteers(campaign.id, phones, centerId, newDetails)
       setVolunteers(updated.volunteers)
       onUpdated(updated)
+      setPendingNewPhone(null)
+      setPendingNewName('')
     } catch (err) {
       setVolunteers(previousVolunteers)
       setAddPhone(phone)
@@ -57,6 +53,26 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleAddVolunteer = (phoneOverride?: string) => {
+    const phone = (phoneOverride ?? addPhone).trim()
+    if (!phone) return
+    // If contacts are loaded and this phone is not among them, ask for a name first
+    if (contacts && contacts.length > 0 && !contacts.some(c => c.phone === phone)) {
+      setPendingNewPhone(phone)
+      setAddPhone('')
+      setError(null)
+      return
+    }
+    void commitAdd(phone)
+  }
+
+  const handleCreateAndAdd = () => {
+    if (!pendingNewPhone) return
+    const name = pendingNewName.trim()
+    if (!name) { setError('Name is required'); return }
+    void commitAdd(pendingNewPhone, name)
   }
 
   const handleRemoveVolunteer = async (phone: string) => {
@@ -126,25 +142,61 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
       )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {contacts && contacts.length > 0 ? (
-          <ContactSearchInput
-            contacts={contacts}
-            placeholder="Search volunteer by name or phone"
-            disabled={isLoading}
-            onSelect={c => handleAddVolunteer(c.phone)}
-          />
-        ) : (
-          <input
-            value={addPhone}
-            onChange={e => setAddPhone(e.target.value)}
-            placeholder="Volunteer phone number"
-            style={{ ...inputStyle, flex: '1 1 220px' }}
-            onKeyDown={e => e.key === 'Enter' && handleAddVolunteer()}
-          />
+        {!pendingNewPhone && (
+          <>
+            {contacts && contacts.length > 0 ? (
+              <ContactSearchInput
+                contacts={contacts}
+                placeholder="Search volunteer by name or phone"
+                disabled={isLoading}
+                onSelect={c => handleAddVolunteer(c.phone)}
+                onQueryChange={v => setAddPhone(v)}
+                onRawAdd={v => handleAddVolunteer(v)}
+              />
+            ) : (
+              <input
+                value={addPhone}
+                onChange={e => setAddPhone(e.target.value)}
+                placeholder="Volunteer phone number"
+                style={{ ...inputStyle, flex: '1 1 220px' }}
+                onKeyDown={e => e.key === 'Enter' && handleAddVolunteer()}
+              />
+            )}
+            <button onClick={() => handleAddVolunteer()} disabled={isLoading} style={btn('#0d6efd')}>
+              Add
+            </button>
+          </>
         )}
-        <button onClick={() => handleAddVolunteer()} disabled={isLoading} style={btn('#0d6efd')}>
-          Add
-        </button>
+
+        {pendingNewPhone && (
+          <div style={{ width: '100%', border: '1px solid var(--border-color, #ddd)', borderRadius: 6, padding: 12, backgroundColor: 'var(--panel-bg, #f8f9fa)' }}>
+            <div style={{ fontSize: 13, marginBottom: 10 }}>
+              <strong>{pendingNewPhone}</strong> is not in your contacts. Enter their name to add them as a volunteer.
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              <input
+                value={pendingNewName}
+                onChange={e => setPendingNewName(e.target.value)}
+                placeholder="Full name *"
+                style={{ ...inputStyle, flex: '1 1 200px' }}
+                onKeyDown={e => e.key === 'Enter' && handleCreateAndAdd()}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleCreateAndAdd} disabled={isLoading} style={btn('#198754')}>
+                Create &amp; Add
+              </button>
+              <button
+                onClick={() => { setPendingNewPhone(null); setPendingNewName(''); setError(null) }}
+                disabled={isLoading}
+                style={btn('#6c757d')}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       {error && <div style={{ color: '#dc3545', marginTop: 8, fontSize: 13 }}>{error}</div>}
     </div>
