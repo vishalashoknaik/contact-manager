@@ -46,7 +46,8 @@ function HomeContent() {
   const actionSelectors = {
     activity: useInputState(),
     area: useInputState(),
-    program: useInputState()
+    program: useInputState(),
+    interest: useInputState()
   }
 
   // Apply filters and sorting
@@ -55,7 +56,8 @@ function HomeContent() {
     filteringManager.filters,
     configManager.activities,
     configManager.areas,
-    configManager.programs
+    configManager.programs,
+    configManager.interests
   )
 
   filtered = FilterService.sortContacts(
@@ -63,7 +65,8 @@ function HomeContent() {
     filteringManager.sortState,
     configManager.activities,
     configManager.areas,
-    configManager.programs
+    configManager.programs,
+    configManager.interests
   )
 
   const filteredContactIds = filtered.map(contact => contact.id)
@@ -105,7 +108,8 @@ function HomeContent() {
     const updateSuccessful = await contactsManager.incrementSelected(
       actionSelectors.activity.value,
       actionSelectors.area.value,
-      actionSelectors.program.value
+      actionSelectors.program.value,
+      actionSelectors.interest.value
     )
 
     if (!updateSuccessful) {
@@ -307,10 +311,12 @@ function HomeContent() {
               activities={configManager.activities}
               areas={configManager.areas}
               programs={configManager.programs}
+              interests={configManager.interests}
               contacts={contactsManager.contacts}
               onActivitiesChange={configManager.setActivities}
               onAreasChange={configManager.setAreas}
               onProgramsChange={configManager.setPrograms}
+              onInterestsChange={configManager.setInterests}
               onContactsChange={contactsManager.setContacts}
             />
           )}
@@ -348,12 +354,15 @@ function HomeContent() {
                 activities={configManager.activities}
                 areas={configManager.areas}
                 programs={configManager.programs}
+                interests={configManager.interests}
                 selectedActivity={actionSelectors.activity.value}
                 selectedArea={actionSelectors.area.value}
                 selectedProgram={actionSelectors.program.value}
+                selectedInterest={actionSelectors.interest.value}
                 onActivityChange={actionSelectors.activity.setValue}
                 onAreaChange={actionSelectors.area.setValue}
                 onProgramChange={actionSelectors.program.setValue}
+                onInterestChange={actionSelectors.interest.setValue}
                 onIncrement={handleIncrement}
               />
 
@@ -440,6 +449,7 @@ function HomeContent() {
               activities={configManager.activities}
               areas={configManager.areas}
               programs={configManager.programs}
+              interests={configManager.interests}
               filters={filteringManager.filters}
               sortState={filteringManager.sortState}
               allSelected={allSelected}
@@ -451,6 +461,7 @@ function HomeContent() {
               onActivityFilterChange={filteringManager.setActivityFilter}
               onAreaFilterChange={filteringManager.setAreaFilter}
               onProgramFilterChange={filteringManager.setProgramFilter}
+              onInterestFilterChange={filteringManager.setInterestFilter}
               onContactClick={c => {
                 setEditingContact(c)
                 setEditDraft({

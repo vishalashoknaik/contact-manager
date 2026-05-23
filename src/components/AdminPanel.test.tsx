@@ -648,4 +648,82 @@ describe('AdminPanel', () => {
     expect(screen.queryByText(/Merge activity:/i)).not.toBeInTheDocument()
     expect(onActivitiesChange).toHaveBeenCalledWith([])
   })
+
+  describe('Interests section', () => {
+    it('renders the Interest Form Categories section in settings', () => {
+      render(
+        <AdminPanel
+          isVisible
+          section="settings"
+          activities={[]}
+          areas={[]}
+          programs={[]}
+          interests={['Yoga']}
+          contacts={[]}
+          onActivitiesChange={vi.fn()}
+          onAreasChange={vi.fn()}
+          onProgramsChange={vi.fn()}
+          onInterestsChange={vi.fn()}
+          onContactsChange={vi.fn()}
+        />
+      )
+
+      expect(screen.getByText('Interest Form Categories')).toBeInTheDocument()
+      expect(screen.getByText('Yoga')).toBeInTheDocument()
+    })
+
+    it('adds a new interest when form is submitted', async () => {
+      const user = userEvent.setup()
+      const onInterestsChange = vi.fn()
+      render(
+        <AdminPanel
+          isVisible
+          section="settings"
+          activities={[]}
+          areas={[]}
+          programs={[]}
+          interests={[]}
+          contacts={[]}
+          onActivitiesChange={vi.fn()}
+          onAreasChange={vi.fn()}
+          onProgramsChange={vi.fn()}
+          onInterestsChange={onInterestsChange}
+          onContactsChange={vi.fn()}
+        />
+      )
+
+      const interestsSection = screen.getByText('Interest Form Categories').closest('div') as HTMLElement
+      const input = within(interestsSection).getByPlaceholderText('New interest category')
+      await user.type(input, 'Meditation')
+      await user.click(within(interestsSection).getByRole('button', { name: 'Add' }))
+
+      expect(onInterestsChange).toHaveBeenCalledWith(['Meditation'])
+    })
+
+    it('removes an interest when Delete is clicked', async () => {
+      const user = userEvent.setup()
+      const onInterestsChange = vi.fn()
+      render(
+        <AdminPanel
+          isVisible
+          section="settings"
+          activities={[]}
+          areas={[]}
+          programs={[]}
+          interests={['Yoga']}
+          contacts={[]}
+          onActivitiesChange={vi.fn()}
+          onAreasChange={vi.fn()}
+          onProgramsChange={vi.fn()}
+          onInterestsChange={onInterestsChange}
+          onContactsChange={vi.fn()}
+        />
+      )
+
+      const interestsSection = screen.getByText('Interest Form Categories').closest('div') as HTMLElement
+      await user.click(within(interestsSection).getByRole('button', { name: 'Delete' }))
+
+      expect(onInterestsChange).toHaveBeenCalledWith([])
+    })
+  })
 })

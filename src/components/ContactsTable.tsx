@@ -9,6 +9,7 @@ interface ContactsTableProps {
   activities: string[]
   areas: string[]
   programs: string[]
+  interests?: string[]
   filters: FilterState
   sortState: SortState
   allSelected: boolean
@@ -20,6 +21,7 @@ interface ContactsTableProps {
   onActivityFilterChange: (activity: string, value: string) => void
   onAreaFilterChange: (area: string, value: string) => void
   onProgramFilterChange: (program: string, value: string) => void
+  onInterestFilterChange?: (interest: string, value: string) => void
   onContactClick?: (contact: Contact) => void
 }
 
@@ -28,6 +30,7 @@ export function ContactsTable({
   activities,
   areas,
   programs,
+  interests = [],
   filters,
   sortState,
   allSelected,
@@ -39,6 +42,7 @@ export function ContactsTable({
   onActivityFilterChange,
   onAreaFilterChange,
   onProgramFilterChange,
+  onInterestFilterChange,
   onContactClick
 }: ContactsTableProps) {
   const thCheckbox = { width: 56, minWidth: 56, border: '1px solid var(--border-color, #ddd)', padding: 6, backgroundColor: 'var(--th-bg, #f5f5f5)', color: 'var(--text-primary, #000)' }
@@ -117,6 +121,12 @@ export function ContactsTable({
             <th key={p} style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort(p)}>
               {p}
               {getSortIndicator(p)}
+            </th>
+          ))}
+          {interests.map(i => (
+            <th key={i} style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort(i)}>
+              {i}
+              {getSortIndicator(i)}
             </th>
           ))}
 
@@ -223,6 +233,17 @@ export function ContactsTable({
               />
             </th>
           ))}
+          {interests.map(i => (
+            <th key={i} style={{ ...th, ...stickyFilter }}>
+              <input
+                type="text"
+                placeholder="Min"
+                value={(filters as any).interestFilters?.[i] || ''}
+                onChange={e => onInterestFilterChange?.(i, e.target.value)}
+                style={inputStyle}
+              />
+            </th>
+          ))}
 
           <th style={{ ...th, ...stickyFilter }}>
             <input
@@ -282,6 +303,11 @@ export function ContactsTable({
             {programs.map(p => (
               <td key={`prog-${c.id}-${p}`} style={tdCenter}>
                 {c.programs?.[p] || 0}
+              </td>
+            ))}
+            {interests.map(i => (
+              <td key={`int-${c.id}-${i}`} style={tdCenter}>
+                {(c.interests || {})[i] || 0}
               </td>
             ))}
 

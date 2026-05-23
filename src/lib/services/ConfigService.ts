@@ -21,7 +21,7 @@ export class ConfigService {
     contacts: Contact[],
     oldValue: string,
     newValue: string,
-    type: 'activity' | 'area' | 'program'
+    type: 'activity' | 'area' | 'program' | 'interest'
   ): { items: string[]; contacts: Contact[] } {
     if (!oldValue || !newValue || oldValue === newValue) {
       return { items, contacts }
@@ -60,6 +60,14 @@ export class ConfigService {
         }
         updated.programs = o
       }
+      if (type === 'interest') {
+        const o = { ...(c.interests || {}) }
+        if (oldValue in o) {
+          o[newValue] = o[oldValue]
+          delete o[oldValue]
+        }
+        updated.interests = o
+      }
       return updated
     })
 
@@ -74,7 +82,7 @@ export class ConfigService {
     contacts: Contact[],
     removeValue: string,
     mergeIntoValue: string,
-    type: 'activity' | 'area' | 'program'
+    type: 'activity' | 'area' | 'program' | 'interest'
   ): { items: string[]; contacts: Contact[] } {
     const updatedItems = items.filter(x => x !== removeValue)
 
@@ -110,6 +118,16 @@ export class ConfigService {
         delete o[removeValue]
         updated.programs = o
       }
+      if (type === 'interest') {
+        const o = { ...(c.interests || {}) }
+        if (removeValue in o && mergeIntoValue in o) {
+          o[mergeIntoValue] = (o[mergeIntoValue] || 0) + (o[removeValue] || 0)
+        } else if (removeValue in o) {
+          o[mergeIntoValue] = o[removeValue]
+        }
+        delete o[removeValue]
+        updated.interests = o
+      }
       return updated
     })
 
@@ -123,7 +141,7 @@ export class ConfigService {
     items: string[],
     contacts: Contact[],
     value: string,
-    type: 'activity' | 'area' | 'program'
+    type: 'activity' | 'area' | 'program' | 'interest'
   ): { items: string[]; contacts: Contact[] } {
     const updatedItems = items.filter(x => x !== value)
 
@@ -143,6 +161,11 @@ export class ConfigService {
         const o = { ...c.programs }
         delete o[value]
         updated.programs = o
+      }
+      if (type === 'interest') {
+        const o = { ...(c.interests || {}) }
+        delete o[value]
+        updated.interests = o
       }
       return updated
     })

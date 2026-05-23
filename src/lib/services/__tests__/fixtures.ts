@@ -12,6 +12,7 @@ export function makeContact(overrides: Partial<Contact> = {}): Contact {
     activities: overrides.activities ?? {},
     areas: overrides.areas ?? {},
     programs: overrides.programs ?? {},
+    interests: overrides.interests ?? {},
     selected: overrides.selected ?? false,
     lastUpdated: overrides.lastUpdated ?? '2026-04-30T10:00:00.000Z',
     importOrder: overrides.importOrder
@@ -27,6 +28,7 @@ export function makeFilters(overrides: Partial<FilterState> = {}): FilterState {
     activityFilters: {},
     areaFilters: {},
     programFilters: {},
+    interestFilters: {},
     totalFilter: '',
     dateFilter: '',
     ...overrides

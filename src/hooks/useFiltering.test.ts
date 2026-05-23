@@ -116,4 +116,87 @@ describe('useFiltering', () => {
     expect(result.current.sortState.key).toBe('phone')
     expect(result.current.sortState.direction).toBe('asc')
   })
+
+  it('initialises with empty interestFilters', () => {
+    const { result } = renderHook(() => useFiltering())
+    expect(result.current.filters.interestFilters).toEqual({})
+  })
+
+  it('setInterestFilter updates interestFilters keyed by interest', () => {
+    const { result } = renderHook(() => useFiltering())
+    act(() => result.current.setInterestFilter('Yoga', '2'))
+    expect(result.current.filters.interestFilters['Yoga']).toBe('2')
+  })
+
+  it('setInterestFilter does not affect other filter keys', () => {
+    const { result } = renderHook(() => useFiltering())
+    act(() => {
+      result.current.setInterestFilter('Yoga', '1')
+      result.current.setInterestFilter('Meditation', '3')
+    })
+    expect(result.current.filters.interestFilters['Yoga']).toBe('1')
+    expect(result.current.filters.interestFilters['Meditation']).toBe('3')
+    expect(result.current.filters.nameFilter).toBe('')
+  })
+})
+
+describe('useFiltering — setGenderFilter and setAreaOfStayFilter', () => {
+  it('setGenderFilter updates genderFilter', () => {
+    const { result } = renderHook(() => useFiltering())
+
+    act(() => result.current.setGenderFilter('Female'))
+
+    expect(result.current.filters.genderFilter).toBe('Female')
+  })
+
+  it('setGenderFilter can be cleared back to empty string', () => {
+    const { result } = renderHook(() => useFiltering())
+
+    act(() => result.current.setGenderFilter('Male'))
+    act(() => result.current.setGenderFilter(''))
+
+    expect(result.current.filters.genderFilter).toBe('')
+  })
+
+  it('setAreaOfStayFilter updates areaOfStayFilter', () => {
+    const { result } = renderHook(() => useFiltering())
+
+    act(() => result.current.setAreaOfStayFilter('Koramangala'))
+
+    expect(result.current.filters.areaOfStayFilter).toBe('Koramangala')
+  })
+
+  it('setAreaOfStayFilter does not affect other filters', () => {
+    const { result } = renderHook(() => useFiltering())
+
+    act(() => {
+      result.current.setNameFilter('Alice')
+      result.current.setAreaOfStayFilter('HSR')
+    })
+
+    expect(result.current.filters.nameFilter).toBe('Alice')
+    expect(result.current.filters.areaOfStayFilter).toBe('HSR')
+  })
+
+  it('initialises with empty interestFilters', () => {
+    const { result } = renderHook(() => useFiltering())
+    expect(result.current.filters.interestFilters).toEqual({})
+  })
+
+  it('setInterestFilter updates interestFilters keyed by interest', () => {
+    const { result } = renderHook(() => useFiltering())
+    act(() => result.current.setInterestFilter('Yoga', '2'))
+    expect(result.current.filters.interestFilters['Yoga']).toBe('2')
+  })
+
+  it('setInterestFilter does not affect other filter keys', () => {
+    const { result } = renderHook(() => useFiltering())
+    act(() => {
+      result.current.setInterestFilter('Yoga', '1')
+      result.current.setInterestFilter('Meditation', '3')
+    })
+    expect(result.current.filters.interestFilters['Yoga']).toBe('1')
+    expect(result.current.filters.interestFilters['Meditation']).toBe('3')
+    expect(result.current.filters.nameFilter).toBe('')
+  })
 })

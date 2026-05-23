@@ -232,4 +232,77 @@ describe('ConfigService', () => {
       expect(result.contacts[0].programs).toEqual({ Program2: 9 })
     })
   })
+
+  describe('renameItem edge cases', () => {
+    it('returns unchanged when oldValue equals newValue', () => {
+      const items = ['Walkathon', 'Cleanup']
+      const contacts = [makeContact({ id: 1, activities: { Walkathon: 3 } })]
+
+      const result = ConfigService.renameItem(items, contacts, 'Walkathon', 'Walkathon', 'activity')
+
+      expect(result.items).toEqual(items)
+      expect(result.contacts[0].activities).toEqual({ Walkathon: 3 })
+    })
+
+    it('returns unchanged when oldValue is empty string', () => {
+      const items = ['Walkathon']
+      const contacts = [makeContact({ id: 1, activities: { Walkathon: 3 } })]
+
+      const result = ConfigService.renameItem(items, contacts, '', 'Walking', 'activity')
+
+      expect(result.items).toEqual(items)
+      expect(result.contacts[0].activities).toEqual({ Walkathon: 3 })
+    })
+
+    it('returns unchanged when newValue is empty string', () => {
+      const items = ['Walkathon']
+      const contacts = [makeContact({ id: 1, activities: { Walkathon: 3 } })]
+
+      const result = ConfigService.renameItem(items, contacts, 'Walkathon', '', 'activity')
+
+      expect(result.items).toEqual(items)
+      expect(result.contacts[0].activities).toEqual({ Walkathon: 3 })
+    })
+
+    it('handles renaming a key that does not exist on any contact', () => {
+      // Items list has the key, but no contact uses it
+      const items = ['Unused', 'Cleanup']
+      const contacts = [makeContact({ id: 1, activities: { Cleanup: 5 } })]
+
+      const result = ConfigService.renameItem(items, contacts, 'Unused', 'Renamed', 'activity')
+
+      expect(result.items).toEqual(['Renamed', 'Cleanup'])
+      // Contact is unaffected since it never had the key
+      expect(result.contacts[0].activities).toEqual({ Cleanup: 5 })
+    })
+  })
+
+  describe('mergeItem edge cases', () => {
+    it('is a no-op on contacts that have neither source nor target key', () => {
+      const items = ['A', 'B', 'C']
+      const contacts = [makeContact({ id: 1, activities: { C: 2 } })]
+
+      const result = ConfigService.mergeItem(items, contacts, 'A', 'B', 'activity')
+
+      expect(result.items).toEqual(['B', 'C'])
+      // Contact has neither A nor B; only A is deleted (no-op), B not touched
+      expect(result.contacts[0].activities).toEqual({ C: 2 })
+    })
+
+    it('removeItem on empty items list returns empty items and cleaned contacts', () => {
+      const contacts = [makeContact({ id: 1, activities: { Walkathon: 3 } })]
+
+      const result = ConfigService.removeItem([], contacts, 'Walkathon', 'activity')
+
+      expect(result.items).toEqual([])
+      expect(result.contacts[0].activities).toEqual({})
+    })
+
+    it('removeItem on empty contacts list returns updated items and empty contacts', () => {
+      const result = ConfigService.removeItem(['Walkathon', 'Cleanup'], [], 'Walkathon', 'activity')
+
+      expect(result.items).toEqual(['Cleanup'])
+      expect(result.contacts).toEqual([])
+    })
+  })
 })

@@ -4,12 +4,15 @@ interface ActionBarProps {
   activities: string[]
   areas: string[]
   programs: string[]
+  interests?: string[]
   selectedActivity: string
   selectedArea: string
   selectedProgram: string
+  selectedInterest?: string
   onActivityChange: (activity: string) => void
   onAreaChange: (area: string) => void
   onProgramChange: (program: string) => void
+  onInterestChange?: (interest: string) => void
   onIncrement: () => void | Promise<void>
 }
 
@@ -17,12 +20,15 @@ export function ActionBar({
   activities,
   areas,
   programs,
+  interests = [],
   selectedActivity,
   selectedArea,
   selectedProgram,
+  selectedInterest = '',
   onActivityChange,
   onAreaChange,
   onProgramChange,
+  onInterestChange,
   onIncrement
 }: ActionBarProps) {
   const selectStyle = {
@@ -83,6 +89,21 @@ export function ActionBar({
           </option>
         ))}
       </select>
+
+      {interests.length > 0 && (
+        <select
+          value={selectedInterest}
+          onChange={e => onInterestChange?.(e.target.value)}
+          style={selectStyle}
+        >
+          <option value="">Interest</option>
+          {interests.map(i => (
+            <option key={i} value={i}>
+              {i}
+            </option>
+          ))}
+        </select>
+      )}
 
       <button
         onClick={onIncrement}

@@ -117,4 +117,26 @@ export class AdminService {
       contacts: result.contacts
     }
   }
+
+  /**
+   * Add a new interest
+   */
+  addInterest(interests: string[], value: string): string[] {
+    return ConfigService.addItem(interests, value)
+  }
+
+  /**
+   * Remove an interest
+   */
+  removeInterest(
+    interests: string[],
+    contacts: Contact[],
+    value: string
+  ): { interests: string[]; contacts: Contact[] } {
+    const result = ConfigService.removeItem(interests, contacts, value, 'interest')
+    return {
+      interests: result.items,
+      contacts: result.contacts
+    }
+  }
 }

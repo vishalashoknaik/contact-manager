@@ -11,6 +11,7 @@ export interface Contact {
   activities: Record<string, number>
   areas: Record<string, number>
   programs: Record<string, number>
+  interests?: Record<string, number>
   selected: boolean
   lastUpdated: string
   importOrder?: number
@@ -20,6 +21,7 @@ export interface Config {
   activities: string[]
   areas: string[]
   programs: string[]
+  interests: string[]
 }
 
 export interface FilterState {
@@ -30,6 +32,7 @@ export interface FilterState {
   activityFilters: Record<string, string>
   areaFilters: Record<string, string>
   programFilters: Record<string, string>
+  interestFilters: Record<string, string>
   totalFilter: string
   dateFilter: string
 }

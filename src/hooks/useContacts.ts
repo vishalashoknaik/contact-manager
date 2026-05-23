@@ -212,7 +212,8 @@ export function useContacts() {
   const incrementSelected = async (
     selectedActivity: string,
     selectedArea: string,
-    selectedProgram: string
+    selectedProgram: string,
+    selectedInterest: string = ''
   ) => {
     if (!selectedCenter) {
       setError('No center selected. Increments are not persisted.')
@@ -228,7 +229,8 @@ export function useContacts() {
       contacts,
       selectedActivity,
       selectedArea,
-      selectedProgram
+      selectedProgram,
+      selectedInterest
     )
     setContactsState(updated)
 

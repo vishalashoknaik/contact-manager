@@ -25,10 +25,15 @@ vi.mock('@/lib/api/client', () => ({
     getAll: vi.fn(async () => ['Program1']),
     create: vi.fn(async () => {}),
     delete: vi.fn(async () => {})
+  },
+  interestsApi: {
+    getAll: vi.fn(async () => []),
+    create: vi.fn(async () => {}),
+    delete: vi.fn(async () => {})
   }
 }))
 
-import { activitiesApi, areasApi, programsApi } from '@/lib/api/client'
+import { activitiesApi, areasApi, programsApi, interestsApi } from '@/lib/api/client'
 import { useAuth } from '@/hooks/useAuth'
 
 describe('useConfig', () => {
@@ -41,6 +46,7 @@ describe('useConfig', () => {
     vi.mocked(activitiesApi.getAll).mockResolvedValue(['Walkathon'] as never)
     vi.mocked(areasApi.getAll).mockResolvedValue(['Area1'] as never)
     vi.mocked(programsApi.getAll).mockResolvedValue(['Program1'] as never)
+    vi.mocked(interestsApi.getAll).mockResolvedValue([] as never)
   })
 
   it('loads activities, areas, programs from backend on mount', async () => {
@@ -404,6 +410,42 @@ describe('useConfig', () => {
     // Backend succeeded → state IS updated
     expect(result.current.activities).toEqual(['Walkathon', 'Prayer'])
     expect(result.current.error).toBeNull()
+  })
+
+  it('loads interests from backend on mount', async () => {
+    vi.mocked(interestsApi.getAll).mockResolvedValue(['Yoga', 'Meditation'] as never)
+    const { result } = renderHook(() => useConfig())
+
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    expect(result.current.interests).toEqual(['Yoga', 'Meditation'])
+  })
+
+  it('interests defaults to empty array when interestsApi fails', async () => {
+    vi.mocked(interestsApi.getAll).mockRejectedValue(new Error('not implemented') as never)
+    const { result } = renderHook(() => useConfig())
+
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    // Activities/areas/programs still load fine
+    expect(result.current.activities).toEqual(['Walkathon'])
+    expect(result.current.areas).toEqual(['Area1'])
+    expect(result.current.programs).toEqual(['Program1'])
+    // Interests silently fallback to []
+    expect(result.current.interests).toEqual([])
+  })
+
+  it('setInterests calls interestsApi.create for new items and delete for removed', async () => {
+    vi.mocked(interestsApi.getAll).mockResolvedValue(['Yoga'] as never)
+    const { result } = renderHook(() => useConfig())
+    await waitFor(() => expect(result.current.isLoaded).toBe(true))
+
+    await act(async () => {
+      await result.current.setInterests(['Yoga', 'Meditation'])
+    })
+
+    expect(vi.mocked(interestsApi.create)).toHaveBeenCalledWith('Meditation', 'center-1')
+    expect(result.current.interests).toEqual(['Yoga', 'Meditation'])
   })
 })
 

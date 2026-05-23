@@ -223,6 +223,33 @@ describe('api/client — contactsApi', () => {
     const calledHeaders = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>
     expect(calledHeaders['X-Center-ID']).toBeUndefined()
   })
+
+  it('sends no Authorization header when auth_token is absent from localStorage', async () => {
+    // Ensure no token is stored
+    localStorage.removeItem('auth_token')
+
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true, json: async () => []
+    } as Response)
+
+    await contactsApi.getAll('center-1')
+
+    const calledHeaders = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>
+    expect(calledHeaders['Authorization']).toBeUndefined()
+  })
+
+  it('sends Authorization header when auth_token is present in localStorage', async () => {
+    localStorage.setItem('auth_token', 'bearer-xyz')
+
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true, json: async () => []
+    } as Response)
+
+    await contactsApi.getAll('center-1')
+
+    const calledHeaders = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>
+    expect(calledHeaders['Authorization']).toBe('Bearer bearer-xyz')
+  })
 })
 
 // ── authApi ──────────────────────────────────────────────────────────────────
@@ -361,6 +388,64 @@ describe('api/client — centersApi', () => {
       expect.stringContaining('/auth/centers/c-1'),
       expect.objectContaining({ method: 'PATCH', body: expect.stringContaining('Updated Name') })
     )
+  })
+})
+
+// ── authApi.ping ─────────────────────────────────────────────────────────────
+describe('api/client — authApi.ping', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('sends GET to /health endpoint', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: 'ok' })
+    } as Response)
+
+    await authApi.ping()
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/health'),
+      expect.objectContaining({ method: 'GET' })
+    )
+  })
+
+  it('resolves when server returns any HTTP response (even 4xx)', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ status: 'not-ready' })
+    } as Response)
+
+    // Should resolve (not throw) — any HTTP response means server is up
+    await expect(authApi.ping()).resolves.toBeUndefined()
+  })
+
+  it('rejects when fetch fails with a network error', async () => {
+    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Failed to fetch'))
+
+    await expect(authApi.ping()).rejects.toThrow('Failed to fetch')
+  })
+})
+
+// ── API_BASE_URL routing ──────────────────────────────────────────────────────
+describe('api/client — API_BASE_URL routing', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('routes to localhost in test environment (jsdom hostname is localhost)', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true, json: async () => []
+    } as Response)
+
+    await activitiesApi.getAll('center-1')
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string
+    expect(calledUrl).toContain('localhost:3001')
   })
 })
 

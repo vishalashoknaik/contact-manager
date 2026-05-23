@@ -346,6 +346,38 @@ export const programsApi = {
 }
 
 /**
+ * Interests API
+ */
+export const interestsApi = {
+  getAll: async (centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/interests`, {
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse(response)
+  },
+
+  create: async (name: string, centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/interests`, {
+      method: 'POST',
+      headers: getHeaders(resolvedCenterId),
+      body: JSON.stringify({ name })
+    })
+    return handleResponse(response)
+  },
+
+  delete: async (name: string, centerId?: string) => {
+    const resolvedCenterId = resolveCenterId(centerId)
+    const response = await fetch(`${API_BASE_URL}/interests/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+      headers: getHeaders(resolvedCenterId)
+    })
+    return handleResponse(response)
+  }
+}
+
+/**
  * Attendance API
  */
 export const attendanceApi = {

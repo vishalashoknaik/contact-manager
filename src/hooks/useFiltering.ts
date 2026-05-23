@@ -16,6 +16,7 @@ export function useFiltering() {
     activityFilters: {},
     areaFilters: {},
     programFilters: {},
+    interestFilters: {},
     totalFilter: '',
     dateFilter: ''
   })
@@ -54,6 +55,13 @@ export function useFiltering() {
     }))
   }
 
+  const setInterestFilter = (interest: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      interestFilters: { ...prev.interestFilters, [interest]: value }
+    }))
+  }
+
   const setTotalFilter = (value: string) => {
     setFilters(prev => ({ ...prev, totalFilter: value }))
   }
@@ -88,6 +96,7 @@ export function useFiltering() {
     setActivityFilter,
     setAreaFilter,
     setProgramFilter,
+    setInterestFilter,
     setTotalFilter,
     setDateFilter,
     sortState,

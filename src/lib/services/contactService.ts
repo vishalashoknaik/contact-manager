@@ -77,7 +77,8 @@ export class ContactService {
     contacts: Contact[],
     selectedActivity: string,
     selectedArea: string,
-    selectedProgram: string
+    selectedProgram: string,
+    selectedInterest: string = ''
   ): Contact[] {
     const now = new Date().toISOString()
 
@@ -104,6 +105,13 @@ export class ContactService {
         updated.programs = {
           ...c.programs,
           [selectedProgram]: (c.programs?.[selectedProgram] || 0) + 1
+        }
+      }
+
+      if (selectedInterest) {
+        updated.interests = {
+          ...(c.interests || {}),
+          [selectedInterest]: ((c.interests || {})[selectedInterest] || 0) + 1
         }
       }
 

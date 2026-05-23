@@ -116,5 +116,91 @@ describe('AdminService', () => {
       expect(result.programs).toEqual([])
       expect(result.contacts[0].programs).toEqual({})
     })
+
+    it('addActivity delegates to ConfigService.addItem', () => {
+      const service = new AdminService()
+
+      const result = service.addActivity(['Walkathon'], 'Cleanup')
+
+      expect(result).toEqual(['Walkathon', 'Cleanup'])
+    })
+
+    it('addActivity does not add duplicate', () => {
+      const service = new AdminService()
+
+      const result = service.addActivity(['Walkathon'], 'Walkathon')
+
+      expect(result).toEqual(['Walkathon'])
+    })
+
+    it('addArea adds a new area', () => {
+      const service = new AdminService()
+
+      const result = service.addArea(['North'], 'South')
+
+      expect(result).toEqual(['North', 'South'])
+    })
+
+    it('addProgram adds a new program', () => {
+      const service = new AdminService()
+
+      const result = service.addProgram(['Yoga'], 'Meditation')
+
+      expect(result).toEqual(['Yoga', 'Meditation'])
+    })
+
+    it('setIsAdmin directly sets admin state', () => {
+      const service = new AdminService()
+
+      service.setIsAdmin(true)
+      expect(service.getIsAdmin()).toBe(true)
+
+      service.setIsAdmin(false)
+      expect(service.getIsAdmin()).toBe(false)
+    })
+
+    it('setShowSettings directly sets settings visibility', () => {
+      const service = new AdminService()
+
+      service.setShowSettings(true)
+      expect(service.getShowSettings()).toBe(true)
+
+      service.setShowSettings(false)
+      expect(service.getShowSettings()).toBe(false)
+    })
+  })
+
+  describe('Interests', () => {
+    it('addInterest adds a new interest to the list', () => {
+      const service = new AdminService()
+      const result = service.addInterest(['Meditation'], 'Yoga')
+      expect(result).toEqual(['Meditation', 'Yoga'])
+    })
+
+    it('addInterest does not add a duplicate', () => {
+      const service = new AdminService()
+      const result = service.addInterest(['Meditation'], 'Meditation')
+      expect(result).toEqual(['Meditation'])
+    })
+
+    it('removeInterest removes the interest and cleans contacts', () => {
+      const service = new AdminService()
+      const contacts = [
+        makeContact({ id: 1, interests: { Meditation: 3, Yoga: 1 } }),
+        makeContact({ id: 2, phone: '222', interests: { Meditation: 2 } })
+      ]
+      const result = service.removeInterest(['Meditation', 'Yoga'], contacts, 'Meditation')
+      expect(result.interests).toEqual(['Yoga'])
+      expect(result.contacts[0].interests).toEqual({ Yoga: 1 })
+      expect(result.contacts[1].interests).toEqual({})
+    })
+
+    it('removeInterest is a no-op when interest does not exist', () => {
+      const service = new AdminService()
+      const contacts = [makeContact({ id: 1, interests: { Yoga: 2 } })]
+      const result = service.removeInterest(['Yoga'], contacts, 'NonExistent')
+      expect(result.interests).toEqual(['Yoga'])
+      expect(result.contacts[0].interests).toEqual({ Yoga: 2 })
+    })
   })
 })

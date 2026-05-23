@@ -536,4 +536,67 @@ describe('ContactsTable', () => {
       expect(onFilterChange).toHaveBeenCalled()
     }
   })
+
+  it('renders interest columns when interests prop is provided', () => {
+    const contact = makeContact({ id: 1, interests: { Yoga: 3 } })
+    render(
+      <ContactsTable
+        contacts={[contact]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        interests={['Yoga']}
+        selectedRows={new Set()}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+        onInterestFilterChange={vi.fn()}
+      />
+    )
+
+    // Column header for the interest
+    expect(screen.getByRole('columnheader', { name: 'Yoga' })).toBeInTheDocument()
+    // Count value in data row
+    expect(screen.getByText('3')).toBeInTheDocument()
+  })
+
+  it('shows 0 for interest when contact has no interests property', () => {
+    const contact = makeContact({ id: 1, interests: {} })
+    render(
+      <ContactsTable
+        contacts={[contact]}
+        filters={makeFilters()}
+        sortState={{ key: 'name', direction: 'asc' }}
+        activities={[]}
+        areas={[]}
+        programs={[]}
+        interests={['Yoga']}
+        selectedRows={new Set()}
+        allSelected={false}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        onClearSelections={vi.fn()}
+        onToggleSort={vi.fn()}
+        onFilterChange={vi.fn()}
+        onActivityFilterChange={vi.fn()}
+        onAreaFilterChange={vi.fn()}
+        onProgramFilterChange={vi.fn()}
+        onInterestFilterChange={vi.fn()}
+      />
+    )
+
+    // Should render the Yoga column header
+    expect(screen.getByRole('columnheader', { name: 'Yoga' })).toBeInTheDocument()
+    // At least one cell with 0 (the yoga count)
+    const zeros = screen.getAllByText('0')
+    expect(zeros.length).toBeGreaterThan(0)
+  })
 })

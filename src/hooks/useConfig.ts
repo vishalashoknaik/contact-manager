@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { activitiesApi, areasApi, programsApi } from '@/lib/api/client'
+import { activitiesApi, areasApi, programsApi, interestsApi } from '@/lib/api/client'
 import { useAuth } from '@/hooks/useAuth'
 
 /**
@@ -13,6 +13,7 @@ export function useConfig() {
   const [activities, setActivitiesState] = useState<string[]>([])
   const [areas, setAreasState] = useState<string[]>([])
   const [programs, setProgramsState] = useState<string[]>([])
+  const [interests, setInterestsState] = useState<string[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [useBackend, setUseBackend] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -40,6 +41,14 @@ export function useConfig() {
         setActivitiesState(Array.isArray(apiActivities) ? apiActivities : [])
         setAreasState(Array.isArray(apiAreas) ? apiAreas : [])
         setProgramsState(Array.isArray(apiPrograms) ? apiPrograms : [])
+
+        // Interests are loaded separately — endpoint may not exist on all backends yet
+        try {
+          const apiInterests = await interestsApi.getAll(selectedCenter)
+          setInterestsState(Array.isArray(apiInterests) ? apiInterests : [])
+        } catch {
+          setInterestsState([])
+        }
         setUseBackend(true)
         setError(null)
       } catch (err) {
@@ -136,6 +145,33 @@ export function useConfig() {
     }
   }
 
+  const setInterests = async (updated: string[]) => {
+    if (!selectedCenter) {
+      setError('No center selected. Cannot update interests.')
+      return
+    }
+    if (!useBackend) {
+      setError('Backend unavailable. Configuration changes cannot be saved. Please check your connection and try again.')
+      return
+    }
+
+    const previous = interests
+    const added = updated.filter(item => !previous.includes(item))
+    const removed = previous.filter(item => !updated.includes(item))
+
+    try {
+      await Promise.all([
+        ...added.map(item => interestsApi.create(item, selectedCenter)),
+        ...removed.map(item => interestsApi.delete(item, selectedCenter))
+      ])
+      setInterestsState(updated)
+      setError(null)
+    } catch (err) {
+      console.error('Failed to sync interests:', err)
+      setError('Failed to save interests. Changes were not applied.')
+    }
+  }
+
   return {
     activities,
     setActivities,
@@ -143,6 +179,8 @@ export function useConfig() {
     setAreas,
     programs,
     setPrograms,
+    interests,
+    setInterests,
     useBackend,
     error,
     isLoaded

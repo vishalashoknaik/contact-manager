@@ -14,7 +14,8 @@ export class FilterService {
     filters: FilterState,
     activities: string[],
     areas: string[],
-    programs: string[]
+    programs: string[],
+    interests: string[] = []
   ): Contact[] {
     return contacts.filter(contact => {
       // Name filter
@@ -82,6 +83,16 @@ export class FilterService {
         }
       }
 
+      // Interest threshold filter
+      const interestFilters = (filters as any).interestFilters || {}
+      for (const interest of interests) {
+        const threshold = parseInt(interestFilters[interest] || '0', 10)
+        const contactValue = (contact.interests || {})[interest] || 0
+        if (contactValue < threshold) {
+          return false
+        }
+      }
+
       return true
     })
   }
@@ -94,7 +105,8 @@ export class FilterService {
     sortState: SortState,
     activities: string[],
     areas: string[] = [],
-    programs: string[] = []
+    programs: string[] = [],
+    interests: string[] = []
   ): Contact[] {
     const sorted = [...contacts].sort((a, b) => {
       // Keep selected contacts pinned at the top regardless of import source.
@@ -156,6 +168,12 @@ export class FilterService {
           if (programs.includes(sortState.key)) {
             const aCount = a.programs[sortState.key] || 0
             const bCount = b.programs[sortState.key] || 0
+            return sortState.direction === 'asc' ? aCount - bCount : bCount - aCount
+          }
+
+          if (interests.includes(sortState.key)) {
+            const aCount = (a.interests || {})[sortState.key] || 0
+            const bCount = (b.interests || {})[sortState.key] || 0
             return sortState.direction === 'asc' ? aCount - bCount : bCount - aCount
           }
 

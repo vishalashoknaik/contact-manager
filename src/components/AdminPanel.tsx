@@ -17,10 +17,12 @@ interface AdminPanelProps {
   activities: string[]
   areas: string[]
   programs: string[]
+  interests?: string[]
   contacts: Contact[]
   onActivitiesChange: (activities: string[]) => void
   onAreasChange: (areas: string[]) => void
   onProgramsChange: (programs: string[]) => void
+  onInterestsChange?: (interests: string[]) => void
   onContactsChange: (contacts: Contact[]) => void
 }
 
@@ -30,16 +32,19 @@ export function AdminPanel({
   activities,
   areas,
   programs,
+  interests = [],
   contacts,
   onActivitiesChange,
   onAreasChange,
   onProgramsChange,
+  onInterestsChange,
   onContactsChange
 }: AdminPanelProps) {
   const adminService = new AdminService()
   const newActivityInput = useInputState()
   const newAreaInput = useInputState()
   const newProgramInput = useInputState()
+  const newInterestInput = useInputState()
   const {
     user,
     selectedCenter,
@@ -68,13 +73,13 @@ export function AdminPanel({
   const [isLoadingCenters, setIsLoadingCenters] = useState(false)
   const [hasLoadedCentersOnce, setHasLoadedCentersOnce] = useState(false)
   const [mergeDialog, setMergeDialog] = useState<{
-    type: 'activity' | 'area' | 'program'
+    type: 'activity' | 'area' | 'program' | 'interest'
     itemToDelete: string
     options: string[]
   } | null>(null)
   const [selectedMergeTarget, setSelectedMergeTarget] = useState<string | null>(null)
   const [renameInputs, setRenameInputs] = useState<Record<string, string>>({})
-  const [editingItem, setEditingItem] = useState<{ type: 'activity' | 'area' | 'program'; value: string } | null>(null)
+  const [editingItem, setEditingItem] = useState<{ type: 'activity' | 'area' | 'program' | 'interest'; value: string } | null>(null)
 
   const roleLabelMap: Record<CenterRole, string> = {
     ADMIN: 'Center Admin',
@@ -193,8 +198,8 @@ export function AdminPanel({
     }
   }
 
-  const handleRenameItem = (type: 'activity' | 'area' | 'program', oldValue: string, newValue: string) => {
-    const items = type === 'activity' ? activities : type === 'area' ? areas : programs
+  const handleRenameItem = (type: 'activity' | 'area' | 'program' | 'interest', oldValue: string, newValue: string) => {
+    const items = type === 'activity' ? activities : type === 'area' ? areas : type === 'interest' ? interests : programs
     const { items: updated, contacts: updatedContacts } = ConfigService.renameItem(
       items,
       contacts,
@@ -205,6 +210,7 @@ export function AdminPanel({
     
     if (type === 'activity') onActivitiesChange(updated)
     else if (type === 'area') onAreasChange(updated)
+    else if (type === 'interest') onInterestsChange?.(updated)
     else onProgramsChange(updated)
     onContactsChange(updatedContacts)
     setEditingItem(null)
@@ -215,7 +221,10 @@ export function AdminPanel({
     if (!mergeDialog || !selectedMergeTarget) return
 
     const items =
-      mergeDialog.type === 'activity' ? activities : mergeDialog.type === 'area' ? areas : programs
+      mergeDialog.type === 'activity' ? activities :
+      mergeDialog.type === 'area' ? areas :
+      mergeDialog.type === 'interest' ? interests :
+      programs
 
     const { items: updated, contacts: updatedContacts } = ConfigService.mergeItem(
       items,
@@ -227,6 +236,7 @@ export function AdminPanel({
 
     if (mergeDialog.type === 'activity') onActivitiesChange(updated)
     else if (mergeDialog.type === 'area') onAreasChange(updated)
+    else if (mergeDialog.type === 'interest') onInterestsChange?.(updated)
     else onProgramsChange(updated)
     onContactsChange(updatedContacts)
 
@@ -238,7 +248,10 @@ export function AdminPanel({
     if (!mergeDialog) return
 
     const items =
-      mergeDialog.type === 'activity' ? activities : mergeDialog.type === 'area' ? areas : programs
+      mergeDialog.type === 'activity' ? activities :
+      mergeDialog.type === 'area' ? areas :
+      mergeDialog.type === 'interest' ? interests :
+      programs
 
     const { items: updated, contacts: updatedContacts } = ConfigService.removeItem(
       items,
@@ -249,6 +262,7 @@ export function AdminPanel({
 
     if (mergeDialog.type === 'activity') onActivitiesChange(updated)
     else if (mergeDialog.type === 'area') onAreasChange(updated)
+    else if (mergeDialog.type === 'interest') onInterestsChange?.(updated)
     else onProgramsChange(updated)
     onContactsChange(updatedContacts)
 
@@ -296,6 +310,28 @@ export function AdminPanel({
         value
       )
       onProgramsChange(updated)
+      onContactsChange(updatedContacts)
+    }
+  }
+
+  const handleAddInterest = () => {
+    const updated = adminService.addInterest(interests, newInterestInput.value)
+    onInterestsChange?.(updated)
+    newInterestInput.clear()
+  }
+
+  const handleRemoveInterest = (value: string) => {
+    const otherInterests = interests.filter(i => i !== value)
+    if (otherInterests.length > 0) {
+      setMergeDialog({ type: 'interest' as any, itemToDelete: value, options: otherInterests })
+      setSelectedMergeTarget(null)
+    } else {
+      const { interests: updated, contacts: updatedContacts } = adminService.removeInterest(
+        interests,
+        contacts,
+        value
+      )
+      onInterestsChange?.(updated)
       onContactsChange(updatedContacts)
     }
   }
@@ -1036,6 +1072,73 @@ export function AdminPanel({
                     Rename
                   </button>
                   <button onClick={() => handleRemoveProgram(p)} style={{ ...buttonStyle, backgroundColor: '#dc3545' }}>
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={sectionStyle}>
+        <h5>Interest Form Categories</h5>
+        <div style={{ marginBottom: 10 }}>
+          <input
+            type="text"
+            placeholder="New interest category"
+            value={newInterestInput.value}
+            onChange={e => newInterestInput.setValue(e.target.value)}
+            style={inputStyle}
+          />
+          <button onClick={handleAddInterest} style={buttonStyle}>
+            Add
+          </button>
+        </div>
+        {interests.map(i => (
+          <div key={i} style={itemStyle}>
+            {editingItem?.type === 'interest' && editingItem?.value === i ? (
+              <input
+                type="text"
+                value={renameInputs[i] || ''}
+                onChange={e => setRenameInputs({ ...renameInputs, [i]: e.target.value })}
+                style={{ ...inputStyle, marginRight: 8 }}
+                autoFocus
+              />
+            ) : (
+              <span>{i}</span>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {editingItem?.type === 'interest' && editingItem?.value === i ? (
+                <>
+                  <button
+                    onClick={() => handleRenameItem('interest', i, renameInputs[i] || '')}
+                    style={{ ...buttonStyle, backgroundColor: '#0d6efd' }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingItem(null)
+                      setRenameInputs({ ...renameInputs, [i]: '' })
+                    }}
+                    style={buttonStyle}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingItem({ type: 'interest', value: i })
+                      setRenameInputs({ ...renameInputs, [i]: i })
+                    }}
+                    style={{ ...buttonStyle, backgroundColor: '#198754' }}
+                  >
+                    Rename
+                  </button>
+                  <button onClick={() => handleRemoveInterest(i)} style={{ ...buttonStyle, backgroundColor: '#dc3545' }}>
                     Delete
                   </button>
                 </>
