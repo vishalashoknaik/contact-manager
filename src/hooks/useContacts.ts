@@ -249,6 +249,35 @@ export function useContacts() {
     }
   }
 
+  const deleteSelectedContacts = async (): Promise<boolean> => {
+    if (!selectedCenter) {
+      setError('No center selected. Cannot delete contacts.')
+      return false
+    }
+
+    if (!useBackend) {
+      setError('Backend unavailable. Cannot delete contacts.')
+      return false
+    }
+
+    const toDelete = contacts.filter(c => c.selected)
+    if (toDelete.length === 0) return true
+
+    const previousContacts = contacts
+    setContactsState(prev => prev.filter(c => !c.selected))
+
+    try {
+      await Promise.all(toDelete.map(c => contactsApi.delete(c.id)))
+      setError(null)
+      return true
+    } catch (err) {
+      setContactsState(previousContacts)
+      console.error('Backend delete failed:', err)
+      setError('Failed to delete contacts from backend.')
+      return false
+    }
+  }
+
   const importContacts = async (newContacts: Contact[]) => {
     if (!selectedCenter) {
       setError('No center selected. Cannot import contacts.')
@@ -308,6 +337,7 @@ export function useContacts() {
     clearAllSelections,
     incrementSelected,
     importContacts,
+    deleteSelectedContacts,
     useBackend,
     error,
     isLoaded

@@ -122,6 +122,28 @@ function HomeContent() {
     setBulkActionFeedback('Update completed. Selection cleared.')
   }
 
+  const handleDeleteSelected = async () => {
+    setBulkActionFeedback(null)
+
+    if (selectedContactIds.length === 0) {
+      setBulkActionFeedback('Select at least one contact to delete.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${selectedContactIds.length} selected contact${selectedContactIds.length === 1 ? '' : 's'} permanently? This cannot be undone.`
+    )
+    if (!confirmed) return
+
+    const success = await contactsManager.deleteSelectedContacts()
+    if (!success) {
+      setBulkActionFeedback('Delete failed. Please try again.')
+      return
+    }
+
+    setBulkActionFeedback(`${selectedContactIds.length} contact${selectedContactIds.length === 1 ? '' : 's'} deleted.`)
+  }
+
   const handleFilterChange = (filterName: string, value: string) => {
     if (filterName === 'name') filteringManager.setNameFilter(value)
     else if (filterName === 'phone') filteringManager.setPhoneFilter(value)
@@ -334,6 +356,43 @@ function HomeContent() {
                 onProgramChange={actionSelectors.program.setValue}
                 onIncrement={handleIncrement}
               />
+
+              {/* Child lock toggle + delete */}
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+                <button
+                  onClick={adminManager.toggleChildLock}
+                  title={adminManager.childLock ? 'Child lock ON — click to unlock bulk delete' : 'Child lock OFF — click to re-enable lock'}
+                  style={{
+                    padding: '8px 14px',
+                    backgroundColor: adminManager.childLock ? '#6c757d' : '#fd7e14',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    fontSize: 13
+                  }}
+                >
+                  {adminManager.childLock ? '🔒 Locked' : '🔓 Unlocked'}
+                </button>
+
+                {!adminManager.childLock && selectedContactIds.length > 0 && (
+                  <button
+                    onClick={handleDeleteSelected}
+                    style={{
+                      padding: '8px 14px',
+                      backgroundColor: '#dc3545',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 3,
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: 13
+                    }}
+                  >
+                    🗑 Delete Selected ({selectedContactIds.length})
+                  </button>
+                )}
+              </div>
 
               {bulkActionFeedback && (
                 <div

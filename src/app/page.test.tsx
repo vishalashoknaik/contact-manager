@@ -422,3 +422,111 @@ describe('Home page', () => {
     }
   })
 })
+
+// ── Child lock ────────────────────────────────────────────────────────────────
+describe('Home page — child lock', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.mocked(contactsApi.getAll).mockResolvedValue([
+      {
+        id: 'c1', name: 'Alice', phone: '1111111111', gender: 'Female',
+        activities: {}, areas: {}, programs: {}, selected: false,
+        lastUpdated: new Date().toISOString()
+      } as any,
+      {
+        id: 'c2', name: 'Bob', phone: '2222222222', gender: 'Male',
+        activities: {}, areas: {}, programs: {}, selected: true,
+        lastUpdated: new Date().toISOString()
+      } as any
+    ])
+  })
+
+  it('shows a Locked button in bulk actions by default', async () => {
+    render(<Home />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+  })
+
+  it('delete button is hidden while child lock is ON', async () => {
+    render(<Home />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+
+    expect(screen.queryByRole('button', { name: /delete selected/i })).not.toBeInTheDocument()
+  })
+
+  it('shows Unlocked button and delete button after toggling the lock off', async () => {
+    const user = userEvent.setup()
+    render(<Home />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /locked/i }))
+
+    expect(screen.getByRole('button', { name: /unlocked/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /delete selected/i })).toBeInTheDocument()
+  })
+
+  it('re-locking hides the delete button again', async () => {
+    const user = userEvent.setup()
+    render(<Home />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /locked/i }))
+    expect(screen.getByRole('button', { name: /delete selected/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /unlocked/i }))
+    expect(screen.queryByRole('button', { name: /delete selected/i })).not.toBeInTheDocument()
+  })
+
+  it('calls contactsApi.delete and shows feedback after confirming deletion', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.mocked(contactsApi.delete).mockResolvedValue({ success: true } as any)
+
+    render(<Home />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /locked/i }))
+    await user.click(screen.getByRole('button', { name: /delete selected/i }))
+
+    await waitFor(() => {
+      expect(contactsApi.delete).toHaveBeenCalledWith('c2')
+    })
+
+    expect(screen.getByText(/deleted/i)).toBeInTheDocument()
+  })
+
+  it('does not call delete when user cancels the confirmation dialog', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<Home />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /locked/i }))
+    await user.click(screen.getByRole('button', { name: /delete selected/i }))
+
+    expect(contactsApi.delete).not.toHaveBeenCalled()
+  })
+
+  it('shows an error message when the delete API call fails', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.mocked(contactsApi.delete).mockRejectedValueOnce(new Error('Server error'))
+
+    render(<Home />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /locked/i }))
+    await user.click(screen.getByRole('button', { name: /delete selected/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/delete failed/i)).toBeInTheDocument()
+    })
+  })
+})
