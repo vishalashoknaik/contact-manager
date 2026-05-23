@@ -9,6 +9,7 @@ import { AdminService } from '@/lib/services/AdminService'
 import { ConfigService } from '@/lib/services/ConfigService'
 import { Contact } from '@/lib/types'
 import { useInputState } from '@/hooks/useInputState'
+import { Button } from '@/components/ui/Button'
 import type { CenterOption, CenterRole, ManagedUser } from '@/lib/types/auth'
 
 interface AdminPanelProps {
@@ -606,15 +607,6 @@ export function AdminPanel({
     color: 'var(--text-primary, #000)'
   }
 
-  const buttonStyle = {
-    padding: '6px 12px',
-    backgroundColor: '#6c757d',
-    color: 'white',
-    border: 'none',
-    borderRadius: 3,
-    cursor: 'pointer'
-  }
-
   const pendingUsers = managedUsers.filter(managedUser => !managedUser.isApproved)
   const approvedUsers = managedUsers.filter(managedUser => managedUser.isApproved)
 
@@ -699,13 +691,14 @@ export function AdminPanel({
               Overall admin for all centers
             </label>
           )}
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handleSaveUser}
-            style={{ ...buttonStyle, width: 'fit-content', backgroundColor: '#0d6efd' }}
             disabled={isManagingUsers || !userPhone || !selectedCenter}
           >
             {isManagingUsers ? 'Saving...' : 'Grant Access'}
-          </button>
+          </Button>
         </div>
 
         <SyncStatusNotices
@@ -734,20 +727,22 @@ export function AdminPanel({
               <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>Pending approval</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => handleApproveAccess(managedUser)}
-                style={{ ...buttonStyle, backgroundColor: '#0d6efd' }}
                 disabled={isManagingUsers}
               >
                 Approve Access
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => handleRemoveAccess(managedUser)}
-                style={{ ...buttonStyle, backgroundColor: '#dc3545' }}
                 disabled={isManagingUsers}
               >
                 Reject Request
-              </button>
+              </Button>
             </div>
           </div>
         ))}
@@ -789,36 +784,39 @@ export function AdminPanel({
                   </option>
                 ))}
               </select>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() =>
                   handleRoleUpdate(
                     managedUser,
                     managedRoleDrafts[toManagedKey(managedUser)] || managedUser.centerRole
                   )
                 }
-                style={buttonStyle}
                 disabled={isManagingUsers}
               >
                 Update Role
-              </button>
+              </Button>
               {user?.canAccessAllCenters && (
-                <button
+                <Button
+                  variant="success"
+                  size="sm"
                   onClick={() => handleOverallAdminToggle(managedUser)}
-                  style={{ ...buttonStyle, backgroundColor: '#198754' }}
                   disabled={isManagingUsers}
                 >
                   {managedUser.canAccessAllCenters
                     ? 'Remove Overall Admin'
                     : 'Make Overall Admin'}
-                </button>
+                </Button>
               )}
-              <button
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => handleRemoveAccess(managedUser)}
-                style={{ ...buttonStyle, backgroundColor: '#dc3545' }}
                 disabled={isManagingUsers}
               >
                 Remove Access
-              </button>
+              </Button>
             </div>
           </div>
         ))}
@@ -838,13 +836,14 @@ export function AdminPanel({
               onChange={e => setNewCenterName(e.target.value)}
               style={inputStyle}
             />
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={handleCreateCenter}
-              style={{ ...buttonStyle, width: 'fit-content', backgroundColor: '#0d6efd' }}
               disabled={isSavingCenter}
             >
               {isSavingCenter ? 'Saving...' : 'Add Center'}
-            </button>
+            </Button>
             <input
               type="text"
               placeholder="Rename selected center"
@@ -852,13 +851,14 @@ export function AdminPanel({
               onChange={e => setRenameCenterName(e.target.value)}
               style={inputStyle}
             />
-            <button
+            <Button
+              variant="success"
+              size="sm"
               onClick={handleRenameCenter}
-              style={{ ...buttonStyle, width: 'fit-content', backgroundColor: '#198754' }}
               disabled={isSavingCenter || !selectedCenter}
             >
               {isSavingCenter ? 'Saving...' : 'Update Center Name'}
-            </button>
+            </Button>
           </div>
 
           {centerError && <div style={{ color: '#b02a37', marginBottom: 12 }}>{centerError}</div>}
@@ -890,9 +890,9 @@ export function AdminPanel({
             onChange={e => newActivityInput.setValue(e.target.value)}
             style={inputStyle}
           />
-          <button onClick={handleAddActivity} style={buttonStyle}>
+          <Button variant="secondary" size="sm" onClick={handleAddActivity}>
             Add
-          </button>
+          </Button>
         </div>
         {activities.map(a => (
           <div key={a} style={itemStyle}>
@@ -910,36 +910,39 @@ export function AdminPanel({
             <div style={{ display: 'flex', gap: 8 }}>
               {editingItem?.type === 'activity' && editingItem?.value === a ? (
                 <>
-                  <button
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => handleRenameItem('activity', a, renameInputs[a] || '')}
-                    style={{ ...buttonStyle, backgroundColor: '#0d6efd' }}
                   >
                     Save
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setEditingItem(null)
                       setRenameInputs({ ...renameInputs, [a]: '' })
                     }}
-                    style={buttonStyle}
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button
+                  <Button
+                    variant="success"
+                    size="sm"
                     onClick={() => {
                       setEditingItem({ type: 'activity', value: a })
                       setRenameInputs({ ...renameInputs, [a]: a })
                     }}
-                    style={{ ...buttonStyle, backgroundColor: '#198754' }}
                   >
                     Rename
-                  </button>
-                  <button onClick={() => handleRemoveActivity(a)} style={{ ...buttonStyle, backgroundColor: '#dc3545' }}>
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={() => handleRemoveActivity(a)}>
                     Delete
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -957,9 +960,9 @@ export function AdminPanel({
             onChange={e => newAreaInput.setValue(e.target.value)}
             style={inputStyle}
           />
-          <button onClick={handleAddArea} style={buttonStyle}>
+          <Button variant="secondary" size="sm" onClick={handleAddArea}>
             Add
-          </button>
+          </Button>
         </div>
         {areas.map(a => (
           <div key={a} style={itemStyle}>
@@ -977,36 +980,39 @@ export function AdminPanel({
             <div style={{ display: 'flex', gap: 8 }}>
               {editingItem?.type === 'area' && editingItem?.value === a ? (
                 <>
-                  <button
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => handleRenameItem('area', a, renameInputs[a] || '')}
-                    style={{ ...buttonStyle, backgroundColor: '#0d6efd' }}
                   >
                     Save
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setEditingItem(null)
                       setRenameInputs({ ...renameInputs, [a]: '' })
                     }}
-                    style={buttonStyle}
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button
+                  <Button
+                    variant="success"
+                    size="sm"
                     onClick={() => {
                       setEditingItem({ type: 'area', value: a })
                       setRenameInputs({ ...renameInputs, [a]: a })
                     }}
-                    style={{ ...buttonStyle, backgroundColor: '#198754' }}
                   >
                     Rename
-                  </button>
-                  <button onClick={() => handleRemoveArea(a)} style={{ ...buttonStyle, backgroundColor: '#dc3545' }}>
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={() => handleRemoveArea(a)}>
                     Delete
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -1024,9 +1030,9 @@ export function AdminPanel({
             onChange={e => newProgramInput.setValue(e.target.value)}
             style={inputStyle}
           />
-          <button onClick={handleAddProgram} style={buttonStyle}>
+          <Button variant="secondary" size="sm" onClick={handleAddProgram}>
             Add
-          </button>
+          </Button>
         </div>
         {programs.map(p => (
           <div key={p} style={itemStyle}>
@@ -1044,36 +1050,39 @@ export function AdminPanel({
             <div style={{ display: 'flex', gap: 8 }}>
               {editingItem?.type === 'program' && editingItem?.value === p ? (
                 <>
-                  <button
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => handleRenameItem('program', p, renameInputs[p] || '')}
-                    style={{ ...buttonStyle, backgroundColor: '#0d6efd' }}
                   >
                     Save
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setEditingItem(null)
                       setRenameInputs({ ...renameInputs, [p]: '' })
                     }}
-                    style={buttonStyle}
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button
+                  <Button
+                    variant="success"
+                    size="sm"
                     onClick={() => {
                       setEditingItem({ type: 'program', value: p })
                       setRenameInputs({ ...renameInputs, [p]: p })
                     }}
-                    style={{ ...buttonStyle, backgroundColor: '#198754' }}
                   >
                     Rename
-                  </button>
-                  <button onClick={() => handleRemoveProgram(p)} style={{ ...buttonStyle, backgroundColor: '#dc3545' }}>
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={() => handleRemoveProgram(p)}>
                     Delete
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -1091,9 +1100,9 @@ export function AdminPanel({
             onChange={e => newInterestInput.setValue(e.target.value)}
             style={inputStyle}
           />
-          <button onClick={handleAddInterest} style={buttonStyle}>
+          <Button variant="secondary" size="sm" onClick={handleAddInterest}>
             Add
-          </button>
+          </Button>
         </div>
         {interests.map(i => (
           <div key={i} style={itemStyle}>
@@ -1111,36 +1120,39 @@ export function AdminPanel({
             <div style={{ display: 'flex', gap: 8 }}>
               {editingItem?.type === 'interest' && editingItem?.value === i ? (
                 <>
-                  <button
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => handleRenameItem('interest', i, renameInputs[i] || '')}
-                    style={{ ...buttonStyle, backgroundColor: '#0d6efd' }}
                   >
                     Save
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setEditingItem(null)
                       setRenameInputs({ ...renameInputs, [i]: '' })
                     }}
-                    style={buttonStyle}
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button
+                  <Button
+                    variant="success"
+                    size="sm"
                     onClick={() => {
                       setEditingItem({ type: 'interest', value: i })
                       setRenameInputs({ ...renameInputs, [i]: i })
                     }}
-                    style={{ ...buttonStyle, backgroundColor: '#198754' }}
                   >
                     Rename
-                  </button>
-                  <button onClick={() => handleRemoveInterest(i)} style={{ ...buttonStyle, backgroundColor: '#dc3545' }}>
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={() => handleRemoveInterest(i)}>
                     Delete
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -1206,25 +1218,31 @@ export function AdminPanel({
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={handleMergeAndDelete}
-                style={{ ...buttonStyle, flex: 1, backgroundColor: '#0d6efd', minWidth: 'fit-content' }}
                 disabled={!selectedMergeTarget}
+                style={{ flex: 1 }}
               >
                 Merge
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={handleDeleteWithoutMerge}
-                style={{ ...buttonStyle, flex: 1, backgroundColor: '#dc3545', minWidth: 'fit-content' }}
+                style={{ flex: 1 }}
               >
                 Delete
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setMergeDialog(null)}
-                style={{ ...buttonStyle, flex: 1, minWidth: 'fit-content' }}
+                style={{ flex: 1 }}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         </div>

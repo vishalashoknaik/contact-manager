@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useInputState } from '@/hooks/useInputState'
+import { Button } from '@/components/ui/Button'
 import type { Gender } from '@/lib/types'
 
 interface ContactFormProps {
@@ -50,16 +51,6 @@ export function ContactForm({ onAddContact }: ContactFormProps) {
     color: 'var(--text-primary, #000)'
   }
 
-  const buttonStyle = {
-    padding: '8px 16px',
-    backgroundColor: '#28a745',
-    color: 'white',
-    border: 'none',
-    borderRadius: 3,
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  }
-
   const labelStyle = {
     fontSize: 12,
     color: 'var(--text-secondary, #666)',
@@ -105,16 +96,17 @@ export function ContactForm({ onAddContact }: ContactFormProps) {
             <option value="Other">Other</option>
           </select>
         </div>
-        <button onClick={handleAddContact} style={buttonStyle}>
+        <Button variant="success" size="sm" onClick={handleAddContact}>
           Add
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => setShowOptional(v => !v)}
-          style={{ ...buttonStyle, backgroundColor: '#6c757d', padding: '8px 10px', fontSize: 12 }}
         >
           {showOptional ? '▲ Less' : '▼ More'}
-        </button>
+        </Button>
       </div>
 
       {/* Optional fields */}

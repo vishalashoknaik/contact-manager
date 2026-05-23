@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { Contact } from '@/lib/types'
 import { CSVService } from '@/lib/services/CSVService'
 import { PhoneService } from '@/lib/services/PhoneService'
+import { Button } from '@/components/ui/Button'
 
 interface CSVImportProps {
   contacts: Contact[]
@@ -59,22 +60,12 @@ export function CSVImport({ contacts, onImport }: CSVImportProps) {
     setPhase('idle')
   }
 
-  const buttonStyle = {
-    padding: '8px 16px',
-    backgroundColor: '#17a2b8',
-    color: 'white',
-    border: 'none',
-    borderRadius: 3,
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <button onClick={handleOpenFileDialog} style={buttonStyle}>
+        <Button variant="ghost" size="sm" onClick={handleOpenFileDialog}>
           Import CSV
-        </button>
+        </Button>
         <input
           ref={fileInputRef}
           type="file"
@@ -85,12 +76,9 @@ export function CSVImport({ contacts, onImport }: CSVImportProps) {
       </div>
 
       {phase === 'idle' && (
-        <button
-          onClick={() => setPhase('entering')}
-          style={{ ...buttonStyle, backgroundColor: '#28a745', alignSelf: 'flex-start' }}
-        >
+        <Button variant="success" size="sm" onClick={() => setPhase('entering')}>
           Import Phones
-        </button>
+        </Button>
       )}
 
       {phase === 'entering' && (
@@ -117,23 +105,12 @@ export function CSVImport({ contacts, onImport }: CSVImportProps) {
             }}
           />
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={handlePreview}
-              disabled={!phoneText.trim()}
-              style={{
-                ...buttonStyle,
-                backgroundColor: phoneText.trim() ? '#28a745' : '#aaa',
-                cursor: phoneText.trim() ? 'pointer' : 'not-allowed'
-              }}
-            >
+            <Button variant="success" size="sm" onClick={handlePreview} disabled={!phoneText.trim()}>
               Preview
-            </button>
-            <button
-              onClick={handleCancel}
-              style={{ ...buttonStyle, backgroundColor: '#6c757d' }}
-            >
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleCancel}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -175,29 +152,15 @@ export function CSVImport({ contacts, onImport }: CSVImportProps) {
             </table>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={handleConfirmImport}
-              disabled={previewContacts.length === 0}
-              style={{
-                ...buttonStyle,
-                backgroundColor: previewContacts.length > 0 ? '#28a745' : '#aaa',
-                cursor: previewContacts.length > 0 ? 'pointer' : 'not-allowed'
-              }}
-            >
+            <Button variant="success" size="sm" onClick={handleConfirmImport} disabled={previewContacts.length === 0}>
               Import
-            </button>
-            <button
-              onClick={() => setPhase('entering')}
-              style={{ ...buttonStyle, backgroundColor: '#6c757d' }}
-            >
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setPhase('entering')}>
               Back
-            </button>
-            <button
-              onClick={handleCancel}
-              style={{ ...buttonStyle, backgroundColor: '#dc3545' }}
-            >
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleCancel}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}

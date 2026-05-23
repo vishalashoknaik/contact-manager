@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { SyncStatusNotices } from '@/components/SyncStatusNotices'
 import { ContactSearchInput } from '@/components/ContactSearchInput'
 import { Alert } from '@/components/ui/Alert'
+import { Button } from '@/components/ui/Button'
 import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { campaignsApi, Campaign, CampaignVolunteer } from '@/lib/api/client'
 import { Contact } from '@/lib/types'
@@ -99,10 +100,6 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
     border: '1px solid var(--border-color, #ddd)',
     backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)'
   }
-  const btn = (color: string): React.CSSProperties => ({
-    padding: '10px 14px', borderRadius: 4, cursor: 'pointer',
-    border: 'none', backgroundColor: color, color: '#fff', fontSize: 13
-  })
 
   return (
     <div style={{ border: '1px solid var(--border-color, #ddd)', borderRadius: 6, padding: 16 }}>
@@ -130,13 +127,14 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
               <span style={{ flex: '1 1 220px' }}>
                 {v.name?.trim() ? `${v.name} (${v.phone})` : v.phone}
               </span>
-              <button
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => handleRemoveVolunteer(v.phone)}
                 disabled={isLoading}
-                style={btn('#dc3545')}
               >
                 Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -163,9 +161,9 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
                 onKeyDown={e => e.key === 'Enter' && handleAddVolunteer()}
               />
             )}
-            <button onClick={() => handleAddVolunteer()} disabled={isLoading} style={btn('#0d6efd')}>
+            <Button variant="primary" size="sm" onClick={() => handleAddVolunteer()} disabled={isLoading}>
               Add
-            </button>
+            </Button>
           </>
         )}
 
@@ -185,16 +183,17 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
               />
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleCreateAndAdd} disabled={isLoading} style={btn('#198754')}>
+              <Button variant="success" size="sm" onClick={handleCreateAndAdd} disabled={isLoading}>
                 Create &amp; Add
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => { setPendingNewPhone(null); setPendingNewName(''); setError(null) }}
                 disabled={isLoading}
-                style={btn('#6c757d')}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
