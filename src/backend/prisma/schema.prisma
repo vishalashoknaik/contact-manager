@@ -38,6 +38,7 @@ model Center {
   activities Activity[]
   areas     Area[]
   programs  Program[]
+  interests Interest[]
   campaigns Campaign[]
   attendanceSessions AttendanceSession[]
 
@@ -69,13 +70,17 @@ model Contact {
   center           Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
   centerId         String
   selected         Boolean  @default(false)
-  lastUpdated      DateTime @default(now()) @updatedAt
+  lastUpdated      DateTime @default(now())
   importOrder      Int?
   createdAt        DateTime @default(now())
+  notInterested    Boolean  @default(false)
+  centerChange     Boolean  @default(false)
+  doNotDisturb     Boolean  @default(false)
 
   activities       ContactActivity[]
   areas            ContactArea[]
   programs         ContactProgram[]
+  interests        ContactInterest[]
   campaignContacts CampaignContact[]
   attendanceEntries AttendanceSessionEntry[]
 
@@ -156,6 +161,31 @@ model ContactProgram {
 
   @@unique([contactId, programId])
   @@map("contact_programs")
+}
+
+model Interest {
+  id       String   @id @default(uuid())
+  name     String
+  center   Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  centerId String
+  contacts ContactInterest[]
+  createdAt DateTime @default(now())
+
+  @@unique([name, centerId])
+  @@map("interests")
+}
+
+model ContactInterest {
+  id         String   @id @default(uuid())
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId  String
+  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+  interestId String
+  count      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([contactId, interestId])
+  @@map("contact_interests")
 }
 
 enum CampaignContactStatus {

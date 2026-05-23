@@ -25,6 +25,11 @@ const mockPrisma = {
     create: vi.fn(),
     upsert: vi.fn()
   },
+  interest: {
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    upsert: vi.fn()
+  },
   contactActivity: {
     deleteMany: vi.fn(),
     create: vi.fn()
@@ -36,6 +41,11 @@ const mockPrisma = {
   contactProgram: {
     deleteMany: vi.fn(),
     create: vi.fn()
+  },
+  // Default mock for contactInterest so existing tests don't need extra setup
+  contactInterest: {
+    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    create: vi.fn().mockResolvedValue({})
   }
 }
 
@@ -180,7 +190,121 @@ describe('Contact Fields Persistence', () => {
     expect(callArgs.update.remarks).toBe('VIP member')
   })
 
-  it('defaults gender to Male when not provided on create', async () => {
+  it('does NOT set lastUpdated when no category data is present (select toggle / basic edit)', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.contact.upsert.mockResolvedValueOnce({
+      id: 'x', name: 'Bob', phone: '9000000001', gender: 'Male',
+      ieDate: null, areaOfStay: null, remarks: null, centerId,
+      selected: true, lastUpdated: new Date(), importOrder: null, createdAt: new Date(),
+      activities: [], areas: [], programs: []
+    })
+    mockPrisma.contactActivity.deleteMany.mockResolvedValueOnce({})
+    mockPrisma.contactArea.deleteMany.mockResolvedValueOnce({})
+    mockPrisma.contactProgram.deleteMany.mockResolvedValueOnce({})
+
+    await fetch(`${baseUrl}/api/contacts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId },
+      body: JSON.stringify({ name: 'Bob', phone: '9000000001', selected: true })
+    })
+
+    const callArgs = mockPrisma.contact.upsert.mock.calls[0][0]
+    // No category data → lastUpdated must NOT be set in the update block
+    expect(callArgs.update.lastUpdated).toBeUndefined()
+  })
+
+  it('sets lastUpdated when activity data is present', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.contact.upsert.mockResolvedValueOnce({
+      id: 'x', name: 'Bob', phone: '9000000001', gender: 'Male',
+      ieDate: null, areaOfStay: null, remarks: null, centerId,
+      selected: true, lastUpdated: new Date(), importOrder: null, createdAt: new Date(),
+      activities: [], areas: [], programs: []
+    })
+    mockPrisma.contactActivity.deleteMany.mockResolvedValueOnce({})
+    mockPrisma.contactArea.deleteMany.mockResolvedValueOnce({})
+    mockPrisma.contactProgram.deleteMany.mockResolvedValueOnce({})
+
+    await fetch(`${baseUrl}/api/contacts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId },
+      body: JSON.stringify({
+        name: 'Bob', phone: '9000000001',
+        activities: { Satsang: 3 }
+      })
+    })
+
+    const callArgs = mockPrisma.contact.upsert.mock.calls[0][0]
+    // Activity data present → lastUpdated MUST be set
+    expect(callArgs.update.lastUpdated).toBeInstanceOf(Date)
+  })
+
+  it('sets lastUpdated when interest data is present', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.contact.upsert.mockResolvedValueOnce({
+      id: 'x', name: 'Bob', phone: '9000000001', gender: 'Male',
+      ieDate: null, areaOfStay: null, remarks: null, centerId,
+      selected: true, lastUpdated: new Date(), importOrder: null, createdAt: new Date(),
+      activities: [], areas: [], programs: []
+    })
+    mockPrisma.contactActivity.deleteMany.mockResolvedValueOnce({})
+    mockPrisma.contactArea.deleteMany.mockResolvedValueOnce({})
+    mockPrisma.contactProgram.deleteMany.mockResolvedValueOnce({})
+
+    await fetch(`${baseUrl}/api/contacts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Center-ID': centerId },
+      body: JSON.stringify({
+        name: 'Bob', phone: '9000000001',
+        interests: { Yoga: 2 }
+      })
+    })
+
+    const callArgs = mockPrisma.contact.upsert.mock.calls[0][0]
+    expect(callArgs.update.lastUpdated).toBeInstanceOf(Date)
+  })
+
+  it('includes notInterested, centerChange, doNotDisturb in GET response', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.contact.findMany.mockResolvedValueOnce([{
+      id: 'c1', name: 'Flagged', phone: '9000000002', gender: 'Female',
+      ieDate: null, areaOfStay: null, remarks: null, centerId,
+      selected: false, lastUpdated: new Date(), importOrder: null, createdAt: new Date(),
+      notInterested: true, centerChange: false, doNotDisturb: true,
+      activities: [], areas: [], programs: [], interests: []
+    }])
+
+    const res = await fetch(`${baseUrl}/api/contacts`, { headers: { 'X-Center-ID': centerId } })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data[0].notInterested).toBe(true)
+    expect(data[0].centerChange).toBe(false)
+    expect(data[0].doNotDisturb).toBe(true)
+  })
+
+  it('includes interests in GET response', async () => {
+    const baseUrl = await startTestServer()
+
+    mockPrisma.contact.findMany.mockResolvedValueOnce([{
+      id: 'c1', name: 'Alice', phone: '9000000003', gender: 'Male',
+      ieDate: null, areaOfStay: null, remarks: null, centerId,
+      selected: false, lastUpdated: new Date(), importOrder: null, createdAt: new Date(),
+      notInterested: false, centerChange: false, doNotDisturb: false,
+      activities: [], areas: [], programs: [],
+      interests: [{ interest: { name: 'Yoga' }, count: 5 }]
+    }])
+
+    const res = await fetch(`${baseUrl}/api/contacts`, { headers: { 'X-Center-ID': centerId } })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data[0].interests).toEqual({ Yoga: 5 })
+  })
+
+  it('POST defaults gender to Male when not provided', async () => {
     const baseUrl = await startTestServer()
 
     const newContact = {
@@ -202,7 +326,11 @@ describe('Contact Fields Persistence', () => {
       ...newContact,
       activities: [],
       areas: [],
-      programs: []
+      programs: [],
+      interests: [],
+      notInterested: false,
+      centerChange: false,
+      doNotDisturb: false
     })
 
     mockPrisma.contactActivity.deleteMany.mockResolvedValueOnce({})

@@ -18,7 +18,8 @@ router.get('/', async (req: Request, res: Response) => {
       include: {
         activities: { include: { activity: true } },
         areas: { include: { area: true } },
-        programs: { include: { program: true } }
+        programs: { include: { program: true } },
+        interests: { include: { interest: true } }
       },
       orderBy: [
         { importOrder: 'asc' },
@@ -38,6 +39,9 @@ router.get('/', async (req: Request, res: Response) => {
       selected: c.selected,
       lastUpdated: c.lastUpdated.toISOString(),
       importOrder: c.importOrder,
+      notInterested: c.notInterested,
+      centerChange: c.centerChange,
+      doNotDisturb: c.doNotDisturb,
       activities: Object.fromEntries(
         c.activities.map(ca => [ca.activity.name, ca.count])
       ),
@@ -46,6 +50,9 @@ router.get('/', async (req: Request, res: Response) => {
       ),
       programs: Object.fromEntries(
         c.programs.map(cp => [cp.program.name, cp.count])
+      ),
+      interests: Object.fromEntries(
+        (c.interests || []).map(ci => [ci.interest.name, ci.count])
       )
     }))
 
@@ -71,6 +78,7 @@ router.post('/', async (req: Request, res: Response) => {
       activities = {},
       areas = {},
       programs = {},
+      interests = {},
       selected,
       importOrder
     } = req.body
@@ -82,6 +90,14 @@ router.post('/', async (req: Request, res: Response) => {
     if (!centerId) {
       return res.status(400).json({ error: 'Center ID is required' })
     }
+
+    // Only bump lastUpdated when category data (activity/area/program/interest) is present.
+    // Selecting/deselecting or basic field edits should NOT change the "last active" date.
+    const hasCategoryData =
+      Object.values(activities as Record<string, number>).some(v => Number(v) > 0) ||
+      Object.values(areas as Record<string, number>).some(v => Number(v) > 0) ||
+      Object.values(programs as Record<string, number>).some(v => Number(v) > 0) ||
+      Object.values(interests as Record<string, number>).some(v => Number(v) > 0)
 
     // Upsert contact
     const contact = await prisma.contact.upsert({
@@ -105,19 +121,21 @@ router.post('/', async (req: Request, res: Response) => {
         remarks: remarks !== undefined ? remarks : undefined,
         selected: typeof selected === 'boolean' ? selected : true,
         importOrder: importOrder !== undefined ? importOrder : undefined,
-        lastUpdated: new Date()
+        ...(hasCategoryData && { lastUpdated: new Date() })
       },
       include: {
         activities: { include: { activity: true } },
         areas: { include: { area: true } },
-        programs: { include: { program: true } }
+        programs: { include: { program: true } },
+        interests: { include: { interest: true } }
       }
     })
 
-    // Sync activities, areas, programs
+    // Sync activities, areas, programs, interests
     await syncCategoryData(contact.id, centerId, 'activity', activities)
     await syncCategoryData(contact.id, centerId, 'area', areas)
     await syncCategoryData(contact.id, centerId, 'program', programs)
+    await syncCategoryData(contact.id, centerId, 'interest', interests)
 
     res.status(201).json({ success: true, contact })
   } catch (err) {
@@ -196,6 +214,8 @@ router.patch('/:id', async (req: Request, res: Response) => {
         ieDate: ieDate !== undefined ? (ieDate || null) : undefined,
         areaOfStay: areaOfStay !== undefined ? areaOfStay : undefined,
         remarks: remarks !== undefined ? remarks : undefined
+        // lastUpdated is intentionally NOT set here — PATCH is for selected/importOrder/field edits
+        // which are not "activity" and should not affect the lastUpdated (last active) date.
       },
       include: {
         activities: { include: { activity: true } },
@@ -216,7 +236,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
 async function syncCategoryData(
   contactId: string,
   centerId: string,
-  type: 'activity' | 'area' | 'program',
+  type: 'activity' | 'area' | 'program' | 'interest',
   data: Record<string, number>
 ) {
   // Delete existing relations
@@ -224,8 +244,10 @@ async function syncCategoryData(
     await prisma.contactActivity.deleteMany({ where: { contactId } })
   } else if (type === 'area') {
     await prisma.contactArea.deleteMany({ where: { contactId } })
-  } else {
+  } else if (type === 'program') {
     await prisma.contactProgram.deleteMany({ where: { contactId } })
+  } else {
+    await prisma.contactInterest.deleteMany({ where: { contactId } })
   }
 
   // Create new relations
@@ -252,13 +274,20 @@ async function syncCategoryData(
           create: { name, centerId }
         })
         categoryId = area.id
-      } else {
+      } else if (type === 'program') {
         const program = await prisma.program.upsert({
           where: { name_centerId: { name, centerId } },
           update: {},
           create: { name, centerId }
         })
         categoryId = program.id
+      } else {
+        const interest = await prisma.interest.upsert({
+          where: { name_centerId: { name, centerId } },
+          update: {},
+          create: { name, centerId }
+        })
+        categoryId = interest.id
       }
 
       if (type === 'activity') {
@@ -269,9 +298,13 @@ async function syncCategoryData(
         await prisma.contactArea.create({
           data: { contactId, areaId: categoryId, count: parsedCount }
         })
-      } else {
+      } else if (type === 'program') {
         await prisma.contactProgram.create({
           data: { contactId, programId: categoryId, count: parsedCount }
+        })
+      } else {
+        await prisma.contactInterest.create({
+          data: { contactId, interestId: categoryId, count: parsedCount }
         })
       }
   }

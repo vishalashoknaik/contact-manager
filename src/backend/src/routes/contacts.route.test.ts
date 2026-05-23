@@ -20,7 +20,9 @@ const mockPrisma = {
   program: { findUnique: vi.fn(), create: vi.fn(), upsert: vi.fn() },
   contactActivity: { deleteMany: vi.fn(), create: vi.fn() },
   contactArea: { deleteMany: vi.fn(), create: vi.fn() },
-  contactProgram: { deleteMany: vi.fn(), create: vi.fn() }
+  contactProgram: { deleteMany: vi.fn(), create: vi.fn() },
+  interest: { findUnique: vi.fn(), create: vi.fn(), upsert: vi.fn() },
+  contactInterest: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), create: vi.fn().mockResolvedValue({}) }
 }
 
 vi.mock('@prisma/client', () => ({ PrismaClient: vi.fn(() => mockPrisma) }))
@@ -66,6 +68,10 @@ function makeDbContact(overrides: Partial<Record<string, unknown>> = {}) {
     activities: [],
     areas: [],
     programs: [],
+    interests: [],
+    notInterested: false,
+    centerChange: false,
+    doNotDisturb: false,
     ...overrides
   }
 }
