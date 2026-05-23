@@ -18,7 +18,10 @@ export function useFiltering() {
     programFilters: {},
     interestFilters: {},
     totalFilter: '',
-    dateFilter: ''
+    dateFilter: '',
+    notInterestedFilter: '',
+    centerChangeFilter: '',
+    doNotDisturbFilter: ''
   })
 
   const [sortState, setSortState] = useState<SortState>({
@@ -78,6 +81,18 @@ export function useFiltering() {
     setFilters(prev => ({ ...prev, areaOfStayFilter: value }))
   }
 
+  const setNotInterestedFilter = (value: string) => {
+    setFilters(prev => ({ ...prev, notInterestedFilter: value }))
+  }
+
+  const setCenterChangeFilter = (value: string) => {
+    setFilters(prev => ({ ...prev, centerChangeFilter: value }))
+  }
+
+  const setDoNotDisturbFilter = (value: string) => {
+    setFilters(prev => ({ ...prev, doNotDisturbFilter: value }))
+  }
+
   const toggleSort = (key: string) => {
     setSortState(prev => {
       if (prev.key === key) {
@@ -99,6 +114,9 @@ export function useFiltering() {
     setInterestFilter,
     setTotalFilter,
     setDateFilter,
+    setNotInterestedFilter,
+    setCenterChangeFilter,
+    setDoNotDisturbFilter,
     sortState,
     toggleSort
   }

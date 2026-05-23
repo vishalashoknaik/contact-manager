@@ -200,3 +200,58 @@ describe('useFiltering â€” setGenderFilter and setAreaOfStayFilter', () => {
     expect(result.current.filters.nameFilter).toBe('')
   })
 })
+
+describe('useFiltering — campaign boolean flag filters', () => {
+  it('initialises notInterestedFilter, centerChangeFilter, doNotDisturbFilter as empty strings', () => {
+    const { result } = renderHook(() => useFiltering())
+    expect(result.current.filters.notInterestedFilter).toBe('')
+    expect(result.current.filters.centerChangeFilter).toBe('')
+    expect(result.current.filters.doNotDisturbFilter).toBe('')
+  })
+
+  it('setNotInterestedFilter updates notInterestedFilter', () => {
+    const { result } = renderHook(() => useFiltering())
+    act(() => result.current.setNotInterestedFilter('true'))
+    expect(result.current.filters.notInterestedFilter).toBe('true')
+  })
+
+  it('setNotInterestedFilter can be set to false', () => {
+    const { result } = renderHook(() => useFiltering())
+    act(() => result.current.setNotInterestedFilter('false'))
+    expect(result.current.filters.notInterestedFilter).toBe('false')
+  })
+
+  it('setNotInterestedFilter can be cleared', () => {
+    const { result } = renderHook(() => useFiltering())
+    act(() => result.current.setNotInterestedFilter('true'))
+    act(() => result.current.setNotInterestedFilter(''))
+    expect(result.current.filters.notInterestedFilter).toBe('')
+  })
+
+  it('setCenterChangeFilter updates centerChangeFilter', () => {
+    const { result } = renderHook(() => useFiltering())
+    act(() => result.current.setCenterChangeFilter('true'))
+    expect(result.current.filters.centerChangeFilter).toBe('true')
+  })
+
+  it('setDoNotDisturbFilter updates doNotDisturbFilter', () => {
+    const { result } = renderHook(() => useFiltering())
+    act(() => result.current.setDoNotDisturbFilter('true'))
+    expect(result.current.filters.doNotDisturbFilter).toBe('true')
+  })
+
+  it('boolean flag setters do not affect other filters', () => {
+    const { result } = renderHook(() => useFiltering())
+    act(() => {
+      result.current.setNotInterestedFilter('true')
+      result.current.setCenterChangeFilter('false')
+      result.current.setDoNotDisturbFilter('true')
+    })
+    expect(result.current.filters.nameFilter).toBe('')
+    expect(result.current.filters.phoneFilter).toBe('')
+    expect(result.current.filters.totalFilter).toBe('')
+    expect(result.current.filters.notInterestedFilter).toBe('true')
+    expect(result.current.filters.centerChangeFilter).toBe('false')
+    expect(result.current.filters.doNotDisturbFilter).toBe('true')
+  })
+})

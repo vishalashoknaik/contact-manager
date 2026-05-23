@@ -248,7 +248,7 @@ describe('Home page', () => {
     })
 
     const combos = screen.getAllByRole('combobox')
-    const actionCombos = combos.slice(-4, -1)
+    const actionCombos = combos.slice(-7, -4)
     await user.selectOptions(actionCombos[0], 'Walkathon')
     await user.selectOptions(actionCombos[1], 'Area1')
     await user.selectOptions(actionCombos[2], 'Program1')

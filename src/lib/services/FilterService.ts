@@ -93,6 +93,14 @@ export class FilterService {
         }
       }
 
+      // Boolean campaign-flag filters ('true' = show only flagged, 'false' = show only unflagged)
+      if (filters.notInterestedFilter === 'true' && !contact.notInterested) return false
+      if (filters.notInterestedFilter === 'false' && contact.notInterested) return false
+      if (filters.centerChangeFilter === 'true' && !contact.centerChange) return false
+      if (filters.centerChangeFilter === 'false' && contact.centerChange) return false
+      if (filters.doNotDisturbFilter === 'true' && !contact.doNotDisturb) return false
+      if (filters.doNotDisturbFilter === 'false' && contact.doNotDisturb) return false
+
       return true
     })
   }

@@ -381,3 +381,89 @@ describe('FilterService â€” totalFilter edge cases', () => {
     })
   })
 })
+
+// -- Boolean campaign-flag filters ---------------------------------------------
+describe('FilterService — notInterestedFilter', () => {
+  const contacts = [
+    makeContact({ id: 1, name: 'Alice', phone: '111', notInterested: true }),
+    makeContact({ id: 2, name: 'Bob',   phone: '222', notInterested: false }),
+    makeContact({ id: 3, name: 'Carol', phone: '333' }) // undefined ? treated as false
+  ]
+
+  it('returns only notInterested=true when filter is "true"', () => {
+    const result = FilterService.filterContacts(contacts, makeFilters({ notInterestedFilter: 'true' }), [], [], [])
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('Alice')
+  })
+
+  it('returns contacts where notInterested is false/undefined when filter is "false"', () => {
+    const result = FilterService.filterContacts(contacts, makeFilters({ notInterestedFilter: 'false' }), [], [], [])
+    expect(result).toHaveLength(2)
+    expect(result.map(c => c.name)).toContain('Bob')
+    expect(result.map(c => c.name)).toContain('Carol')
+  })
+
+  it('returns all contacts when notInterestedFilter is empty', () => {
+    const result = FilterService.filterContacts(contacts, makeFilters({ notInterestedFilter: '' }), [], [], [])
+    expect(result).toHaveLength(3)
+  })
+})
+
+describe('FilterService — centerChangeFilter', () => {
+  const contacts = [
+    makeContact({ id: 1, name: 'Alice', phone: '111', centerChange: true }),
+    makeContact({ id: 2, name: 'Bob',   phone: '222', centerChange: false })
+  ]
+
+  it('returns only centerChange=true when filter is "true"', () => {
+    const result = FilterService.filterContacts(contacts, makeFilters({ centerChangeFilter: 'true' }), [], [], [])
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('Alice')
+  })
+
+  it('returns only centerChange=false when filter is "false"', () => {
+    const result = FilterService.filterContacts(contacts, makeFilters({ centerChangeFilter: 'false' }), [], [], [])
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('Bob')
+  })
+
+  it('returns all when centerChangeFilter is empty', () => {
+    const result = FilterService.filterContacts(contacts, makeFilters({ centerChangeFilter: '' }), [], [], [])
+    expect(result).toHaveLength(2)
+  })
+})
+
+describe('FilterService — doNotDisturbFilter', () => {
+  const contacts = [
+    makeContact({ id: 1, name: 'Alice', phone: '111', doNotDisturb: true }),
+    makeContact({ id: 2, name: 'Bob',   phone: '222', doNotDisturb: false }),
+    makeContact({ id: 3, name: 'Carol', phone: '333', doNotDisturb: true })
+  ]
+
+  it('returns all DND contacts when filter is "true"', () => {
+    const result = FilterService.filterContacts(contacts, makeFilters({ doNotDisturbFilter: 'true' }), [], [], [])
+    expect(result).toHaveLength(2)
+    expect(result.map(c => c.name).sort()).toEqual(['Alice', 'Carol'])
+  })
+
+  it('returns non-DND contacts when filter is "false"', () => {
+    const result = FilterService.filterContacts(contacts, makeFilters({ doNotDisturbFilter: 'false' }), [], [], [])
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('Bob')
+  })
+
+  it('can combine doNotDisturbFilter with notInterestedFilter', () => {
+    const mixed = [
+      makeContact({ id: 1, phone: '111', doNotDisturb: true, notInterested: true }),
+      makeContact({ id: 2, phone: '222', doNotDisturb: true, notInterested: false }),
+      makeContact({ id: 3, phone: '333', doNotDisturb: false, notInterested: true })
+    ]
+    const result = FilterService.filterContacts(
+      mixed,
+      makeFilters({ doNotDisturbFilter: 'true', notInterestedFilter: 'true' }),
+      [], [], []
+    )
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe(1)
+  })
+})

@@ -10,6 +10,9 @@ const mockPrisma = {
     create: vi.fn(),
     update: vi.fn()
   },
+  contact: {
+    update: vi.fn()
+  },
   campaign: {
     create: vi.fn(),
     findMany: vi.fn(),
@@ -181,7 +184,7 @@ describe('campaign routes', () => {
 
     mockPrisma.campaign.findFirst.mockResolvedValueOnce({ id: 'campaign-1', centerId: 'center-1' })
     mockPrisma.campaignContact.findFirst
-      .mockResolvedValueOnce({ id: 'cc-1', campaignId: 'campaign-1' })
+      .mockResolvedValueOnce({ id: 'cc-1', campaignId: 'campaign-1', contactId: 'contact-1', createdAt: new Date() })
       .mockResolvedValueOnce({
         id: 'cc-2',
         campaignId: 'campaign-1',
@@ -192,6 +195,8 @@ describe('campaign routes', () => {
 
     mockPrisma.campaignCallLog.upsert.mockResolvedValueOnce({ id: 'log-1' })
     mockPrisma.campaignContact.update.mockResolvedValueOnce({ id: 'cc-1', status: 'SKIPPED' })
+    // contact.update called because centerChange and notInterestedToVolunteer are true
+    mockPrisma.contact.update.mockResolvedValueOnce({})
 
     const baseUrl = await startTestServer()
     const response = await fetch(`${baseUrl}/api/campaigns/campaign-1/call-log`, {
@@ -221,6 +226,96 @@ describe('campaign routes', () => {
       where: { id: 'cc-1' },
       data: { status: 'SKIPPED' }
     })
+  })
+
+  it('propagates doNotDisturb flag to Contact record when call-log is submitted', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '4444444444',
+      canAccessAllCenters: false,
+      centers: [{ centerId: 'center-1', isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+
+    mockPrisma.campaign.findFirst.mockResolvedValueOnce({
+      id: 'campaign-1', centerId: 'center-1',
+      volunteers: [{ volunteerPhone: '4444444444' }]
+    })
+    mockPrisma.campaignContact.findFirst
+      .mockResolvedValueOnce({
+        id: 'cc-3', campaignId: 'campaign-1', contactId: 'contact-42', createdAt: new Date()
+      })
+      .mockResolvedValueOnce(null) // no next contact
+
+    mockPrisma.campaignCallLog.upsert.mockResolvedValueOnce({ id: 'log-2' })
+    mockPrisma.campaignContact.update.mockResolvedValueOnce({ id: 'cc-3', status: 'COMPLETED' })
+    mockPrisma.contact.update.mockResolvedValueOnce({})
+
+    const baseUrl = await startTestServer()
+    const response = await fetch(`${baseUrl}/api/campaigns/campaign-1/call-log`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': 'center-1',
+        ...authHeaderFor('4444444444')
+      },
+      body: JSON.stringify({
+        campaignContactId: 'cc-3',
+        feedback: 'COMPLETED',
+        centerChange: false,
+        doNotDisturb: true,
+        notInterestedToVolunteer: false,
+        action: 'submit'
+      })
+    })
+
+    expect(response.status).toBe(200)
+    // Verify the contact was updated with the doNotDisturb flag
+    expect(mockPrisma.contact.update).toHaveBeenCalledWith({
+      where: { id: 'contact-42' },
+      data: { doNotDisturb: true }
+    })
+  })
+
+  it('does NOT update contact when no flags are set', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      phone: '4444444444',
+      canAccessAllCenters: false,
+      centers: [{ centerId: 'center-1', isApproved: true, role: 'ATTENDANCE_TAKER' }]
+    })
+
+    mockPrisma.campaign.findFirst.mockResolvedValueOnce({
+      id: 'campaign-1', centerId: 'center-1',
+      volunteers: [{ volunteerPhone: '4444444444' }]
+    })
+    mockPrisma.campaignContact.findFirst
+      .mockResolvedValueOnce({
+        id: 'cc-4', campaignId: 'campaign-1', contactId: 'contact-43', createdAt: new Date()
+      })
+      .mockResolvedValueOnce(null)
+
+    mockPrisma.campaignCallLog.upsert.mockResolvedValueOnce({ id: 'log-3' })
+    mockPrisma.campaignContact.update.mockResolvedValueOnce({ id: 'cc-4', status: 'COMPLETED' })
+
+    const baseUrl = await startTestServer()
+    const response = await fetch(`${baseUrl}/api/campaigns/campaign-1/call-log`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Center-ID': 'center-1',
+        ...authHeaderFor('4444444444')
+      },
+      body: JSON.stringify({
+        campaignContactId: 'cc-4',
+        feedback: 'COMPLETED',
+        centerChange: false,
+        doNotDisturb: false,
+        notInterestedToVolunteer: false,
+        action: 'submit'
+      })
+    })
+
+    expect(response.status).toBe(200)
+    // No flags → contact.update must NOT have been called
+    expect(mockPrisma.contact.update).not.toHaveBeenCalled()
   })
 
   it('returns transformed call logs table payload', async () => {

@@ -130,6 +130,10 @@ export function ContactsTable({
             </th>
           ))}
 
+          <th style={{ ...th, ...stickyHeader }}>Not Interested</th>
+          <th style={{ ...th, ...stickyHeader }}>Center Change</th>
+          <th style={{ ...th, ...stickyHeader }}>DND</th>
+
           <th style={{ ...th, ...stickyHeader }} onClick={() => onToggleSort('total')}>
             Total{getSortIndicator('total')}
           </th>
@@ -246,6 +250,40 @@ export function ContactsTable({
           ))}
 
           <th style={{ ...th, ...stickyFilter }}>
+            <select
+              value={filters.notInterestedFilter}
+              onChange={e => onFilterChange('notInterested', e.target.value)}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+            >
+              <option value="">All</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </th>
+          <th style={{ ...th, ...stickyFilter }}>
+            <select
+              value={filters.centerChangeFilter}
+              onChange={e => onFilterChange('centerChange', e.target.value)}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+            >
+              <option value="">All</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </th>
+          <th style={{ ...th, ...stickyFilter }}>
+            <select
+              value={filters.doNotDisturbFilter}
+              onChange={e => onFilterChange('doNotDisturb', e.target.value)}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+            >
+              <option value="">All</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </th>
+
+          <th style={{ ...th, ...stickyFilter }}>
             <input
               type="text"
               placeholder="Min"
@@ -310,6 +348,16 @@ export function ContactsTable({
                 {(c.interests || {})[i] || 0}
               </td>
             ))}
+
+            <td style={tdCenter}>
+              {c.notInterested ? <span style={{ color: '#dc3545', fontWeight: 600 }}>✓</span> : <span style={{ color: '#999' }}>—</span>}
+            </td>
+            <td style={tdCenter}>
+              {c.centerChange ? <span style={{ color: '#fd7e14', fontWeight: 600 }}>✓</span> : <span style={{ color: '#999' }}>—</span>}
+            </td>
+            <td style={tdCenter}>
+              {c.doNotDisturb ? <span style={{ color: '#dc3545', fontWeight: 600 }}>✓</span> : <span style={{ color: '#999' }}>—</span>}
+            </td>
 
             <td style={tdCenter}>{ContactService.getTotal(c)}</td>
             <td style={td}>{new Date(c.lastUpdated).toLocaleString()}</td>

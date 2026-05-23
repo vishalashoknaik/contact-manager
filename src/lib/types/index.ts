@@ -12,6 +12,9 @@ export interface Contact {
   areas: Record<string, number>
   programs: Record<string, number>
   interests?: Record<string, number>
+  notInterested?: boolean
+  centerChange?: boolean
+  doNotDisturb?: boolean
   selected: boolean
   lastUpdated: string
   importOrder?: number
@@ -35,6 +38,9 @@ export interface FilterState {
   interestFilters: Record<string, string>
   totalFilter: string
   dateFilter: string
+  notInterestedFilter: string
+  centerChangeFilter: string
+  doNotDisturbFilter: string
 }
 
 export interface SortState {

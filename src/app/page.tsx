@@ -155,6 +155,9 @@ function HomeContent() {
     else if (filterName === 'areaOfStay') filteringManager.setAreaOfStayFilter(value)
     else if (filterName === 'total') filteringManager.setTotalFilter(value)
     else if (filterName === 'date') filteringManager.setDateFilter(value)
+    else if (filterName === 'notInterested') filteringManager.setNotInterestedFilter(value)
+    else if (filterName === 'centerChange') filteringManager.setCenterChangeFilter(value)
+    else if (filterName === 'doNotDisturb') filteringManager.setDoNotDisturbFilter(value)
   }
 
   const backendError = contactsManager.error || configManager.error

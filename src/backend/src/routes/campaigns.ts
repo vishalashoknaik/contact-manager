@@ -419,6 +419,19 @@ router.post('/:id/call-log', async (req: Request, res: Response) => {
       })
     ])
 
+    // Propagate sticky flags to the main Contact record so they appear in
+    // the contacts table. Flags are only ever set to true — never cleared here.
+    if (centerChange || doNotDisturb || notInterestedToVolunteer) {
+      const flagData: Record<string, boolean> = {}
+      if (centerChange) flagData.centerChange = true
+      if (doNotDisturb) flagData.doNotDisturb = true
+      if (notInterestedToVolunteer) flagData.notInterested = true
+      await prisma.contact.update({
+        where: { id: campaignContact.contactId },
+        data: flagData
+      })
+    }
+
     // Find the next contact in the same mode.
     // For skipped revisit mode, move forward from the current contact to avoid returning the same row again.
     const nextStatus: 'SKIPPED' | 'PENDING' = callMode === 'skipped' ? 'SKIPPED' : 'PENDING'
