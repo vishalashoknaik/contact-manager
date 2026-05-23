@@ -295,11 +295,8 @@ describe('useContacts', () => {
 
   it('clearAllSelections clears all selections', async () => {
     const allSelected = mockContacts.map(c => ({ ...c, selected: true }))
-    const allUnselected = mockContacts.map(c => ({ ...c, selected: false }))
 
-    vi.mocked(contactsApi.getAll)
-      .mockResolvedValueOnce(allSelected as never)
-      .mockResolvedValueOnce(allUnselected as never)
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce(allSelected as never)
 
     const { result } = renderHook(() => useContacts())
     await waitFor(() => expect(result.current.isLoaded).toBe(true))
@@ -308,9 +305,8 @@ describe('useContacts', () => {
       await result.current.clearAllSelections()
     })
 
-    expect(contactsApi.update).toHaveBeenCalledTimes(2)
-    expect(contactsApi.update).toHaveBeenCalledWith('uuid-1', { selected: false }, 'center-1')
-    expect(contactsApi.update).toHaveBeenCalledWith('uuid-2', { selected: false }, 'center-1')
+    expect(result.current.contacts.every(c => !c.selected)).toBe(true)
+    expect(contactsApi.update).not.toHaveBeenCalled()
   })
 
   it('incrementSelected syncs updated contacts to backend', async () => {
@@ -447,10 +443,9 @@ describe('useContacts', () => {
 
   // ── clearAllSelections rollback ────────────────────────────────────────────
 
-  it('clearAllSelections rolls back when backend update fails', async () => {
+  it('clearAllSelections clears selections locally without backend calls', async () => {
     const allSelected = mockContacts.map(c => ({ ...c, selected: true }))
     vi.mocked(contactsApi.getAll).mockResolvedValueOnce(allSelected as never)
-    vi.mocked(contactsApi.update).mockRejectedValue(new Error('Network timeout'))
 
     const { result } = renderHook(() => useContacts())
     await waitFor(() => expect(result.current.isLoaded).toBe(true))
@@ -459,13 +454,12 @@ describe('useContacts', () => {
       return await result.current.clearAllSelections()
     })
 
-    expect(returnValue).toBe(false)
-    expect(result.current.contacts[0].selected).toBe(true)
-    expect(result.current.contacts[1].selected).toBe(true)
-    expect(result.current.error).toMatch(/Failed to clear selections/)
+    expect(returnValue).toBe(true)
+    expect(result.current.contacts.every(c => !c.selected)).toBe(true)
+    expect(contactsApi.update).not.toHaveBeenCalled()
   })
 
-  it('clearAllSelections returns false when no center is selected', async () => {
+  it('clearAllSelections always returns true regardless of center or backend state', async () => {
     vi.mocked(useAuth).mockReturnValue({ isLoggedIn: true, isLoading: false, selectedCenter: null } as any)
     vi.mocked(contactsApi.getAll).mockResolvedValueOnce([] as never)
 
@@ -476,12 +470,11 @@ describe('useContacts', () => {
       return await result.current.clearAllSelections()
     })
 
-    expect(returnValue).toBeFalsy()
+    expect(returnValue).toBe(true)
     expect(contactsApi.update).not.toHaveBeenCalled()
-    expect(result.current.error).toMatch(/No center selected/)
   })
 
-  it('clearAllSelections returns false when backend unavailable', async () => {
+  it('clearAllSelections succeeds even when backend is unavailable', async () => {
     vi.mocked(contactsApi.getAll).mockRejectedValueOnce(new Error('down'))
 
     const { result } = renderHook(() => useContacts())
@@ -492,9 +485,8 @@ describe('useContacts', () => {
       return await result.current.clearAllSelections()
     })
 
-    expect(returnValue).toBeFalsy()
+    expect(returnValue).toBe(true)
     expect(contactsApi.update).not.toHaveBeenCalled()
-    expect(result.current.error).toMatch(/Backend unavailable/)
   })
 
   // ── setContacts guards ────────────────────────────────────────────────────

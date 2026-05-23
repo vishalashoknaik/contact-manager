@@ -178,7 +178,7 @@ describe('useContacts — toggleSelectAll', () => {
 
 // ── clearAllSelections ────────────────────────────────────────────────────────
 describe('useContacts — clearAllSelections', () => {
-  it('sets all contacts to selected:false and calls API for each', async () => {
+  it('sets all contacts to selected:false without calling API', async () => {
     const { result } = setupHookWithContacts([
       { ...ALICE, selected: true },
       { ...BOB, selected: true }
@@ -189,27 +189,24 @@ describe('useContacts — clearAllSelections', () => {
       await result.current.clearAllSelections()
     })
 
-    expect(apiMock.update).toHaveBeenCalledWith('uuid-1', { selected: false }, 'center-1')
-    expect(apiMock.update).toHaveBeenCalledWith('uuid-2', { selected: false }, 'center-1')
+    expect(apiMock.update).not.toHaveBeenCalled()
     expect(result.current.contacts.every(c => c.selected === false)).toBe(true)
   })
 
-  it('rolls back when API call fails', async () => {
+  it('always returns true even when contacts are already unselected', async () => {
     const { result } = setupHookWithContacts([
-      { ...ALICE, selected: true },
-      { ...BOB, selected: true }
+      { ...ALICE, selected: false },
+      { ...BOB, selected: false }
     ])
     await waitFor(() => expect(result.current.isLoaded).toBe(true))
 
-    apiMock.update.mockRejectedValue(new Error('Server error'))
-
+    let returnValue: boolean | undefined
     await act(async () => {
-      await result.current.clearAllSelections()
+      returnValue = await result.current.clearAllSelections()
     })
 
-    // Should revert
-    expect(result.current.contacts.every(c => c.selected === true)).toBe(true)
-    expect(result.current.error).toMatch(/Failed to clear selections/)
+    expect(returnValue).toBe(true)
+    expect(apiMock.update).not.toHaveBeenCalled()
   })
 })
 
@@ -218,7 +215,6 @@ describe('useContacts — incrementSelected', () => {
   it('increments activity count for selected contacts and syncs to backend', async () => {
     apiMock.getAll
       .mockResolvedValueOnce([{ ...ALICE, selected: true }, { ...BOB, selected: false }])
-      .mockResolvedValueOnce([{ ...ALICE, selected: true, activities: { Walkathon: 1 } }, { ...BOB, selected: false }])
 
     const { result } = renderHook(() => useContacts())
     await waitFor(() => expect(result.current.isLoaded).toBe(true))

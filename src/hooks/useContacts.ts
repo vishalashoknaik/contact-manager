@@ -37,22 +37,20 @@ export function useContacts() {
 
     const validContacts = updatedContacts.filter(c => c.name?.trim() && c.phone?.trim())
 
-    for (const c of validContacts) {
-      await contactsApi.create({
-        name: c.name,
-        phone: c.phone,
-        gender: c.gender,
-        ieDate: c.ieDate,
-        areaOfStay: c.areaOfStay,
-        remarks: c.remarks,
-        activities: c.activities,
-        areas: c.areas,
-        programs: c.programs,
-        interests: c.interests,
-        selected: c.selected,
-        importOrder: c.importOrder
-      }, selectedCenter)
-    }
+    await Promise.all(validContacts.map(c => contactsApi.create({
+      name: c.name,
+      phone: c.phone,
+      gender: c.gender,
+      ieDate: c.ieDate,
+      areaOfStay: c.areaOfStay,
+      remarks: c.remarks,
+      activities: c.activities,
+      areas: c.areas,
+      programs: c.programs,
+      interests: c.interests,
+      selected: c.selected,
+      importOrder: c.importOrder
+    }, selectedCenter)))
   }
 
   useEffect(() => {
@@ -242,7 +240,6 @@ export function useContacts() {
       })
 
       await syncContactsToBackend(changedContacts)
-      await refreshFromBackend()
       setError(null)
       return true
     } catch (err) {
@@ -304,31 +301,10 @@ export function useContacts() {
   }
 
   const clearAllSelections = async () => {
-    if (!selectedCenter) {
-      setError('No center selected. Cannot clear selections.')
-      return false
-    }
-
-    if (useBackend) {
-      const previousContacts = contacts
-      setContactsState(currentContacts => currentContacts.map(contact => ({ ...contact, selected: false })))
-
-      try {
-        await Promise.all(
-          contacts.map(c => contactsApi.update(c.id, { selected: false }, selectedCenter))
-        )
-        setError(null)
-        return true
-      } catch (err) {
-        setContactsState(previousContacts)
-        console.error('Backend clear failed:', err)
-        setError('Failed to clear selections in backend.')
-        return false
-      }
-    }
-
-    setError('Backend unavailable. Cannot clear selections.')
-    return false
+    // Selection state is UI-only — no backend persistence needed
+    setContactsState(currentContacts => currentContacts.map(contact => ({ ...contact, selected: false })))
+    setError(null)
+    return true
   }
 
   return {
