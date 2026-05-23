@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Volunteer Profiling — Points & Weightage System</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #212529; line-height: 1.55; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ── Layout ── */
+  .page { max-width: 1000px; margin: 0 auto; padding: 0 48px 60px; }
+
+  /* ── Hero ── */
+  .hero { background: linear-gradient(135deg, #1a1a2e 0%, #6f42c1 60%, #0d6efd 100%); color: #fff; padding: 64px 40px 56px; text-align: center; border-radius: 0 0 24px 24px; margin-bottom: 48px; }
+  .hero h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 10px; }
+  .hero .tagline { font-size: 1.05rem; opacity: .85; margin-bottom: 18px; }
+  .hero .sub { font-size: 1.1rem; opacity: .9; max-width: 620px; margin: 0 auto 20px; font-weight: 500; }
+  .hero .center-pill { display: inline-block; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.38); border-radius: 999px; padding: 5px 20px; font-size: .88rem; letter-spacing: .03em; }
+
+  /* ── Section ── */
+  .section { margin-bottom: 52px; }
+  .section-title { font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+  .section-desc { color: #555; margin-bottom: 24px; font-size: .98rem; }
+  hr.divider { border: none; border-top: 2px solid #e2e8f0; margin: 48px 0; }
+
+  /* ── Big stat row ── */
+  .stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 32px; }
+  .stat-card { background: #fff; border-radius: 14px; padding: 24px 16px; text-align: center; box-shadow: 0 1px 8px rgba(0,0,0,.08); border-top: 4px solid; }
+  .stat-card:nth-child(1) { border-color: #6f42c1; }
+  .stat-card:nth-child(2) { border-color: #0d6efd; }
+  .stat-card:nth-child(3) { border-color: #198754; }
+  .stat-card:nth-child(4) { border-color: #fd7e14; }
+  .stat-num { font-size: 2.4rem; font-weight: 800; color: #1a1a2e; line-height: 1; }
+  .stat-label { font-size: .8rem; color: #666; margin-top: 6px; }
+
+  /* ── Problem strip ── */
+  .problem-strip { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .problem-item { background: #fff5f6; border: 1px solid #f5c2c7; border-radius: 12px; padding: 20px 18px; }
+  .problem-item .p-icon { font-size: 1.6rem; margin-bottom: 8px; }
+  .problem-item h4 { font-size: .95rem; font-weight: 700; color: #842029; margin-bottom: 6px; }
+  .problem-item p { font-size: .85rem; color: #555; }
+
+  /* ── Why profiling matters ── */
+  .insight-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+  .insight-card { background: #fff; border-radius: 14px; padding: 24px 20px; box-shadow: 0 1px 8px rgba(0,0,0,.08); border-left: 4px solid; }
+  .insight-card:nth-child(1) { border-color: #6f42c1; }
+  .insight-card:nth-child(2) { border-color: #0d6efd; }
+  .insight-card:nth-child(3) { border-color: #198754; }
+  .insight-card:nth-child(4) { border-color: #fd7e14; }
+  .insight-card:nth-child(5) { border-color: #dc3545; }
+  .insight-card:nth-child(6) { border-color: #20c997; }
+  .insight-card .ic-icon { font-size: 1.5rem; margin-bottom: 10px; }
+  .insight-card h3 { font-size: .97rem; font-weight: 700; color: #1a1a2e; margin-bottom: 7px; }
+  .insight-card p { font-size: .85rem; color: #555; line-height: 1.5; }
+
+  /* ── Weightage table ── */
+  .weight-table-wrap { background: #fff; border-radius: 14px; box-shadow: 0 1px 8px rgba(0,0,0,.08); overflow: hidden; }
+  .weight-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .weight-table thead tr { background: #1a1a2e; color: #fff; }
+  .weight-table th { padding: 13px 16px; text-align: left; font-size: .82rem; letter-spacing: .04em; text-transform: uppercase; }
+  .weight-table td { padding: 11px 16px; border-bottom: 1px solid #f0f2f5; color: #333; }
+  .weight-table tbody tr:last-child td { border-bottom: none; }
+  .weight-table tbody tr:hover td { background: #f8f9ff; }
+  .weight-table .cat-act { background: #f0fdf4; }
+  .weight-table .cat-prog { background: #fefce8; }
+  .weight-table .cat-area { background: #f0f0ff; }
+  .weight-table .cat-vol { background: #fff5f5; }
+  .w-badge { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; font-weight: 800; font-size: .88rem; color: #fff; }
+  .w-high { background: #198754; }
+  .w-med { background: #0d6efd; }
+  .w-low { background: #6c757d; }
+  .w-bonus { background: #fd7e14; }
+  .cat-label { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: .72rem; font-weight: 700; }
+  .cat-label-act { background: #dcfce7; color: #166534; }
+  .cat-label-prog { background: #fef9c3; color: #854d0e; }
+  .cat-label-vol { background: #fee2e2; color: #991b1b; }
+  .cat-label-bonus { background: #ffedd5; color: #9a3412; }
+
+  /* ── Score tiers ── */
+  .tier-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+  .tier-card { border-radius: 14px; padding: 24px 18px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,.09); }
+  .tier-platinum { background: linear-gradient(135deg,#e2e8f0,#f8fafc); border: 2px solid #94a3b8; }
+  .tier-gold { background: linear-gradient(135deg,#fef9c3,#fffbeb); border: 2px solid #ca8a04; }
+  .tier-silver { background: linear-gradient(135deg,#f0f0ff,#eff6ff); border: 2px solid #6366f1; }
+  .tier-active { background: linear-gradient(135deg,#f0fdf4,#ecfdf5); border: 2px solid #16a34a; }
+  .tier-badge { font-size: 2rem; margin-bottom: 8px; }
+  .tier-name { font-size: 1rem; font-weight: 800; margin-bottom: 4px; }
+  .tier-platinum .tier-name { color: #475569; }
+  .tier-gold .tier-name { color: #a16207; }
+  .tier-silver .tier-name { color: #4338ca; }
+  .tier-active .tier-name { color: #15803d; }
+  .tier-range { font-size: 1.3rem; font-weight: 800; margin: 8px 0 4px; color: #1a1a2e; }
+  .tier-desc { font-size: .78rem; color: #666; line-height: 1.45; }
+
+  /* ── Profile card mock ── */
+  .profile-card { background: #fff; border-radius: 16px; box-shadow: 0 2px 14px rgba(0,0,0,.1); overflow: hidden; max-width: 480px; }
+  .profile-header { background: linear-gradient(135deg,#6f42c1,#0d6efd); color: #fff; padding: 20px 22px 16px; display: flex; align-items: center; gap: 16px; }
+  .profile-avatar { width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 700; border: 2px solid rgba(255,255,255,.5); flex-shrink: 0; }
+  .profile-name { font-size: 1.05rem; font-weight: 700; margin-bottom: 2px; }
+  .profile-meta { font-size: .78rem; opacity: .85; }
+  .profile-score-big { background: rgba(255,255,255,.2); border-radius: 10px; padding: 8px 14px; text-align: center; flex-shrink: 0; }
+  .profile-score-big .psb-num { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+  .profile-score-big .psb-lbl { font-size: .65rem; opacity: .85; margin-top: 2px; }
+  .profile-body { padding: 18px 22px; }
+  .profile-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f0f2f5; font-size: .84rem; }
+  .profile-row:last-child { border-bottom: none; }
+  .profile-row .pr-label { color: #555; }
+  .profile-row .pr-val { font-weight: 700; color: #1a1a2e; }
+  .profile-row .pr-pts { font-size: .75rem; color: #6f42c1; font-weight: 700; background: #ede9fe; border-radius: 999px; padding: 2px 9px; }
+  .tier-tag { display: inline-block; border-radius: 999px; padding: 4px 14px; font-size: .78rem; font-weight: 700; margin-top: 12px; }
+  .tier-tag-gold { background: #fef9c3; color: #a16207; border: 1px solid #ca8a04; }
+  .profile-bar-wrap { margin-top: 14px; }
+  .profile-bar-label { display: flex; justify-content: space-between; font-size: .75rem; color: #666; margin-bottom: 4px; }
+  .profile-bar-track { background: #e9ecef; border-radius: 999px; height: 8px; overflow: hidden; }
+  .profile-bar-fill { height: 8px; border-radius: 999px; background: linear-gradient(90deg,#6f42c1,#0d6efd); }
+
+  /* ── Decision flow ── */
+  .flow-row { display: flex; gap: 0; align-items: stretch; }
+  .flow-step { flex: 1; background: #fff; border-radius: 12px; padding: 22px 18px; box-shadow: 0 1px 6px rgba(0,0,0,.08); text-align: center; position: relative; }
+  .flow-arrow { display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #6f42c1; padding: 0 6px; flex-shrink: 0; }
+  .flow-step .fs-num { width: 30px; height: 30px; border-radius: 50%; background: #6f42c1; color: #fff; font-weight: 800; font-size: .85rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; }
+  .flow-step h4 { font-size: .9rem; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+  .flow-step p { font-size: .8rem; color: #666; line-height: 1.4; }
+
+  /* ── One place benefits ── */
+  .onep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .onep-card { background: #fff; border-radius: 14px; padding: 24px 22px; box-shadow: 0 1px 8px rgba(0,0,0,.08); display: flex; gap: 16px; align-items: flex-start; }
+  .onep-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+  .onep-ic-1 { background: #ede9fe; }
+  .onep-ic-2 { background: #dbeafe; }
+  .onep-ic-3 { background: #dcfce7; }
+  .onep-ic-4 { background: #fff7ed; }
+  .onep-ic-5 { background: #fee2e2; }
+  .onep-ic-6 { background: #ecfdf5; }
+  .onep-text h4 { font-size: .96rem; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+  .onep-text p { font-size: .85rem; color: #555; line-height: 1.5; }
+
+  /* ── Callout ── */
+  .callout { background: linear-gradient(135deg, #1a1a2e 0%, #6f42c1 60%, #0d6efd 100%); color: #fff; border-radius: 16px; padding: 44px 40px; text-align: center; margin-bottom: 40px; }
+  .callout h2 { font-size: 1.7rem; font-weight: 700; margin-bottom: 12px; }
+  .callout p { font-size: 1rem; opacity: .88; max-width: 560px; margin: 0 auto 20px; }
+  .callout .cta-pills { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .cta-pill { background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 8px 22px; font-size: .9rem; font-weight: 600; }
+
+  /* ── Score comparison table ── */
+  .compare-wrap { background: #fff; border-radius: 14px; box-shadow: 0 1px 8px rgba(0,0,0,.08); overflow: hidden; }
+  .compare-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .compare-table thead tr { background: #1a1a2e; color: #fff; }
+  .compare-table th { padding: 12px 14px; text-align: left; font-size: .8rem; }
+  .compare-table td { padding: 10px 14px; border-bottom: 1px solid #f0f2f5; }
+  .compare-table tbody tr:last-child td { border-bottom: none; }
+  .compare-table tbody tr:hover td { background: #f8f9ff; }
+  .score-pill { display: inline-block; border-radius: 999px; padding: 3px 12px; font-size: .78rem; font-weight: 700; }
+  .sp-plat { background: #e2e8f0; color: #334155; }
+  .sp-gold { background: #fef9c3; color: #854d0e; }
+  .sp-silv { background: #ede9fe; color: #4c1d95; }
+  .sp-act  { background: #dcfce7; color: #14532d; }
+  .trend-up { color: #198754; font-weight: 700; }
+  .trend-dn { color: #dc3545; font-weight: 700; }
+  .trend-st { color: #888; }
+
+  /* ── Footer ── */
+  footer { text-align: center; font-size: .8rem; color: #888; padding: 24px 48px 16px; }
+
+  /* ── Mobile ── */
+  @media (max-width: 720px) {
+    .page { padding: 0 14px 40px; }
+    .hero { padding: 44px 18px 36px; }
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { grid-template-columns: 1fr 1fr; }
+    .problem-strip { grid-template-columns: 1fr; }
+    .insight-grid { grid-template-columns: 1fr 1fr; }
+    .tier-grid { grid-template-columns: 1fr 1fr; }
+    .onep-grid { grid-template-columns: 1fr; }
+    .flow-row { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); padding: 4px 0; }
+  }
+  @media (max-width: 480px) {
+    .hero h1 { font-size: 1.4rem; }
+    .stat-row { grid-template-columns: 1fr 1fr; }
+    .insight-grid { grid-template-columns: 1fr; }
+    .tier-grid { grid-template-columns: 1fr; }
+    .weight-table { font-size: .78rem; }
+    .weight-table th, .weight-table td { padding: 9px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ HERO ══════════════════════ -->
+<div class="hero">
+  <h1>Volunteer Profiling</h1>
+  <p class="tagline">Points &amp; Weightage — Seeing the Full Picture of Involvement</p>
+  <p class="sub">Why giving every touchpoint a score transforms scattered data into a clear, actionable ranking of volunteer engagement — and why having it all in one place is what makes it work.</p>
+  <span class="center-pill">📍 Koramangala Center · May 2026</span>
+</div>
+
+<div class="page">
+
+<!-- ══════════════════════ WHY WE NEED THIS NOW ══════════════════════ -->
+<div class="section">
+  <div class="section-title">The gap we keep running into</div>
+  <div class="section-desc">We know roughly who our regulars are — but "roughly" isn't good enough when we need to make real decisions. These three questions come up every planning cycle and we have no clean answer.</div>
+  <div class="problem-strip">
+    <div class="problem-item">
+      <div class="p-icon">🤔</div>
+      <h4>"Who is truly our most involved volunteer?"</h4>
+      <p>Someone attends every satsang but never joins activities. Another does every volunteering shift but rarely attends programs. Who is "more involved"? Without weightage, we can't compare them fairly.</p>
+    </div>
+    <div class="problem-item">
+      <div class="p-icon">📉</div>
+      <h4>"Who is drifting and needs a nudge?"</h4>
+      <p>We only notice someone has drifted when a coordinator remembers a face missing for a few weeks. There's no systematic way to catch gradual disengagement before it becomes permanent absence.</p>
+    </div>
+    <div class="problem-item">
+      <div class="p-icon">🏆</div>
+      <h4>"Who should we put forward for the next big program?"</h4>
+      <p>Decisions like "who runs the next program", "who gets a deeper role", or "who do we recognize at the annual event" are made on gut feel. A score-based profile makes it transparent and fair.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════ WHAT PROFILING MEANS ══════════════════════ -->
+<div class="section">
+  <div class="section-title">What a volunteer profile actually is</div>
+  <div class="section-desc">A profile is not just a contact record. It is a living score built from every recorded touchpoint — 1 point for every participation, summed across every column in the system.</div>
+
+  <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;">
+    <!-- Profile card mock -->
+    <div>
+      <div style="font-size:.82rem;font-weight:700;color:#555;margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;">Example Profile</div>
+      <div class="profile-card">
+        <div class="profile-header">
+          <div class="profile-avatar">VK</div>
+          <div style="flex:1;">
+            <div class="profile-name">Vishal Kumar</div>
+            <div class="profile-meta">📍 HSR Layout · Male · Since Jan 2022</div>
+            <span class="tier-tag tier-tag-gold">🥇 Gold Volunteer</span>
+          </div>
+          <div class="profile-score-big">
+            <div class="psb-num">60</div>
+            <div class="psb-lbl">Total Points</div>
+          </div>
+        </div>
+        <div class="profile-body">
+          <div style="font-size:.75rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Breakdown</div>
+          <div class="profile-row">
+            <span class="pr-label">🟢 Satsang Setup (22×)</span>
+            <span class="pr-pts">+22 pts</span>
+          </div>
+          <div class="profile-row">
+            <span class="pr-label">🟢 Savesoil Event (9×)</span>
+            <span class="pr-pts">+9 pts</span>
+          </div>
+          <div class="profile-row">
+            <span class="pr-label">🟠 Inner Engineering Prog (6×)</span>
+            <span class="pr-pts">+6 pts</span>
+          </div>
+          <div class="profile-row">
+            <span class="pr-label">🟠 Satsang Attendance (18×)</span>
+            <span class="pr-pts">+18 pts</span>
+          </div>
+          <div class="profile-row">
+            <span class="pr-label">📞 Campaign Calls (5×)</span>
+            <span class="pr-pts">+5 pts</span>
+          </div>
+          <div class="profile-bar-wrap">
+            <div class="profile-bar-label"><span>Progress to Platinum (100 pts)</span><span>60 / 100</span></div>
+            <div class="profile-bar-track"><div class="profile-bar-fill" style="width:60%;"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- What the numbers mean -->
+    <div style="flex:1;min-width:280px;">
+      <div class="insight-grid" style="grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="insight-card">
+          <div class="ic-icon">✅</div>
+          <h3>Simple and transparent</h3>
+          <p>Every participation counts as 1 point — no hidden multipliers, no debates about what's worth more. Anyone can understand and trust the score.</p>
+        </div>
+        <div class="insight-card">
+          <div class="ic-icon">📈</div>
+          <h3>Cumulative over time</h3>
+          <p>The score grows with every session, every campaign call, every program attended. It tells the full story, not just last week.</p>
+        </div>
+        <div class="insight-card">
+          <div class="ic-icon">🎯</div>
+          <h3>Comparable across people</h3>
+          <p>For the first time, we can rank all volunteers on a single fair scale — regardless of which activities they prefer.</p>
+        </div>
+        <div class="insight-card">
+          <div class="ic-icon">🔄</div>
+          <h3>Automatically updated</h3>
+          <p>Every attendance scan, call log, and program record feeds the score with zero extra work from the coordinator.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════ WEIGHTAGE TABLE ══════════════════════ -->
+<div class="section">
+  <div class="section-title">How the score works — 1 point per participation</div>
+  <div class="section-desc">Every column in the system — each activity, program, or outreach call — adds 1 point when a participation is recorded. The total across all columns is the volunteer's score.</div>
+
+  <div class="weight-table-wrap">
+    <table class="weight-table">
+      <thead>
+        <tr>
+          <th>Column / Touch-point</th>
+          <th>Category</th>
+          <th style="text-align:center;">Points Each</th>
+          <th>What gets counted</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Activities / Volunteering -->
+        <tr class="cat-act">
+          <td><strong>Satsang Setup / Breakdown</strong></td>
+          <td><span class="cat-label cat-label-act">Volunteering</span></td>
+          <td style="text-align:center;"><span class="w-badge w-high">1</span></td>
+          <td>Physical presence + service; happens frequently — counts every session</td>
+        </tr>
+        <tr class="cat-act">
+          <td><strong>Event Volunteering</strong> (Savesoil, Walkathon…)</td>
+          <td><span class="cat-label cat-label-act">Volunteering</span></td>
+          <td style="text-align:center;"><span class="w-badge w-high">1</span></td>
+          <td>Each event volunteered for adds 1 — multiple events in a year stack up</td>
+        </tr>
+        <!-- Programs -->
+        <tr class="cat-prog">
+          <td><strong>Satsang Attendance</strong></td>
+          <td><span class="cat-label cat-label-prog">Program</span></td>
+          <td style="text-align:center;"><span class="w-badge w-med">1</span></td>
+          <td>Regular practice attendance; frequency builds the score over time</td>
+        </tr>
+        <tr class="cat-prog">
+          <td><strong>Inner Engineering Program</strong></td>
+          <td><span class="cat-label cat-label-prog">Program</span></td>
+          <td style="text-align:center;"><span class="w-badge w-high">1</span></td>
+          <td>Each program completed adds 1 — completing it multiple times counts each time</td>
+        </tr>
+        <tr class="cat-prog">
+          <td><strong>Darshan / Special Event</strong></td>
+          <td><span class="cat-label cat-label-prog">Program</span></td>
+          <td style="text-align:center;"><span class="w-badge w-high">1</span></td>
+          <td>Each darshan or special event attended adds 1 to the program column</td>
+        </tr>
+        <tr class="cat-prog">
+          <td><strong>Isha Kriya / Short Program</strong></td>
+          <td><span class="cat-label cat-label-prog">Program</span></td>
+          <td style="text-align:center;"><span class="w-badge w-med">1</span></td>
+          <td>Entry-level program; counts once (completion, not repeat)</td>
+        </tr>
+        <!-- Campaign calls -->
+        <tr class="cat-vol">
+          <td><strong>Campaign Call — Completed</strong></td>
+          <td><span class="cat-label cat-label-vol">Outreach</span></td>
+          <td style="text-align:center;"><span class="w-badge w-med">1</span></td>
+          <td>Volunteer-initiated contact with feedback recorded; quality interaction</td>
+        </tr>
+        <!-- Bonus -->
+        <tr>
+          <td><strong>Consistency Bonus</strong> (3+ sessions in a month)</td>
+          <td><span class="cat-label cat-label-bonus">Bonus</span></td>
+          <td style="text-align:center;"><span class="w-badge w-bonus">+3</span></td>
+          <td>Rewards sustained engagement over a rolling 30-day window</td>
+        </tr>
+        <tr>
+          <td><strong>Tenure Bonus</strong> (every full year active)</td>
+          <td><span class="cat-label cat-label-bonus">Bonus</span></td>
+          <td style="text-align:center;"><span class="w-badge w-bonus">+5</span></td>
+          <td>Long-term loyalty; year count multiplied by 5 added to lifetime score</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:.78rem;color:#888;margin-top:10px;">* Each column in the contacts table maps directly to one of these rows. The score is just the sum of all column counts for a volunteer.</p>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════ TIER SYSTEM ══════════════════════ -->
+<div class="section">
+  <div class="section-title">Volunteer tiers — what the score means</div>
+  <div class="section-desc">Tiers give the score a human meaning. They communicate depth of involvement at a glance and guide decisions on recognition and responsibility.</div>
+  <div class="tier-grid">
+    <div class="tier-card tier-platinum">
+      <div class="tier-badge">🏅</div>
+      <div class="tier-name">Platinum</div>
+      <div class="tier-range">100+ pts</div>
+      <div class="tier-desc">Long-term pillars of the center. Deep involvement across multiple dimensions. Ideal for leadership and coordination roles.</div>
+    </div>
+    <div class="tier-card tier-gold">
+      <div class="tier-badge">🥇</div>
+      <div class="tier-name">Gold</div>
+      <div class="tier-range">50 – 99 pts</div>
+      <div class="tier-desc">Highly engaged and reliable. Regular across activities and programs. Ready to take on responsibility with some guidance.</div>
+    </div>
+    <div class="tier-card tier-silver">
+      <div class="tier-badge">🥈</div>
+      <div class="tier-name">Silver</div>
+      <div class="tier-range">20 – 49 pts</div>
+      <div class="tier-desc">Growing involvement. Consistently attending and occasionally volunteering. Great candidates for deeper nurturing.</div>
+    </div>
+    <div class="tier-card tier-active">
+      <div class="tier-badge">🌱</div>
+      <div class="tier-name">Active</div>
+      <div class="tier-range">1 – 19 pts</div>
+      <div class="tier-desc">Recently joined or occasionally attending. Every engagement counts. Consistent follow-up keeps them in the fold.</div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════ SAMPLE LEADERBOARD ══════════════════════ -->
+<div class="section">
+  <div class="section-title">What the dashboard looks like in practice</div>
+  <div class="section-desc">A single sortable table replaces all the mental models in coordinators' heads. Filter by tier, area, or program — instantly see who's rising, who's steady, and who needs attention.</div>
+  <div class="compare-wrap">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Volunteer</th>
+          <th>Area</th>
+          <th>Activities</th>
+          <th>Programs</th>
+          <th>Score</th>
+          <th>Tier</th>
+          <th>Trend</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:#888;font-size:.8rem;">1</td>
+          <td><strong>Priya Sharma</strong></td>
+          <td>Koramangala</td>
+          <td>31 + 11 = 42</td>
+          <td>22 + 8 = 30</td>
+          <td><strong>72</strong></td>
+          <td><span class="score-pill sp-gold">🥇 Gold</span></td>
+          <td class="trend-up">↑ +12 this month</td>
+        </tr>
+        <tr>
+          <td style="color:#888;font-size:.8rem;">2</td>
+          <td><strong>Vishal Kumar</strong></td>
+          <td>HSR Layout</td>
+          <td>22 + 9 = 31</td>
+          <td>18 + 6 = 24</td>
+          <td><strong>55</strong></td>
+          <td><span class="score-pill sp-gold">🥇 Gold</span></td>
+          <td class="trend-up">↑ +8 this month</td>
+        </tr>
+        <tr>
+          <td style="color:#888;font-size:.8rem;">3</td>
+          <td><strong>Kiran Murthy</strong></td>
+          <td>Bellandur</td>
+          <td>12 + 5 = 17</td>
+          <td>8 + 3 = 11</td>
+          <td><strong>28</strong></td>
+          <td><span class="score-pill sp-silv">🥈 Silver</span></td>
+          <td class="trend-st">→ steady</td>
+        </tr>
+        <tr>
+          <td style="color:#888;font-size:.8rem;">4</td>
+          <td><strong>Ananya Rao</strong></td>
+          <td>Koramangala</td>
+          <td>8 + 3 = 11</td>
+          <td>8 + 2 = 10</td>
+          <td><strong>21</strong></td>
+          <td><span class="score-pill sp-silv">🥈 Silver</span></td>
+          <td class="trend-up">↑ +5 this month</td>
+        </tr>
+        <tr>
+          <td style="color:#888;font-size:.8rem;">5</td>
+          <td><strong>Meena Iyer</strong></td>
+          <td>HSR Layout</td>
+          <td>4 + 1 = 5</td>
+          <td>2 + 2 = 4</td>
+          <td><strong>9</strong></td>
+          <td><span class="score-pill sp-act">🌱 Active</span></td>
+          <td class="trend-dn">↓ no activity 3 wks</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:.78rem;color:#888;margin-top:10px;">Meena Iyer's downward trend is immediately visible — a trigger for the coordinator to reach out before the gap widens. This insight is impossible to see when data lives across multiple spreadsheets.</p>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════ WHY ONE PLACE ══════════════════════ -->
+<div class="section">
+  <div class="section-title">Why having everything in one place is what makes it work</div>
+  <div class="section-desc">The 1-point system only works when all the data it needs — attendance, campaigns, programs, contacts — flows into the same database automatically. Here's what that single source of truth unlocks.</div>
+  <div class="onep-grid">
+    <div class="onep-card">
+      <div class="onep-icon onep-ic-1">🗂️</div>
+      <div class="onep-text">
+        <h4>No manual aggregation</h4>
+        <p>Scores are computed from data already being collected for attendance and campaigns. There is no separate "profiling spreadsheet" to maintain — the system calculates it as a by-product of normal operations.</p>
+      </div>
+    </div>
+    <div class="onep-card">
+      <div class="onep-icon onep-ic-2">🔗</div>
+      <div class="onep-text">
+        <h4>Every touchpoint linked to a single identity</h4>
+        <p>When a volunteer attends a satsang on Saturday and volunteers for a campaign on Tuesday, both events are recorded under the same contact record — deduplicated by phone number. The score is always complete.</p>
+      </div>
+    </div>
+    <div class="onep-card">
+      <div class="onep-icon onep-ic-3">📵</div>
+      <div class="onep-text">
+        <h4>Offline attendance still contributes</h4>
+        <p>Attendance taken offline in the hall syncs automatically when back online. No attendance data is lost, which means no points are lost, which means the profile stays accurate even in poor-connectivity situations.</p>
+      </div>
+    </div>
+    <div class="onep-card">
+      <div class="onep-icon onep-ic-4">🔁</div>
+      <div class="onep-text">
+        <h4>New coordinators inherit full context</h4>
+        <p>When a coordinator leaves or a new team joins, the full profile history is already there. No tribal knowledge, no "ask the previous person" — the score tells the story of every volunteer going back years.</p>
+      </div>
+    </div>
+    <div class="onep-card">
+      <div class="onep-icon onep-ic-5">🎯</div>
+      <div class="onep-text">
+        <h4>Targeted outreach, not blanket messages</h4>
+        <p>Filter volunteers by tier + area + last-seen date and you get an exact list for a campaign — no guessing, no broadcast-to-everyone. Outreach becomes precise and personal instead of noisy.</p>
+      </div>
+    </div>
+    <div class="onep-card">
+      <div class="onep-icon onep-ic-6">📊</div>
+      <div class="onep-text">
+        <h4>Center-level health at a glance</h4>
+        <p>Aggregate scores tell you not just individual involvement but the health of the whole center — how many Platinum volunteers do we have? Is the Silver cohort growing? Are Active volunteers progressing or dropping off?</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════ DECISION FLOW ══════════════════════ -->
+<div class="section">
+  <div class="section-title">From data to decision — how the system is used</div>
+  <div class="section-desc">The real value of profiling is that it shortens the time from "we need to make a decision" to "here's the data that informs it".</div>
+  <div class="flow-row">
+    <div class="flow-step">
+      <div class="fs-num">1</div>
+      <h4>Data collected naturally</h4>
+      <p>Attendance scans, campaign calls, and program registrations happen as normal — no extra effort.</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="fs-num">2</div>
+      <h4>Scores calculated automatically</h4>
+      <p>Each participation adds 1 to that column's count. All column counts are summed into the volunteer's running total in real time.</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="fs-num">3</div>
+      <h4>Tiers assigned</h4>
+      <p>Every volunteer is placed in a tier — Platinum, Gold, Silver, or Active — based on their current score.</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="fs-num">4</div>
+      <h4>Coordinator filters and acts</h4>
+      <p>Sort by tier, trend, or area. Launch a targeted campaign, recognize top volunteers, or re-engage those drifting.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════ CALLOUT ══════════════════════ -->
+<div class="callout">
+  <h2>The overall picture we've been missing</h2>
+  <p>Right now, every coordinator carries mental models of who is involved and how much. Those models are incomplete, inconsistent, and lost when the coordinator changes. A points-based profile makes that knowledge permanent, fair, and shared.</p>
+  <div class="cta-pills">
+    <span class="cta-pill">🏅 Fair recognition of long-term involvement</span>
+    <span class="cta-pill">📉 Early warning when someone drifts</span>
+    <span class="cta-pill">🎯 Targeted outreach for every program</span>
+  </div>
+</div>
+
+<!-- ══════════════════════ SUMMARY ══════════════════════ -->
+<div class="section">
+  <div class="section-title">In summary</div>
+  <div class="section-desc">Three things have to be true at once for this to work — and our Volunteers Coordination app delivers all three.</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
+    <div style="background:#fff;border-radius:14px;padding:24px 20px;box-shadow:0 1px 8px rgba(0,0,0,.08);text-align:center;border-top:4px solid #6f42c1;">
+      <div style="font-size:2rem;margin-bottom:10px;">📥</div>
+      <div style="font-size:1rem;font-weight:700;color:#1a1a2e;margin-bottom:8px;">All data in one place</div>
+      <p style="font-size:.85rem;color:#555;">Attendance, campaigns, programs, and contact history — single database, single identity per volunteer.</p>
+    </div>
+    <div style="background:#fff;border-radius:14px;padding:24px 20px;box-shadow:0 1px 8px rgba(0,0,0,.08);text-align:center;border-top:4px solid #0d6efd;">
+      <div style="font-size:2rem;margin-bottom:10px;">🔢</div>
+      <div style="font-size:1rem;font-weight:700;color:#1a1a2e;margin-bottom:8px;">1 point per participation</div>
+      <p style="font-size:.85rem;color:#555;">Every column counts equally — each attendance, activity, or call adds 1. Simple to explain, simple to trust.</p>
+    </div>
+    <div style="background:#fff;border-radius:14px;padding:24px 20px;box-shadow:0 1px 8px rgba(0,0,0,.08);text-align:center;border-top:4px solid #198754;">
+      <div style="font-size:2rem;margin-bottom:10px;">🏅</div>
+      <div style="font-size:1rem;font-weight:700;color:#1a1a2e;margin-bottom:8px;">Tiers that mean something</div>
+      <p style="font-size:.85rem;color:#555;">Platinum → Gold → Silver → Active: a shared vocabulary for involvement across the whole team.</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- /page -->
+
+<footer>Volunteers Coordination · Koramangala Center · May 2026 · Built for Isha Centers</footer>
+
+</body>
+</html>

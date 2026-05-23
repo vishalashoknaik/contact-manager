@@ -473,7 +473,8 @@ function AttendanceEntry({
 
     void loadAttendees()
     const interval = window.setInterval(() => {
-      void loadAttendees()
+      // Skip polling while the tab is backgrounded to avoid unnecessary server load
+      if (!document.hidden) void loadAttendees()
     }, 3000)
 
     return () => {
@@ -1362,7 +1363,8 @@ export default function AttendancePage() {
     }, 2000)
 
     refreshInterval = window.setInterval(() => {
-      void loadSessions()
+      // Skip polling while the tab is backgrounded to avoid unnecessary server load
+      if (!document.hidden) void loadSessions()
     }, 15000)
 
     return () => {

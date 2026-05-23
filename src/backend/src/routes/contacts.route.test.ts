@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ── Prisma mock ──────────────────────────────────────────────────────────────
 const mockPrisma = {
+  user: {
+    findUnique: vi.fn()
+  },
   contact: {
     findMany: vi.fn(),
     findFirst: vi.fn(),
@@ -29,6 +32,18 @@ vi.mock('@prisma/client', () => ({ PrismaClient: vi.fn(() => mockPrisma) }))
 
 // ── Server helpers ────────────────────────────────────────────────────────────
 const servers: Array<{ close: () => void }> = []
+
+function authHeaderFor(phone: string) {
+  const token = Buffer.from(`${phone}:password`).toString('base64')
+  return { Authorization: `Bearer ${token}` }
+}
+
+const ADMIN_USER = {
+  phone: '1111111111',
+  name: 'Admin User',
+  canAccessAllCenters: false,
+  centers: [{ centerId: 'center-abc', isApproved: true, role: 'ADMIN' }]
+}
 
 async function startTestServer() {
   const { default: contactsRouter } = await import('./contacts')
@@ -466,24 +481,35 @@ describe('DELETE /api/contacts/:id', () => {
     expect(await res.json()).toEqual({ error: 'Center ID is required' })
   })
 
+  it('returns 401 when no Authorization header is provided', async () => {
+    const baseUrl = await startTestServer()
+    const res = await fetch(`${baseUrl}/api/contacts/c-001`, {
+      method: 'DELETE',
+      headers: { 'X-Center-ID': CENTER }
+    })
+    expect(res.status).toBe(401)
+  })
+
   it('returns 404 when contact is not found in the center', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce(ADMIN_USER)
     mockPrisma.contact.findFirst.mockResolvedValueOnce(null)
     const baseUrl = await startTestServer()
     const res = await fetch(`${baseUrl}/api/contacts/c-999`, {
       method: 'DELETE',
-      headers: { 'X-Center-ID': CENTER }
+      headers: { 'X-Center-ID': CENTER, ...authHeaderFor(ADMIN_USER.phone) }
     })
     expect(res.status).toBe(404)
     expect(await res.json()).toEqual({ error: 'Contact not found' })
   })
 
   it('deletes successfully and returns success', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce(ADMIN_USER)
     mockPrisma.contact.findFirst.mockResolvedValueOnce(makeDbContact())
     mockPrisma.contact.delete.mockResolvedValueOnce({})
     const baseUrl = await startTestServer()
     const res = await fetch(`${baseUrl}/api/contacts/c-001`, {
       method: 'DELETE',
-      headers: { 'X-Center-ID': CENTER }
+      headers: { 'X-Center-ID': CENTER, ...authHeaderFor(ADMIN_USER.phone) }
     })
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ success: true })
@@ -491,11 +517,15 @@ describe('DELETE /api/contacts/:id', () => {
   })
 
   it('scopes deletion lookup to the requesting center', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      ...ADMIN_USER,
+      centers: [{ centerId: 'other-center', isApproved: true, role: 'ADMIN' }]
+    })
     mockPrisma.contact.findFirst.mockResolvedValueOnce(null)
     const baseUrl = await startTestServer()
     await fetch(`${baseUrl}/api/contacts/c-001`, {
       method: 'DELETE',
-      headers: { 'X-Center-ID': 'other-center' }
+      headers: { 'X-Center-ID': 'other-center', ...authHeaderFor(ADMIN_USER.phone) }
     })
     const call = mockPrisma.contact.findFirst.mock.calls[0][0]
     expect(call.where.centerId).toBe('other-center')
@@ -503,12 +533,13 @@ describe('DELETE /api/contacts/:id', () => {
   })
 
   it('returns 404 on prisma error (catch-all)', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce(ADMIN_USER)
     mockPrisma.contact.findFirst.mockResolvedValueOnce(makeDbContact())
     mockPrisma.contact.delete.mockRejectedValueOnce(new Error('FK constraint'))
     const baseUrl = await startTestServer()
     const res = await fetch(`${baseUrl}/api/contacts/c-001`, {
       method: 'DELETE',
-      headers: { 'X-Center-ID': CENTER }
+      headers: { 'X-Center-ID': CENTER, ...authHeaderFor(ADMIN_USER.phone) }
     })
     expect(res.status).toBe(404)
   })

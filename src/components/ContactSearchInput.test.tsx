@@ -134,4 +134,71 @@ describe('ContactSearchInput', () => {
     await user.type(screen.getByRole('textbox'), 'alice{Enter}')
     expect(onSelect).not.toHaveBeenCalled()
   })
+
+  // ── onQueryChange ────────────────────────────────────────────────────────
+
+  it('calls onQueryChange with the current text on every keystroke', async () => {
+    const onQueryChange = vi.fn()
+    const user = userEvent.setup()
+    render(<ContactSearchInput contacts={contacts} onSelect={vi.fn()} onQueryChange={onQueryChange} />)
+
+    await user.type(screen.getByRole('textbox'), 'ali')
+    expect(onQueryChange).toHaveBeenCalledWith('a')
+    expect(onQueryChange).toHaveBeenCalledWith('al')
+    expect(onQueryChange).toHaveBeenCalledWith('ali')
+  })
+
+  it('calls onQueryChange with an empty string when a contact is selected', async () => {
+    const onQueryChange = vi.fn()
+    const user = userEvent.setup()
+    render(<ContactSearchInput contacts={[ALICE]} onSelect={vi.fn()} onQueryChange={onQueryChange} />)
+
+    await user.type(screen.getByRole('textbox'), 'alice')
+    onQueryChange.mockClear()
+    fireEvent.mouseDown(screen.getByRole('option'))
+    expect(onQueryChange).toHaveBeenCalledWith('')
+  })
+
+  // ── onRawAdd ─────────────────────────────────────────────────────────────
+
+  it('calls onRawAdd and clears the input when Enter is pressed with no highlighted suggestion', async () => {
+    const onRawAdd = vi.fn()
+    const user = userEvent.setup()
+    render(<ContactSearchInput contacts={[]} onSelect={vi.fn()} onRawAdd={onRawAdd} />)
+
+    await user.type(screen.getByRole('textbox'), '9999999999{Enter}')
+    expect(onRawAdd).toHaveBeenCalledWith('9999999999')
+    expect(screen.getByRole('textbox')).toHaveValue('')
+  })
+
+  it('calls onRawAdd when Enter is pressed while dropdown is closed (query present, no nav)', async () => {
+    const onRawAdd = vi.fn()
+    const user = userEvent.setup()
+    // Contacts provided but no match — dropdown stays closed
+    render(<ContactSearchInput contacts={contacts} onSelect={vi.fn()} onRawAdd={onRawAdd} />)
+
+    await user.type(screen.getByRole('textbox'), '0000000000{Enter}')
+    expect(onRawAdd).toHaveBeenCalledWith('0000000000')
+  })
+
+  it('does not call onRawAdd when Enter is pressed with a highlighted dropdown item', async () => {
+    const onSelect = vi.fn()
+    const onRawAdd = vi.fn()
+    const user = userEvent.setup()
+    render(<ContactSearchInput contacts={[ALICE]} onSelect={onSelect} onRawAdd={onRawAdd} />)
+
+    await user.type(screen.getByRole('textbox'), 'alice')
+    await user.keyboard('{ArrowDown}{Enter}')
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
+    expect(onRawAdd).not.toHaveBeenCalled()
+  })
+
+  it('does not call onRawAdd when Enter is pressed with empty input', async () => {
+    const onRawAdd = vi.fn()
+    const user = userEvent.setup()
+    render(<ContactSearchInput contacts={[]} onSelect={vi.fn()} onRawAdd={onRawAdd} />)
+
+    await user.keyboard('{Enter}')
+    expect(onRawAdd).not.toHaveBeenCalled()
+  })
 })

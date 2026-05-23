@@ -1,46 +1,8 @@
 import { Router, Request, Response } from 'express'
-import { Prisma } from '@prisma/client'
 import prisma from '../lib/prisma.js'
+import { getActor, canAccessCenter, isAdminOrUser } from '../lib/authUtils.js'
 
 const router = Router()
-
-function getPhoneFromAuthHeader(authorization: string | undefined): string | null {
-  if (!authorization) return null
-  const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : authorization
-  try {
-    const decoded = Buffer.from(token, 'base64').toString('utf-8')
-    const colonIdx = decoded.lastIndexOf(':')
-    if (colonIdx === -1) return null
-    return decoded.slice(0, colonIdx)
-  } catch {
-    return null
-  }
-}
-
-async function getActor(req: Request, res: Response) {
-  const phone = getPhoneFromAuthHeader(req.headers.authorization)
-  if (!phone) {
-    res.status(401).json({ error: 'No authorization header' })
-    return null
-  }
-  const user = await prisma.user.findUnique({
-    where: { phone },
-    include: { centers: true }
-  })
-  if (!user) {
-    res.status(401).json({ error: 'User not found' })
-    return null
-  }
-  return user
-}
-
-function canAccessCenter(
-  user: { canAccessAllCenters: boolean; centers: Array<{ centerId: string; isApproved: boolean }> },
-  centerId: string
-) {
-  if (user.canAccessAllCenters) return true
-  return user.centers.some(m => m.centerId === centerId && m.isApproved)
-}
 
 /**
  * POST /api/campaigns
@@ -98,8 +60,7 @@ router.get('/', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Center access is required' })
     }
 
-    const membership = actor.centers.find(m => m.centerId === centerId)
-    const isAdmin = actor.canAccessAllCenters || (membership as any)?.role === 'ADMIN' || (membership as any)?.role === 'USER'
+    const isAdmin = isAdminOrUser(actor, centerId)
 
     const campaigns = await prisma.campaign.findMany({
       where: isAdmin
@@ -148,9 +109,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' })
 
     // Volunteers can only see campaigns they are assigned to
-    const membership = actor.centers.find(m => m.centerId === centerId)
-    const isAdmin = actor.canAccessAllCenters || (membership as any)?.role === 'ADMIN' || (membership as any)?.role === 'USER'
-    if (!isAdmin) {
+    if (!isAdminOrUser(actor, centerId)) {
       const isAssigned = campaign.volunteers.some(v => v.volunteerPhone === actor.phone)
       if (!isAssigned) return res.status(403).json({ error: 'Not assigned to this campaign' })
     }
@@ -228,9 +187,7 @@ router.put('/:id/volunteers', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Center access is required' })
     }
 
-    const membership = actor.centers.find(m => m.centerId === centerId)
-    const isAdmin = actor.canAccessAllCenters || (membership as any)?.role === 'ADMIN' || (membership as any)?.role === 'USER'
-    if (!isAdmin) {
+    if (!isAdminOrUser(actor, centerId)) {
       return res.status(403).json({ error: 'Only admins/users can assign volunteers' })
     }
 
@@ -521,15 +478,12 @@ router.get('/:id/call-logs', async (req: Request, res: Response) => {
     })
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' })
 
-    const membership = actor.centers.find(m => m.centerId === centerId)
-    const isAdminOrUser = actor.canAccessAllCenters ||
-      (membership as any)?.role === 'ADMIN' ||
-      (membership as any)?.role === 'USER'
+    const actorIsAdmin = isAdminOrUser(actor, centerId)
 
     const logs = await prisma.campaignCallLog.findMany({
       where: {
         campaignContact: { campaignId: campaign.id },
-        ...(isAdminOrUser ? {} : { volunteerPhone: actor.phone })
+        ...(actorIsAdmin ? {} : { volunteerPhone: actor.phone })
       },
       include: {
         campaignContact: { include: { contact: true } }

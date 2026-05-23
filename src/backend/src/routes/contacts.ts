@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../lib/prisma.js'
+import { getActor, isAdminOrUser } from '../lib/authUtils.js'
 
 const router = Router()
 
@@ -152,6 +153,14 @@ router.delete('/:id', async (req: Request, res: Response) => {
     const centerId = req.headers['x-center-id'] as string | undefined
     if (!centerId) {
       return res.status(400).json({ error: 'Center ID is required' })
+    }
+
+    // Only ADMIN or USER roles may delete contacts (child lock is enforced
+    // on the frontend, but we enforce the role here as a server-side backstop)
+    const actor = await getActor(req, res)
+    if (!actor) return
+    if (!isAdminOrUser(actor, centerId)) {
+      return res.status(403).json({ error: 'Only admins can delete contacts' })
     }
 
     const existing = await prisma.contact.findFirst({

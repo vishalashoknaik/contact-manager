@@ -1,0 +1,320 @@
+================================================================================
+  CONTACT MANAGER -- CODE REVIEW REPORT
+  Date: May 23, 2026  |  Reviewer: Senior Software Architect
+  Codebase: Next.js 16 frontend + Node/Express/Prisma backend
+================================================================================
+
+SCORING SUMMARY
+---------------
+Design                   5 / 10
+Architecture             5 / 10
+Unit Separation          5 / 10
+Code Reusability         4 / 10
+Optimizations            4 / 10
+Documentation            5 / 10
+Test Coverage            7 / 10
+Maintainability          5 / 10
+Security                 3 / 10
+Ease of Understanding    6 / 10
+
+OVERALL: 49 / 100
+
+================================================================================
+1. DESIGN  [5/10]
+================================================================================
+WHAT IS GOOD:
+  - Hook-based state management (useContacts, useAuth, useConfig) is clean.
+  - Optimistic UI updates in VolunteerPanel are correctly rolled back on failure.
+  - ContactSearchInput auto-detect for unknown volunteers is a good UX decision.
+
+PROBLEMS:
+  - attendance/page.tsx is 1,000+ lines containing 5 distinct sub-screens.
+    Each screen should be its own component in its own file.
+  - AdminPanel has too many responsibilities: user management, center config,
+    role granting, and contact management all live in one component.
+  - AdminService is a class holding two booleans with trivial getters/setters.
+    It provides no real value over plain React state.
+  - The child lock is purely a UI toggle with no backend enforcement. Any
+    authenticated user can call DELETE /contacts/:id directly.
+
+SUGGESTIONS:
+  a. Split attendance/page.tsx into: AttendanceSetupScreen, AttendanceEntry,
+     SessionTakerPanel, SessionAttendeesPanel -- each in its own file.
+  b. Retire AdminService or give it real business logic (permission checks,
+     audit logging). Currently it is dead weight.
+  c. Enforce delete permission on the backend with a role check, not just
+     the frontend child lock.
+
+================================================================================
+2. ARCHITECTURE  [5/10]
+================================================================================
+WHAT IS GOOD:
+  - Three-layer backend: Express routes -> Prisma ORM -> PostgreSQL.
+  - Separate route files per domain (contacts, auth, campaigns, attendance).
+  - Frontend calls only the API client layer, never Prisma directly.
+
+PROBLEMS:
+  - Authentication is not middleware. Every route file copy-pastes
+    getPhoneFromAuthHeader() and getActor(). The middleware/ folder exists
+    but is completely empty. This is the most glaring architectural gap.
+  - Authorization role check is duplicated 6+ times in campaigns.ts alone:
+      (membership as any)?.role === 'ADMIN'
+    A future role rename requires grep-and-replace across many files.
+  - The token is base64(phone:timestamp). This is not authentication -- it is
+    obfuscation. Any user can forge a token for any phone number.
+  - No input validation middleware. Each route hand-rolls partial validation.
+  - No API versioning. Old clients will silently break on schema changes.
+
+SUGGESTIONS:
+  a. Move getPhoneFromAuthHeader + getActor into
+     src/backend/src/middleware/authenticate.ts and apply at router level.
+  b. Move canAccessCenter and role checks into
+     src/backend/src/middleware/authorize.ts.
+  c. Replace the base64 token with a real JWT (jsonwebtoken). The secret
+     must be an environment variable, never hardcoded.
+  d. Add a validation middleware using Zod or express-validator.
+
+================================================================================
+3. UNIT SEPARATION  [5/10]
+================================================================================
+WHAT IS GOOD:
+  - Pure service classes (FilterService, PhoneService, CSVService) with no side
+    effects are correctly separated and are well-tested.
+  - useContacts, useAuth, useConfig, useFiltering are each focused hooks.
+
+PROBLEMS:
+  - getPhoneFromAuthHeader is defined separately in attendance.ts, campaigns.ts,
+    AND auth.ts -- three copies with minor differences.
+  - The contacts GET route does both data fetching AND transformation. The
+    "transform to frontend format" block belongs in a mapper, not a route.
+  - CampaignCallScreen mixes UI rendering with 50-line call-submission logic.
+    The submit() function should live in a dedicated useCallSession hook.
+  - Frontend Contact type and backend Prisma Contact model are structurally
+    duplicated. A change in one requires a manual matching change in the other.
+
+SUGGESTIONS:
+  a. Create src/backend/src/lib/mappers/contactMapper.ts and move the
+     "transform to frontend format" logic there.
+  b. Extract a useCallSession hook from CampaignCallScreen.
+  c. Consider generating shared TypeScript types from the Prisma schema so
+     frontend and backend share a single source of truth.
+
+================================================================================
+4. CODE REUSABILITY  [4/10]
+================================================================================
+WHAT IS GOOD:
+  - ContactSearchInput is properly reused in VolunteerPanel and attendance page.
+  - SyncStatusNotices is a reusable component used in multiple places.
+  - ConfigService.addItem / removeItem avoids duplication across category types.
+
+PROBLEMS:
+  - inputStyle and btn() style helpers are redefined in every component
+    (VolunteerPanel, attendance/page, CampaignCallScreen). No shared style util.
+  - The isAdmin role check (membership as any)?.role === 'ADMIN' is repeated
+    at least 8 times across campaigns.ts alone.
+  - The volunteer auto-create logic exists in both campaigns.ts and
+    attendance.ts as different implementations of the same business rule.
+    If the rule changes, both files must be updated in sync.
+
+SUGGESTIONS:
+  a. Create src/lib/styles.ts with shared inputStyle, buttonStyle, panelStyle.
+  b. Extract ensureUserForPhone(phone, name?, centerId) as a shared backend
+     utility that both campaigns and attendance routes call.
+  c. Create isAdminOrUserRole(actor, centerId): boolean backend helper to
+     replace the repeated inline role checks.
+
+================================================================================
+5. OPTIMIZATIONS  [4/10]
+================================================================================
+WHAT IS GOOD:
+  - syncContactsToBackend was parallelized with Promise.all.
+  - Connection pool is capped (connection_limit=5) to prevent DB exhaustion.
+  - Turbopack is used for fast dev builds.
+
+PROBLEMS:
+  - GET /api/contacts loads ALL contacts with no pagination. A center with
+    10,000 contacts will load the entire table into memory on every visit.
+  - Campaign GET eagerly loads ALL contacts of a campaign. A large campaign
+    will exceed the 1mb express.json limit.
+  - syncContactsToBackend makes one HTTP request per contact (N separate POSTs
+    via Promise.all). A batch upsert endpoint would reduce this to one request.
+  - The volunteer assignment loop makes N sequential Prisma queries:
+      for (const phone of volunteerPhones) { await prisma.user.findUnique }
+    This should use Promise.all for parallel lookups.
+  - The attendance page polls every 3 seconds unconditionally, even when the
+    session is ended or the tab is in the background.
+
+SUGGESTIONS:
+  a. Add cursor-based pagination to GET /api/contacts (?cursor=...&limit=200).
+  b. Add POST /api/contacts/batch for bulk upsert in a single transaction.
+  c. Parallelize the volunteer loop:
+       await Promise.all(volunteerPhones.map(p => ensureUser(p, ...)))
+  d. Use the Page Visibility API to pause the 3-second poll when backgrounded.
+
+================================================================================
+6. DOCUMENTATION  [5/10]
+================================================================================
+WHAT IS GOOD:
+  - Route handlers have JSDoc comments describing the HTTP contract.
+  - Service methods have brief one-line summaries.
+  - Key business rules (only bump lastUpdated when category data is present)
+    have inline comments.
+
+PROBLEMS:
+  - No WHY documentation. Comments describe WHAT the code does (already
+    visible from reading it), not WHY it was designed that way.
+  - ContactSearchInput has no docstring describing the new onRawAdd and
+    onQueryChange props or the sorting behaviour.
+  - The auth token scheme (base64, phone:timestamp, no expiry) has no comment
+    explaining why this was chosen or acknowledging its limitations.
+  - No API documentation (no Swagger/OpenAPI spec). A new backend developer
+    cannot understand the full API without reading every route file.
+  - useContacts has multiple async state transitions but no docstring explaining
+    the backend-fallback contract.
+
+SUGGESTIONS:
+  a. Add WHY comments to non-obvious design decisions (why phone == password,
+     why no token expiry, why no pagination yet).
+  b. Add JSDoc to ContactSearchInput, useContacts, and CampaignCallScreen.
+  c. Add API_REFERENCE.txt or use swagger-jsdoc to document all endpoints.
+
+================================================================================
+7. TEST COVERAGE  [7/10]
+================================================================================
+WHAT IS GOOD:
+  - 782 tests passing across 42 test files.
+  - Backend route tests cover happy path and 400/401/403/404 cases.
+  - Frontend hook tests (useContacts, useFiltering) are thorough.
+  - Tests are isolated using mocks -- no real DB or network dependency.
+
+PROBLEMS:
+  - auth.roles.test.ts has flaky tests that fail in the full suite but pass
+    in isolation. This indicates a test isolation problem (shared mock state).
+  - ContactSearchInput.tsx has NO tests at all. The new onQueryChange and
+    onRawAdd props have zero test coverage.
+  - No E2E tests. Critical user flows (login, attend, submit) are only tested
+    at the unit level.
+  - The offline sync flow (localStorage to backend on reconnect) has no tests.
+  - The pendingNewPhone auto-detect flow in VolunteerPanel has no tests.
+
+SUGGESTIONS:
+  a. Add tests for ContactSearchInput: onQueryChange fires on keystroke,
+     onRawAdd fires on Enter with no dropdown selection, Enter with a selection
+     picks the correct contact.
+  b. Fix flaky auth.roles tests by ensuring each test owns its mock state.
+  c. Add at least one Playwright smoke test for the login -> attendance flow.
+  d. Add a VolunteerPanel test: type unknown phone -> Enter -> name prompt
+     appears -> submit -> commitAdd called with correct arguments.
+
+================================================================================
+8. MAINTAINABILITY  [5/10]
+================================================================================
+WHAT IS GOOD:
+  - Clear folder structure (routes, hooks, services, components, types).
+  - Prisma migrations provide traceable schema history.
+  - package.json version is bumped with each release.
+
+PROBLEMS:
+  - The auth scheme (phone == password, base64 token, no expiry) is
+    acknowledged technical debt. The longer it stays, the harder to replace.
+  - The VERSION fallback in page.tsx is hardcoded as 'v2.2.0'. If
+    NEXT_PUBLIC_APP_VERSION is not set, the app silently shows the wrong version.
+  - AdminService adds indirection with no value. New developers will wonder
+    why a class exists to wrap two booleans.
+  - All styles are inline in JSX. Changing the visual design means hunting
+    through hundreds of style={{}} attributes with no central reference.
+  - Unused import (Prisma from @prisma/client) left in campaigns.ts.
+
+SUGGESTIONS:
+  a. Plan a tracked migration to real auth (JWT + bcrypt). Do not take real
+     users until this is complete.
+  b. Remove the AdminService class or give it a real responsibility.
+  c. Move inline styles to CSS modules or Tailwind to make theming feasible.
+  d. Make the build fail loudly if NEXT_PUBLIC_APP_VERSION is not set.
+
+================================================================================
+9. SECURITY  [3/10]
+================================================================================
+CRITICAL ISSUES (must be fixed before any real production use):
+
+  [CRITICAL] Password = phone number. Anyone who knows a person's phone number
+  can log in as them. This is not authentication.
+
+  [CRITICAL] Token = base64(phone:timestamp). Trivially reversible. Any
+  attacker can impersonate any user. No signature, no secret, no expiry.
+
+  [HIGH] No rate limiting on login. An attacker can enumerate all users with
+  a simple loop and no throttling.
+
+  [HIGH] No Helmet.js. Missing X-Frame-Options, Content-Security-Policy,
+  and other standard security headers.
+
+  [HIGH] No input sanitization on free-text fields (name, remarks, areaOfStay).
+  Stored XSS is possible if these fields are rendered in an unsafe context.
+
+  [MEDIUM] Child lock is client-side only. Any authenticated user can call
+  DELETE /contacts/:id directly regardless of the UI lock state.
+
+  [MEDIUM] newVolunteerDetails in the campaign volunteers endpoint accepts
+  phone + name from the client with no format or length validation.
+
+SUGGESTIONS:
+  a. Replace the auth scheme with bcrypt-hashed passwords and proper JWT tokens.
+  b. Add express-rate-limit to the login and register endpoints.
+  c. Add helmet() to server.ts -- one line that fixes most header issues.
+  d. Validate all phone inputs with a regex before writing to the database.
+  e. Add a backend role check on DELETE /contacts/:id (require USER or ADMIN).
+
+================================================================================
+10. EASE OF UNDERSTANDING  [6/10]
+================================================================================
+WHAT IS GOOD:
+  - The hook pattern is consistent. Learning one hook means you understand all.
+  - Route file names match their domain exactly.
+  - Types are centralized in src/lib/types/index.ts.
+  - The pendingNewPhone auto-detect flow in VolunteerPanel is easy to follow.
+
+PROBLEMS:
+  - attendance/page.tsx is 1,000+ lines. A new developer cannot follow this
+    without investing significant time mapping the state interactions.
+  - The isAdmin check scattered through campaigns.ts forces readers to evaluate
+    the same expression six times per reading.
+  - The auth token format has no comment. New developers will reverse-engineer
+    it from scratch.
+  - useContacts has a silent backend-fallback mode (useBackend flag) that is
+    easy to miss and hard to debug when contacts stop persisting.
+  - CampaignCallScreen has 11 props. This signals the component needs splitting
+    or a context object.
+
+SUGGESTIONS:
+  a. Split attendance/page.tsx as described in the Design section.
+  b. Document the useBackend fallback mode with a prominent comment.
+  c. Reduce CampaignCallScreen props by passing a campaign object rather than
+     individual fields.
+
+================================================================================
+TOP 5 PRIORITIES  (highest impact -- do these first)
+================================================================================
+1. SECURITY: Replace base64 token + phone==password with real JWT + bcrypt.
+   This is the single most dangerous gap in the codebase. Do not deploy to
+   real users without this fix.
+
+2. AUTH MIDDLEWARE: Extract getActor + canAccessCenter into shared middleware.
+   Eliminates ~60 lines of copy-pasted code and centralises the auth contract
+   so it cannot silently diverge between route files.
+
+3. PAGINATION: Add pagination to GET /api/contacts before data grows.
+   Without it the app will silently degrade and eventually fail under load.
+   This is a one-way trap -- harder to retrofit after users rely on full-load.
+
+4. FILE SPLITTING: Break attendance/page.tsx and AdminPanel into smaller
+   components. This is the biggest maintenance burden in the frontend and
+   makes every future change in those screens unnecessarily risky.
+
+5. TEST GAPS: Add ContactSearchInput tests and fix flaky auth.roles tests.
+   The new onRawAdd/onQueryChange behaviour is completely untested. Flaky
+   tests erode trust in the entire test suite over time.
+
+================================================================================
+END OF REPORT
+================================================================================

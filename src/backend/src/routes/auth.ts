@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../lib/prisma.js'
+import { getPhoneFromAuthHeader } from '../lib/authUtils.js'
 
 const router = Router()
 
@@ -169,20 +170,6 @@ async function buildAuthUser(user: NonNullable<Awaited<ReturnType<typeof loadUse
 
 function createToken(phone: string) {
   return Buffer.from(`${phone}:${Date.now()}`).toString('base64')
-}
-
-function getPhoneFromAuthHeader(authHeader?: string) {
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null
-  }
-
-  try {
-    const token = authHeader.replace('Bearer ', '')
-    const decoded = Buffer.from(token, 'base64').toString('utf-8')
-    return decoded.split(':')[0] || null
-  } catch {
-    return null
-  }
 }
 
 function ensureOverallAdmin(user: NonNullable<Awaited<ReturnType<typeof loadUser>>>, res: Response) {

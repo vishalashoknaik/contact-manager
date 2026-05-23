@@ -1,6 +1,8 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
 import prisma from './lib/prisma.js'
 import contactsRouter from './routes/contacts.js'
 import activitiesRouter from './routes/activities.js'
@@ -49,6 +51,7 @@ function isOriginAllowed(origin: string, configuredOrigins: string[]) {
 }
 
 // Middleware
+app.use(helmet())
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) {
@@ -68,7 +71,18 @@ app.use(cors({
 app.set('trust proxy', 1)
 app.use(express.json({ limit: '1mb' }))
 
+// Strict rate limit for authentication endpoints — prevents brute-force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' }
+})
+
 // Auth Routes (must come first for login/register without auth)
+app.use('/api/auth/login', authLimiter)
+app.use('/api/auth/register', authLimiter)
 app.use('/api/auth', authRouter)
 
 // Routes

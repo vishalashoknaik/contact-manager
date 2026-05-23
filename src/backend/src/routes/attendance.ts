@@ -1,48 +1,8 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../lib/prisma.js'
+import { getActor, canAccessCenter } from '../lib/authUtils.js'
 
 const router = Router()
-
-function getPhoneFromAuthHeader(authorization: string | undefined): string | null {
-  if (!authorization) return null
-  const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : authorization
-  try {
-    const decoded = Buffer.from(token, 'base64').toString('utf-8')
-    const colonIdx = decoded.lastIndexOf(':')
-    if (colonIdx === -1) return null
-    return decoded.slice(0, colonIdx)
-  } catch {
-    return null
-  }
-}
-
-async function getActor(req: Request, res: Response) {
-  const phone = getPhoneFromAuthHeader(req.headers.authorization)
-  if (!phone) {
-    res.status(401).json({ error: 'No authorization header' })
-    return null
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { phone },
-    include: { centers: true }
-  })
-
-  if (!user) {
-    res.status(401).json({ error: 'User not found' })
-    return null
-  }
-
-  return user
-}
-
-function canTakeAttendance(
-  user: { canAccessAllCenters: boolean; centers: Array<{ centerId: string; isApproved: boolean }> },
-  centerId: string
-) {
-  if (user.canAccessAllCenters) return true
-  return user.centers.some(m => m.centerId === centerId && m.isApproved)
-}
 
 function formatSession(
   session: {
@@ -90,7 +50,7 @@ router.get('/sessions', async (req: Request, res: Response) => {
 
     const actor = await getActor(req, res)
     if (!actor) return
-    if (!canTakeAttendance(actor, centerId)) {
+    if (!canAccessCenter(actor, centerId)) {
       return res.status(403).json({ error: 'Attendance access is required' })
     }
 
@@ -128,7 +88,7 @@ router.get('/sessions/active', async (req: Request, res: Response) => {
 
     const actor = await getActor(req, res)
     if (!actor) return
-    if (!canTakeAttendance(actor, centerId)) {
+    if (!canAccessCenter(actor, centerId)) {
       return res.status(403).json({ error: 'Attendance access is required' })
     }
 
@@ -162,7 +122,7 @@ router.post('/sessions/start', async (req: Request, res: Response) => {
 
     const actor = await getActor(req, res)
     if (!actor) return
-    if (!canTakeAttendance(actor, centerId)) {
+    if (!canAccessCenter(actor, centerId)) {
       return res.status(403).json({ error: 'Attendance access is required' })
     }
 
@@ -216,7 +176,7 @@ router.post('/sessions/:id/volunteers', async (req: Request, res: Response) => {
 
     const actor = await getActor(req, res)
     if (!actor) return
-    if (!canTakeAttendance(actor, centerId)) {
+    if (!canAccessCenter(actor, centerId)) {
       return res.status(403).json({ error: 'Attendance access is required' })
     }
 
@@ -324,7 +284,7 @@ router.post('/sessions/:id/end', async (req: Request, res: Response) => {
 
     const actor = await getActor(req, res)
     if (!actor) return
-    if (!canTakeAttendance(actor, centerId)) {
+    if (!canAccessCenter(actor, centerId)) {
       return res.status(403).json({ error: 'Attendance access is required' })
     }
 
@@ -361,7 +321,7 @@ router.post('/sessions/:id/reopen', async (req: Request, res: Response) => {
 
     const actor = await getActor(req, res)
     if (!actor) return
-    if (!canTakeAttendance(actor, centerId)) {
+    if (!canAccessCenter(actor, centerId)) {
       return res.status(403).json({ error: 'Attendance access is required' })
     }
 
@@ -409,7 +369,7 @@ router.delete('/sessions/:id', async (req: Request, res: Response) => {
 
     const actor = await getActor(req, res)
     if (!actor) return
-    if (!canTakeAttendance(actor, centerId)) {
+    if (!canAccessCenter(actor, centerId)) {
       return res.status(403).json({ error: 'Attendance access is required' })
     }
 
@@ -445,7 +405,7 @@ router.get('/sessions/:id/attendees', async (req: Request, res: Response) => {
 
     const actor = await getActor(req, res)
     if (!actor) return
-    if (!canTakeAttendance(actor, centerId)) {
+    if (!canAccessCenter(actor, centerId)) {
       return res.status(403).json({ error: 'Attendance access is required' })
     }
 
@@ -566,7 +526,7 @@ router.post('/submit', async (req: Request, res: Response) => {
     if (sessionId) {
       const actor = await getActor(req, res)
       if (!actor) return
-      if (!canTakeAttendance(actor, centerId)) {
+      if (!canAccessCenter(actor, centerId)) {
         return res.status(403).json({ error: 'Attendance access is required' })
       }
 
