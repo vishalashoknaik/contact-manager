@@ -16,7 +16,8 @@ const mocks = vi.hoisted(() => ({
   deleteSession: vi.fn(),
   listSessionAttendees: vi.fn(),
   lookup: vi.fn(),
-  submit: vi.fn()
+  submit: vi.fn(),
+  contactsGetAll: vi.fn()
 }))
 
 // Mutable config state so individual tests can override isLoaded / error
@@ -68,6 +69,9 @@ vi.mock('@/lib/api/client', () => ({
     listSessionAttendees: mocks.listSessionAttendees,
     lookup: mocks.lookup,
     submit: mocks.submit
+  },
+  contactsApi: {
+    getAll: mocks.contactsGetAll
   }
 }))
 
@@ -147,6 +151,7 @@ describe('AttendancePage', () => {
     mocks.endSession.mockResolvedValue({ success: true })
     mocks.reopenSession.mockResolvedValue(createSession())
     mocks.deleteSession.mockResolvedValue({ success: true })
+    mocks.contactsGetAll.mockResolvedValue([])
   })
 
   it('shows the selected center name on the attendance page', () => {
@@ -729,6 +734,10 @@ describe('AttendancePage', () => {
 })
 
 describe('AttendancePage - error surfacing', () => {
+  beforeEach(() => {
+    mocks.contactsGetAll.mockResolvedValue([])
+  })
+
   it('shows an error message when listSessions fails on load', async () => {
     mocks.listSessions.mockRejectedValueOnce(new Error('DB connection lost'))
 
@@ -759,6 +768,7 @@ describe('AttendancePage - session creation', () => {
     configState.error = null
     mocks.listSessions.mockResolvedValue([])
     mocks.listSessionAttendees.mockResolvedValue([])
+    mocks.contactsGetAll.mockResolvedValue([])
     mocks.startSession.mockResolvedValue({
       id: 'session-new',
       name: 'My Session',
@@ -912,6 +922,7 @@ describe('AttendancePage - contact lookup', () => {
     mocks.listSessions.mockResolvedValue([])
     mocks.listSessionAttendees.mockResolvedValue([])
     mocks.endSession.mockResolvedValue({ success: true })
+    mocks.contactsGetAll.mockResolvedValue([])
     configState.isLoaded = true
     configState.error = null
   })
@@ -994,6 +1005,7 @@ describe('AttendancePage - submit behavior', () => {
     mocks.listSessions.mockResolvedValue([])
     mocks.listSessionAttendees.mockResolvedValue([])
     mocks.endSession.mockResolvedValue({ success: true })
+    mocks.contactsGetAll.mockResolvedValue([])
     configState.isLoaded = true
     configState.error = null
   })
@@ -1112,6 +1124,7 @@ describe('AttendancePage - volunteer management', () => {
     mocks.addSessionVolunteer.mockReset()
     mocks.listSessions.mockResolvedValue([])
     mocks.listSessionAttendees.mockResolvedValue([])
+    mocks.contactsGetAll.mockResolvedValue([])
     mocks.addSessionVolunteer.mockResolvedValue({
       id: 'session-1',
       name: 'Test Session',
@@ -1178,6 +1191,7 @@ describe('AttendancePage - phone normalization', () => {
     mocks.listSessions.mockResolvedValue([])
     mocks.listSessionAttendees.mockResolvedValue([])
     mocks.endSession.mockResolvedValue({ success: true })
+    mocks.contactsGetAll.mockResolvedValue([])
     configState.isLoaded = true
     configState.error = null
   })
@@ -1295,5 +1309,73 @@ describe('AttendancePage - phone normalization', () => {
     await waitFor(() => {
       expect(screen.getByText(/attendance record.*already existed.*updated/i)).toBeInTheDocument()
     })
+  })
+})
+
+describe('AttendancePage - contact name search', () => {
+  beforeEach(() => {
+    window.dispatchEvent(new Event('online'))
+    localStorage.clear()
+    mocks.listSessions.mockResolvedValue([createSession()])
+    mocks.getActiveSession.mockResolvedValue({ active: false })
+    mocks.listSessionAttendees.mockResolvedValue([])
+    mocks.lookup.mockResolvedValue({ found: false })
+    mocks.submit.mockResolvedValue({ success: true })
+    mocks.contactsGetAll.mockResolvedValue([])
+  })
+
+  it('shows name search input when contacts are available', async () => {
+    const user = userEvent.setup()
+    mocks.contactsGetAll.mockResolvedValue([
+      {
+        id: '1', name: 'Ananya Rao', phone: '9964297517', gender: 'Female',
+        ieDate: '2025-01-01', areaOfStay: 'North', remarks: null,
+        selected: false, lastUpdated: '2026-05-01T10:00:00Z',
+        activities: {}, areas: {}, programs: {}, interests: {}
+      }
+    ])
+
+    await renderAndResumeSession(user)
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Type name or phone to find existing contact')).toBeInTheDocument()
+    })
+  })
+
+  it('does not show name search input when contacts list is empty', async () => {
+    const user = userEvent.setup()
+    mocks.contactsGetAll.mockResolvedValue([])
+
+    await renderAndResumeSession(user)
+
+    expect(screen.queryByPlaceholderText('Type name or phone to find existing contact')).not.toBeInTheDocument()
+  })
+
+  it('pre-fills form fields when a contact is selected from search', async () => {
+    const user = userEvent.setup()
+    mocks.contactsGetAll.mockResolvedValue([
+      {
+        id: '1', name: 'Ananya Rao', phone: '9964297517', gender: 'Female',
+        ieDate: '2025-06-15', areaOfStay: 'North Bangalore', remarks: null,
+        selected: false, lastUpdated: '2026-05-01T10:00:00Z',
+        activities: {}, areas: {}, programs: {}, interests: {}
+      }
+    ])
+
+    await renderAndResumeSession(user)
+
+    const searchInput = await screen.findByPlaceholderText('Type name or phone to find existing contact')
+    await user.type(searchInput, 'Ananya')
+
+    const suggestion = await screen.findByText(/Ananya Rao/)
+    await user.click(suggestion)
+
+    await waitFor(() => {
+      const phoneInput = screen.getByPlaceholderText('Enter phone and press Enter') as HTMLInputElement
+      expect(phoneInput.value).toBe('9964297517')
+    })
+
+    const nameInput = screen.getByPlaceholderText('Full name') as HTMLInputElement
+    expect(nameInput.value).toBe('Ananya Rao')
   })
 })

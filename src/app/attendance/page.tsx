@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useConfig } from '@/hooks/useConfig'
 import { useSyncStatus } from '@/hooks/useSyncStatus'
-import { attendanceApi } from '@/lib/api/client'
+import { attendanceApi, contactsApi } from '@/lib/api/client'
+import { ContactSearchInput } from '@/components/ContactSearchInput'
 import { SyncStatusNotices } from '@/components/SyncStatusNotices'
 import type { AttendanceSession } from '@/lib/api/client'
 import type { AttendanceSessionAttendee } from '@/lib/api/client'
-import type { Gender } from '@/lib/types'
+import type { Contact, Gender } from '@/lib/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -383,6 +384,7 @@ function AttendanceEntry({
   const [serverAttendees, setServerAttendees] = useState<AttendanceSessionAttendee[]>([])
   const [attendeeDataSyncing, setAttendeeDataSyncing] = useState(true)
   const [hasLoadedAttendeesOnce, setHasLoadedAttendeesOnce] = useState(false)
+  const [contactList, setContactList] = useState<Contact[]>([])
   const phoneRef = useRef<HTMLInputElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const lookupRequestRef = useRef<Promise<'found' | 'new' | undefined> | null>(null)
@@ -433,6 +435,18 @@ function AttendanceEntry({
     }
     savePersistedAttendanceState(storageKey, { session, records })
   }, [persistEnabled, records, session, storageKey])
+
+  // Load contacts once on mount for the name-search feature
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const data = await contactsApi.getAll(centerId)
+        if (!cancelled && Array.isArray(data)) setContactList(data as Contact[])
+      } catch { /* non-critical — search just won't have suggestions */ }
+    })()
+    return () => { cancelled = true }
+  }, [centerId])
 
   useEffect(() => {
     let cancelled = false
@@ -928,6 +942,30 @@ function AttendanceEntry({
             }}
           >
             ℹ️ {submitNotice}
+          </div>
+        )}
+
+        {/* Name search — pre-fills form from existing contact */}
+        {contactList.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ ...labelStyle, marginBottom: 6 }}>🔍 Search by name (optional)</label>
+            <ContactSearchInput
+              contacts={contactList}
+              placeholder="Type name or phone to find existing contact"
+              onSelect={(contact: Contact) => {
+                setForm({
+                  phone: contact.phone,
+                  name: contact.name,
+                  gender: (contact.gender as Gender) || 'Male',
+                  ieDate: contact.ieDate ?? '',
+                  areaOfStay: contact.areaOfStay ?? ''
+                })
+                setLookupStatus('found')
+                setShowSessionAttendees(false)
+                setSubmitNotice(null)
+                lastLookupPhoneRef.current = contact.phone.replace(/\D/g, '')
+              }}
+            />
           </div>
         )}
 
