@@ -9,7 +9,7 @@
  *   - No-template state: WhatsApp/SMS links disabled
  *   - "mode" prop passed through to payload
  */
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -195,6 +195,121 @@ describe('CampaignCallScreen — done state', () => {
     )
 
     expect(screen.getByText('All done!')).toBeInTheDocument()
+  })
+})
+
+describe('CampaignCallScreen — call overview summary bar', () => {
+  it('shows initial counts from props', () => {
+    render(
+      <CampaignCallScreen
+        {...defaultProps}
+        initialCompleted={3}
+        initialPending={7}
+        initialSkipped={2}
+      />
+    )
+
+    expect(within(screen.getByTestId('call-count-completed')).getByText('3')).toBeInTheDocument()
+    expect(within(screen.getByTestId('call-count-pending')).getByText('7')).toBeInTheDocument()
+    expect(within(screen.getByTestId('call-count-skipped')).getByText('2')).toBeInTheDocument()
+    expect(screen.getByTestId('call-count-completed')).toHaveTextContent('Completed')
+    expect(screen.getByTestId('call-count-pending')).toHaveTextContent('Pending')
+    expect(screen.getByTestId('call-count-skipped')).toHaveTextContent('Skipped')
+  })
+
+  it('defaults counts to 0 when props are omitted', () => {
+    render(<CampaignCallScreen {...defaultProps} />)
+
+    expect(within(screen.getByTestId('call-count-completed')).getByText('0')).toBeInTheDocument()
+    expect(within(screen.getByTestId('call-count-pending')).getByText('0')).toBeInTheDocument()
+    expect(within(screen.getByTestId('call-count-skipped')).getByText('0')).toBeInTheDocument()
+  })
+
+  it('increments completed and decrements pending after submit in pending mode', async () => {
+    const user = userEvent.setup()
+    mocks.submitCallLog.mockResolvedValueOnce({
+      success: true,
+      next: {
+        done: false,
+        campaignContactId: 'cc-2',
+        contact: { id: 'contact-2', name: 'Bob', phone: '9000000002' }
+      }
+    })
+
+    render(
+      <CampaignCallScreen
+        {...defaultProps}
+        mode="pending"
+        initialCompleted={1}
+        initialPending={5}
+        initialSkipped={0}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Submit & Get Next' }))
+
+    await waitFor(() => {
+      expect(within(screen.getByTestId('call-count-completed')).getByText('2')).toBeInTheDocument()
+      expect(within(screen.getByTestId('call-count-pending')).getByText('4')).toBeInTheDocument()
+    })
+  })
+
+  it('increments skipped and decrements pending after skip in pending mode', async () => {
+    const user = userEvent.setup()
+    mocks.submitCallLog.mockResolvedValueOnce({
+      success: true,
+      next: {
+        done: false,
+        campaignContactId: 'cc-2',
+        contact: { id: 'contact-2', name: 'Bob', phone: '9000000002' }
+      }
+    })
+
+    render(
+      <CampaignCallScreen
+        {...defaultProps}
+        mode="pending"
+        initialCompleted={0}
+        initialPending={3}
+        initialSkipped={1}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Skip & Get Next' }))
+
+    await waitFor(() => {
+      expect(within(screen.getByTestId('call-count-pending')).getByText('2')).toBeInTheDocument()
+      expect(within(screen.getByTestId('call-count-skipped')).getByText('2')).toBeInTheDocument()
+    })
+  })
+
+  it('increments completed and decrements skipped after submit in skipped mode', async () => {
+    const user = userEvent.setup()
+    mocks.submitCallLog.mockResolvedValueOnce({
+      success: true,
+      next: {
+        done: false,
+        campaignContactId: 'cc-2',
+        contact: { id: 'contact-2', name: 'Bob', phone: '9000000002' }
+      }
+    })
+
+    render(
+      <CampaignCallScreen
+        {...defaultProps}
+        mode="skipped"
+        initialCompleted={2}
+        initialPending={0}
+        initialSkipped={4}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Submit & Get Next' }))
+
+    await waitFor(() => {
+      expect(within(screen.getByTestId('call-count-completed')).getByText('3')).toBeInTheDocument()
+      expect(within(screen.getByTestId('call-count-skipped')).getByText('3')).toBeInTheDocument()
+    })
   })
 })
 

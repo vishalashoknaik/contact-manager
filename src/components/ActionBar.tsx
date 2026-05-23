@@ -14,6 +14,7 @@ interface ActionBarProps {
   onProgramChange: (program: string) => void
   onInterestChange?: (interest: string) => void
   onIncrement: () => void | Promise<void>
+  isUpdating?: boolean
 }
 
 export function ActionBar({
@@ -29,7 +30,8 @@ export function ActionBar({
   onAreaChange,
   onProgramChange,
   onInterestChange,
-  onIncrement
+  onIncrement,
+  isUpdating = false
 }: ActionBarProps) {
   const selectStyle = {
     padding: '8px 8px',
@@ -37,16 +39,19 @@ export function ActionBar({
     border: '1px solid var(--border-color, #ddd)',
     borderRadius: 3,
     backgroundColor: 'var(--input-bg, #fff)',
-    color: 'var(--text-primary, #000)'
+    color: 'var(--text-primary, #000)',
+    opacity: isUpdating ? 0.5 : 1,
+    cursor: isUpdating ? 'not-allowed' : 'default'
   }
 
   const buttonStyle = {
     padding: '8px 16px',
-    backgroundColor: '#4CAF50',
+    backgroundColor: isUpdating ? '#6c757d' : '#4CAF50',
     color: 'white',
     border: 'none',
     borderRadius: 3,
-    cursor: 'pointer'
+    cursor: isUpdating ? 'not-allowed' : 'pointer',
+    minWidth: 90
   }
 
   return (
@@ -54,6 +59,7 @@ export function ActionBar({
       <select
         value={selectedActivity}
         onChange={e => onActivityChange(e.target.value)}
+        disabled={isUpdating}
         style={selectStyle}
       >
         <option value="">Activity</option>
@@ -67,6 +73,7 @@ export function ActionBar({
       <select
         value={selectedArea}
         onChange={e => onAreaChange(e.target.value)}
+        disabled={isUpdating}
         style={selectStyle}
       >
         <option value="">Area</option>
@@ -80,6 +87,7 @@ export function ActionBar({
       <select
         value={selectedProgram}
         onChange={e => onProgramChange(e.target.value)}
+        disabled={isUpdating}
         style={selectStyle}
       >
         <option value="">Program</option>
@@ -94,6 +102,7 @@ export function ActionBar({
         <select
           value={selectedInterest}
           onChange={e => onInterestChange?.(e.target.value)}
+          disabled={isUpdating}
           style={selectStyle}
         >
           <option value="">Interest</option>
@@ -107,9 +116,10 @@ export function ActionBar({
 
       <button
         onClick={onIncrement}
+        disabled={isUpdating}
         style={buttonStyle}
       >
-        Update
+        {isUpdating ? 'Updating…' : 'Update'}
       </button>
     </div>
   )

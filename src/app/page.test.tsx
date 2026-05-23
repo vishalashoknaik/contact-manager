@@ -264,6 +264,13 @@ describe('Home page', () => {
       expect(screen.queryByRole('button', { name: /create campaign \(1 selected\)/i })).not.toBeInTheDocument()
     })
 
+    // Dropdowns shall be reset after a successful update
+    const combosAfterUpdate = screen.getAllByRole('combobox')
+    const actionCombosAfter = combosAfterUpdate.slice(-7, -4)
+    expect(actionCombosAfter[0]).toHaveValue('')  // Activity reset
+    expect(actionCombosAfter[1]).toHaveValue('')  // Area reset
+    expect(actionCombosAfter[2]).toHaveValue('')  // Program reset
+
     const filterInputs = screen.getAllByPlaceholderText('Filter...')
     await user.clear(filterInputs[0])
     await user.type(filterInputs[0], 'Manual')

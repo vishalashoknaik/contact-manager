@@ -27,6 +27,9 @@ interface CampaignCallScreenProps {
   selectedTemplateIndex: number
   onSelectedTemplateChange: (index: number) => void
   onDone: () => void
+  initialCompleted?: number
+  initialPending?: number
+  initialSkipped?: number
 }
 
 function applyTemplate(template: string, context: { name: string; phone: string; campaign: string }) {
@@ -42,7 +45,7 @@ const feedbackOptions: { value: Feedback; label: string }[] = [
   { value: 'CONNECT_LATER', label: 'Connect Later' }
 ]
 
-export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, campaignName, messageTemplates, selectedTemplateIndex, onSelectedTemplateChange, onDone }: CampaignCallScreenProps) {
+export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, campaignName, messageTemplates, selectedTemplateIndex, onSelectedTemplateChange, onDone, initialCompleted = 0, initialPending = 0, initialSkipped = 0 }: CampaignCallScreenProps) {
   const [current, setCurrent] = useState<CurrentContact | { done: true }>(initialNext)
   const [previous, setPrevious] = useState<CurrentContact | null>(null)
   const [feedback, setFeedback] = useState<Feedback>('COMPLETED')
@@ -52,6 +55,9 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
   const [remarks, setRemarks] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [completedCount, setCompletedCount] = useState(initialCompleted)
+  const [pendingCount, setPendingCount] = useState(initialPending)
+  const [skippedCount, setSkippedCount] = useState(initialSkipped)
 
   const selectedTemplate = messageTemplates.length > 0
     ? (messageTemplates[selectedTemplateIndex] ?? messageTemplates[0])
@@ -87,6 +93,16 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
       const result = await campaignsApi.submitCallLog(campaignId, payload, centerId)
       setPrevious(cc)
       resetForm()
+      // Update local counts based on what just happened
+      if (action === 'submit') {
+        setCompletedCount(n => n + 1)
+        if (mode === 'pending') setPendingCount(n => Math.max(0, n - 1))
+        else setSkippedCount(n => Math.max(0, n - 1))
+      } else {
+        // skip action only possible in pending mode
+        setSkippedCount(n => n + 1)
+        setPendingCount(n => Math.max(0, n - 1))
+      }
       if (result.next.done) {
         setCurrent({ done: true })
       } else {
@@ -154,6 +170,33 @@ export function CampaignCallScreen({ campaignId, centerId, initialNext, mode, ca
 
   return (
     <div style={card}>
+      {/* Call overview summary bar */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {(
+          [
+            { label: 'Completed', count: completedCount, color: '#198754', bg: '#d1e7dd' },
+            { label: 'Pending',   count: pendingCount,   color: '#b45309', bg: '#fef3c7' },
+            { label: 'Skipped',   count: skippedCount,   color: '#6c757d', bg: '#e9ecef' }
+          ] as const
+        ).map(({ label, count, color, bg }) => (
+          <div
+            key={label}
+            data-testid={`call-count-${label.toLowerCase()}`}
+            style={{
+              flex: '1 1 80px',
+              textAlign: 'center',
+              padding: '8px 12px',
+              borderRadius: 6,
+              backgroundColor: bg,
+              border: `1px solid ${color}30`
+            }}
+          >
+            <div style={{ fontSize: 20, fontWeight: 700, color }}>{count}</div>
+            <div style={{ fontSize: 11, color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+          </div>
+        ))}
+      </div>
+
       {/* Contact info */}
       <div style={{
         backgroundColor: 'var(--bg-primary, #fff)',

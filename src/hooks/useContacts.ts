@@ -48,6 +48,7 @@ export function useContacts() {
         activities: c.activities,
         areas: c.areas,
         programs: c.programs,
+        interests: c.interests,
         selected: c.selected,
         importOrder: c.importOrder
       }, selectedCenter)

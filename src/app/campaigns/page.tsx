@@ -355,6 +355,9 @@ export default function CampaignsPage() {
             selectedTemplateIndex={selectedTemplateIndex}
             onSelectedTemplateChange={setSelectedTemplateIndex}
             onDone={() => { setView('detail'); refreshCampaign() }}
+            initialCompleted={selectedCampaign.completedContacts}
+            initialPending={selectedCampaign.pendingContacts}
+            initialSkipped={selectedCampaign.skippedContacts}
           />
         </div>
       )}

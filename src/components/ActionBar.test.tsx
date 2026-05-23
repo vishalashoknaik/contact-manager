@@ -90,4 +90,48 @@ describe('ActionBar', () => {
     // No option for interests when list is empty
     expect(screen.queryByRole('option', { name: /interest/i })).not.toBeInTheDocument()
   })
+
+  it('disables all selects and shows Updating… on the button while isUpdating', () => {
+    render(
+      <ActionBar
+        activities={['Walkathon']}
+        areas={['Area1']}
+        programs={['Program1']}
+        selectedActivity="Walkathon"
+        selectedArea=""
+        selectedProgram=""
+        onActivityChange={vi.fn()}
+        onAreaChange={vi.fn()}
+        onProgramChange={vi.fn()}
+        onIncrement={vi.fn()}
+        isUpdating
+      />
+    )
+
+    const selects = screen.getAllByRole('combobox')
+    selects.forEach(s => expect(s).toBeDisabled())
+
+    const btn = screen.getByRole('button', { name: /Updating/i })
+    expect(btn).toBeDisabled()
+  })
+
+  it('does not disable controls when isUpdating is false (default)', () => {
+    render(
+      <ActionBar
+        activities={['Walkathon']}
+        areas={[]}
+        programs={[]}
+        selectedActivity=""
+        selectedArea=""
+        selectedProgram=""
+        onActivityChange={vi.fn()}
+        onAreaChange={vi.fn()}
+        onProgramChange={vi.fn()}
+        onIncrement={vi.fn()}
+      />
+    )
+
+    screen.getAllByRole('combobox').forEach(s => expect(s).not.toBeDisabled())
+    expect(screen.getByRole('button', { name: 'Update' })).not.toBeDisabled()
+  })
 })

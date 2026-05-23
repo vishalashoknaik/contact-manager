@@ -29,6 +29,7 @@ function HomeContent() {
   const router = useRouter()
   const [showCampaignModal, setShowCampaignModal] = useState(false)
   const [bulkActionFeedback, setBulkActionFeedback] = useState<string | null>(null)
+  const [isUpdating, setIsUpdating] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [editDraft, setEditDraft] = useState({ name: '', phone: '', gender: 'Male' as Contact['gender'], ieDate: '', areaOfStay: '', remarks: '' })
   const [isSavingContact, setIsSavingContact] = useState(false)
@@ -105,25 +106,36 @@ function HomeContent() {
       return
     }
 
-    const updateSuccessful = await contactsManager.incrementSelected(
-      actionSelectors.activity.value,
-      actionSelectors.area.value,
-      actionSelectors.program.value,
-      actionSelectors.interest.value
-    )
+    setIsUpdating(true)
+    try {
+      const updateSuccessful = await contactsManager.incrementSelected(
+        actionSelectors.activity.value,
+        actionSelectors.area.value,
+        actionSelectors.program.value,
+        actionSelectors.interest.value
+      )
 
-    if (!updateSuccessful) {
-      setBulkActionFeedback('Update failed. Please try again.')
-      return
+      if (!updateSuccessful) {
+        setBulkActionFeedback('Update failed. Please try again.')
+        return
+      }
+
+      const clearSuccessful = await contactsManager.clearAllSelections()
+      if (!clearSuccessful) {
+        setBulkActionFeedback('Updated successfully, but failed to clear selection.')
+        return
+      }
+
+      // Reset dropdown selectors so user starts fresh for the next round
+      actionSelectors.activity.clear()
+      actionSelectors.area.clear()
+      actionSelectors.program.clear()
+      actionSelectors.interest.clear()
+
+      setBulkActionFeedback('Update completed. Selection cleared.')
+    } finally {
+      setIsUpdating(false)
     }
-
-    const clearSuccessful = await contactsManager.clearAllSelections()
-    if (!clearSuccessful) {
-      setBulkActionFeedback('Updated successfully, but failed to clear selection.')
-      return
-    }
-
-    setBulkActionFeedback('Update completed. Selection cleared.')
   }
 
   const handleDeleteSelected = async () => {
@@ -174,6 +186,33 @@ function HomeContent() {
       color: 'var(--text-primary, #000000)',
       minHeight: '100vh'
     }}>
+      {/* Full-page overlay while bulk update is in progress */}
+      {isUpdating && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            gap: 16, userSelect: 'none', overscrollBehavior: 'contain'
+          }}
+          onWheel={e => e.preventDefault()}
+          onTouchMove={e => e.preventDefault()}
+        >
+          <div style={{
+            width: 56, height: 56, border: '6px solid rgba(255,255,255,0.3)',
+            borderTop: '6px solid #fff', borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          <div style={{ color: '#fff', fontSize: 18, fontWeight: 600 }}>Updating…</div>
+          <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>
+            Please wait while contacts are being saved
+          </div>
+        </div>
+      )}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       {/* Header */}
       <div style={{ 
         marginBottom: 20, 
@@ -367,9 +406,8 @@ function HomeContent() {
                 onProgramChange={actionSelectors.program.setValue}
                 onInterestChange={actionSelectors.interest.setValue}
                 onIncrement={handleIncrement}
+                isUpdating={isUpdating}
               />
-
-              {/* Child lock toggle + delete */}
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
                 <button
                   onClick={adminManager.toggleChildLock}
