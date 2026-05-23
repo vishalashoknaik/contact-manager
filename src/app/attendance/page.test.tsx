@@ -1162,6 +1162,62 @@ describe('AttendancePage - volunteer management', () => {
     expect(volunteerInput).toHaveValue('')
   })
 
+  it('shows search input instead of plain phone input when contacts are available', async () => {
+    const user = userEvent.setup()
+
+    mocks.contactsGetAll.mockResolvedValue([
+      { id: 'c1', name: 'Ravi Kumar', phone: '3333333333', selected: false,
+        activities: {}, areas: {}, programs: {}, lastUpdated: new Date().toISOString() }
+    ])
+
+    await renderAndResumeSession(user)
+
+    await user.click(screen.getByRole('button', { name: /\+ attendance takers/i }))
+
+    expect(screen.queryByPlaceholderText('Attendance taker phone')).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Search by name or phone')).toBeInTheDocument()
+  })
+
+  it('adds volunteer via name search when contacts are loaded', async () => {
+    const user = userEvent.setup()
+
+    mocks.contactsGetAll.mockResolvedValue([
+      { id: 'c1', name: 'Ravi Kumar', phone: '3333333333', selected: false,
+        activities: {}, areas: {}, programs: {}, lastUpdated: new Date().toISOString() }
+    ])
+    mocks.addSessionVolunteer.mockResolvedValue({
+      id: 'session-1',
+      name: 'Test Session',
+      centerId: 'center-1',
+      activities: ['Walkathon'],
+      areas: ['Downtown'],
+      programs: ['Youth Program'],
+      createdAt: new Date().toISOString(),
+      endedAt: null,
+      volunteers: [
+        { phone: '1111111111', name: 'Primary Volunteer' },
+        { phone: '3333333333', name: 'Ravi Kumar' }
+      ]
+    })
+
+    await renderAndResumeSession(user)
+
+    await user.click(screen.getByRole('button', { name: /\+ attendance takers/i }))
+
+    const searchInput = screen.getByPlaceholderText('Search by name or phone')
+    await user.type(searchInput, 'Ravi')
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ravi Kumar/)).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText(/Ravi Kumar/))
+
+    await waitFor(() => {
+      expect(mocks.addSessionVolunteer).toHaveBeenCalledWith('session-1', '3333333333', 'center-1')
+    })
+  })
+
   it('shows an error when the add volunteer API call fails', async () => {
     const user = userEvent.setup()
 

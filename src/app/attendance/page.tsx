@@ -739,12 +739,13 @@ function AttendanceEntry({
     boxShadow: '0 10px 30px rgba(0, 0, 0, 0.06)'
   }
 
-  async function handleAddVolunteer() {
-    if (!newVolunteerPhone.trim()) return
+  async function handleAddVolunteer(phoneOverride?: string) {
+    const phone = (phoneOverride ?? newVolunteerPhone).trim()
+    if (!phone) return
     setAddingVolunteer(true)
     setSessionAccessError(null)
     try {
-      await onAddVolunteer(newVolunteerPhone.trim())
+      await onAddVolunteer(phone)
       setNewVolunteerPhone('')
     } catch (err: any) {
       setSessionAccessError(err?.message || 'Failed to add volunteer to this attendance session')
@@ -837,34 +838,46 @@ function AttendanceEntry({
                 </div>
                 <div style={{ borderTop: '1px solid var(--border-color, #dee2e6)', paddingTop: 12, marginTop: 12 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-primary, #000)' }}>
-                    Add Attendance Taker by Phone
+                    Add Attendance Taker
                   </label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      type="tel"
-                      placeholder="Attendance taker phone"
-                      value={newVolunteerPhone}
-                      onChange={e => setNewVolunteerPhone(e.target.value)}
-                      style={{ ...inputStyle, maxWidth: 180, flex: 1 }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddVolunteer}
-                      disabled={addingVolunteer || !newVolunteerPhone.trim()}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: 6,
-                        border: 'none',
-                        backgroundColor: addingVolunteer || !newVolunteerPhone.trim() ? '#adb5bd' : '#198754',
-                        color: '#fff',
-                        cursor: addingVolunteer || !newVolunteerPhone.trim() ? 'not-allowed' : 'pointer',
-                        fontWeight: 600,
-                        fontSize: 13,
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {addingVolunteer ? 'Adding…' : '+ Add'}
-                    </button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {contactList.length > 0 ? (
+                      <ContactSearchInput
+                        contacts={contactList}
+                        placeholder="Search by name or phone"
+                        disabled={addingVolunteer}
+                        onSelect={c => void handleAddVolunteer(c.phone)}
+                      />
+                    ) : (
+                      <input
+                        type="tel"
+                        placeholder="Attendance taker phone"
+                        value={newVolunteerPhone}
+                        onChange={e => setNewVolunteerPhone(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && void handleAddVolunteer()}
+                        style={{ ...inputStyle, maxWidth: 180, flex: 1 }}
+                      />
+                    )}
+                    {contactList.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => void handleAddVolunteer()}
+                        disabled={addingVolunteer || !newVolunteerPhone.trim()}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: 6,
+                          border: 'none',
+                          backgroundColor: addingVolunteer || !newVolunteerPhone.trim() ? '#adb5bd' : '#198754',
+                          color: '#fff',
+                          cursor: addingVolunteer || !newVolunteerPhone.trim() ? 'not-allowed' : 'pointer',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {addingVolunteer ? 'Adding…' : '+ Add'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
