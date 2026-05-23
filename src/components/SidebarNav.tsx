@@ -6,12 +6,14 @@ import { useAuth } from '@/hooks/useAuth'
 import { CenterSelector } from '@/components/CenterSelector'
 
 // Primary navigation items — icon (emoji), label, route, exact-match flag
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { href: '/',           label: 'Dashboard',  icon: '⌂',  exact: true  },
   { href: '/contacts',   label: 'Contacts',   icon: '👥', exact: true  },
   { href: '/campaigns',  label: 'Campaigns',  icon: '📣', exact: false },
   { href: '/attendance', label: 'Attendance', icon: '📋', exact: false },
 ] as const
+
+const SETTINGS_ITEM = { href: '/settings', label: 'Settings', icon: '⚙', exact: false } as const
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN:            'Admin',
@@ -30,8 +32,13 @@ const ROLE_LABELS: Record<string, string> = {
  * gets a clean, full-screen layout.
  */
 export function SidebarNav() {
-  const { isLoggedIn, user, selectedCenterDetails, logout } = useAuth()
+  const { isLoggedIn, user, selectedCenterDetails, logout, canManageSelectedCenterConfig, canManageSelectedCenterAccess } = useAuth()
   const pathname = usePathname()
+
+  const showSettings = canManageSelectedCenterConfig || canManageSelectedCenterAccess
+  const navItems = showSettings
+    ? [...BASE_NAV_ITEMS, SETTINGS_ITEM]
+    : [...BASE_NAV_ITEMS]
 
   if (!isLoggedIn) return null
 
@@ -116,7 +123,7 @@ export function SidebarNav() {
           role="list"
           style={{ flex: 1, padding: '10px 8px', overflowY: 'auto' }}
         >
-          {NAV_ITEMS.map(item => {
+          {navItems.map(item => {
             const active = isActive(item.href, item.exact)
             return (
               <Link
@@ -238,7 +245,7 @@ export function SidebarNav() {
 
       {/* ── Mobile bottom tab bar ───────────────────────────────────── */}
       <nav className="bottom-nav-mobile" aria-label="Main navigation">
-        {NAV_ITEMS.map(item => {
+        {navItems.map(item => {
           const active = isActive(item.href, item.exact)
           return (
             <Link

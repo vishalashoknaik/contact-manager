@@ -17,7 +17,6 @@ import { Card } from '@/components/ui/Card'
 import { FilterService } from '@/lib/services/FilterService'
 import { ContactForm } from '@/components/ContactForm'
 import { CSVImport } from '@/components/CSVImport'
-import { AdminPanel } from '@/components/AdminPanel'
 import { ActionBar } from '@/components/ActionBar'
 import { ContactsTable } from '@/components/ContactsTable'
 import { CampaignModal } from '@/components/CampaignModal'
@@ -43,7 +42,6 @@ function ContactsContent() {
   const {
     selectedCenter,
     canAccessSelectedCenterAdminMode,
-    canManageSelectedCenterConfig,
     canViewSelectedCenterContacts
   } = useAuth()
   const actionSelectors = {
@@ -83,14 +81,8 @@ function ContactsContent() {
   useEffect(() => {
     if (!canAccessSelectedCenterAdminMode) {
       adminManager.setIsAdmin(false)
-      adminManager.setActiveView('access')
-      return
     }
-
-    if (adminManager.activeView === 'settings' && !canManageSelectedCenterConfig) {
-      adminManager.setActiveView('access')
-    }
-  }, [canAccessSelectedCenterAdminMode, canManageSelectedCenterConfig, adminManager])
+  }, [canAccessSelectedCenterAdminMode, adminManager])
 
   const handleAddContact = (name: string, phone: string, gender: import('@/lib/types').Gender, ieDate?: string, areaOfStay?: string, remarks?: string) => {
     contactsManager.addOrUpdateContact(name, phone, gender, ieDate, areaOfStay, remarks)
@@ -250,61 +242,25 @@ function ContactsContent() {
 
       <div style={{ marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {canAccessSelectedCenterAdminMode && (
-          <>
-            <Button
-              variant={adminManager.isAdmin ? 'danger' : 'secondary'}
-              size="sm"
-              onClick={adminManager.toggleAdmin}
-            >
-              {adminManager.isAdmin ? '👤 User Mode' : '⚙️ Admin Mode'}
-            </Button>
-
-            {adminManager.isAdmin && (
-              <>
-                {canManageSelectedCenterConfig && (
-                  <Button
-                    variant={adminManager.activeView === 'settings' ? 'primary' : 'ghost'}
-                    size="sm"
-                    onClick={adminManager.openSettingsView}
-                  >
-                    Center Configuration
-                  </Button>
-                )}
-                <Button
-                  variant={adminManager.activeView === 'access' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={adminManager.openAccessView}
-                >
-                  Access Control
-                </Button>
-              </>
-            )}
-          </>
+          <a
+            href="/settings"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 4,
+              border: '1px solid var(--border-color, #ddd)',
+              backgroundColor: 'transparent',
+              color: 'var(--text-primary, #000)',
+              textDecoration: 'none',
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            ⚙ Settings
+          </a>
         )}
       </div>
 
-      {canAccessSelectedCenterAdminMode && (
-        <>
-          {adminManager.isAdmin && (
-            <AdminPanel
-              isVisible
-              section={adminManager.activeView}
-              activities={configManager.activities}
-              areas={configManager.areas}
-              programs={configManager.programs}
-              interests={configManager.interests}
-              contacts={contactsManager.contacts}
-              onActivitiesChange={configManager.setActivities}
-              onAreasChange={configManager.setAreas}
-              onProgramsChange={configManager.setPrograms}
-              onInterestsChange={configManager.setInterests}
-              onContactsChange={contactsManager.setContacts}
-            />
-          )}
-        </>
-      )}
-
-      {!adminManager.isAdmin && canViewSelectedCenterContacts && (
+      {canViewSelectedCenterContacts && (
         <>
           {/* Contact Form & CSV Import */}
           <Card style={{ marginBottom: 20 }}>
@@ -420,7 +376,7 @@ function ContactsContent() {
         </>
       )}
 
-      {!adminManager.isAdmin && !canViewSelectedCenterContacts && (
+      {!canViewSelectedCenterContacts && (
         <div
           style={{
             padding: 12,

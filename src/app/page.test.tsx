@@ -176,23 +176,17 @@ describe('Home page', () => {
     mockShowToast.mockClear()
   })
 
-  it('toggles admin mode, showing admin panel and hiding contact list', async () => {
-    const user = userEvent.setup()
-
+  it('shows Settings link for admin users instead of inline admin mode toggle', async () => {
     render(<Home />)
 
-    // Initially in user mode — admin mode button visible, admin panel not shown
-    expect(screen.getByRole('button', { name: /admin mode/i })).toBeInTheDocument()
+    // Admin users see a Settings link (admin panel is now at /settings)
+    const settingsLink = screen.getByRole('link', { name: /settings/i })
+    expect(settingsLink).toBeInTheDocument()
+    expect(settingsLink).toHaveAttribute('href', '/settings')
 
-    await user.click(screen.getByRole('button', { name: /admin mode/i }))
-
-    // Now in admin mode — user mode button appears, admin panel visible
-    expect(screen.getByRole('button', { name: /user mode/i })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: /user mode/i }))
-
-    // Back to user mode
-    expect(screen.getByRole('button', { name: /admin mode/i })).toBeInTheDocument()
+    // No inline admin mode toggle buttons
+    expect(screen.queryByRole('button', { name: /admin mode/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /user mode/i })).not.toBeInTheDocument()
   })
 
   it('covers admin mode, add contact, filters, sorting, bulk actions, and csv import flow', async () => {
@@ -227,21 +221,8 @@ describe('Home page', () => {
 
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Admin Mode/i }))
-    await user.click(screen.getByRole('button', { name: 'Center Configuration' }))
-    expect(screen.getByText(/Center Settings/)).toBeInTheDocument()
-    expect(screen.queryByText('Add Contact')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Contacts \(/)).not.toBeInTheDocument()
-
-    await user.type(screen.getByPlaceholderText('New activity'), 'Prayer')
-
-    const adminPanel = screen.getByText(/Center Settings/).closest('div') as HTMLElement
-    await user.click(within(adminPanel).getAllByRole('button', { name: 'Add' })[0])
-
-    expect(within(adminPanel).getByText('Prayer')).toBeInTheDocument()
-
-  await user.click(screen.getByRole('button', { name: /User Mode/i }))
-  expect(screen.getByText('Add Contact')).toBeInTheDocument()
+    // Admin settings are now at /settings — contacts page always shows add contact form
+    expect(screen.getByText('Add Contact')).toBeInTheDocument()
 
     const nameInput = screen.getByPlaceholderText('Name')
     const phoneInput = screen.getByPlaceholderText('Phone')
