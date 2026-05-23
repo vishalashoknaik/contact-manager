@@ -15,6 +15,10 @@ const campaignApiMocks = vi.hoisted(() => ({
   updateTemplates: vi.fn()
 }))
 
+const contactsApiMocks = vi.hoisted(() => ({
+  getAll: vi.fn().mockResolvedValue([])
+}))
+
 // Mutable so individual tests can override the role
 let mockRole: string = 'USER'
 
@@ -36,7 +40,8 @@ vi.mock('@/hooks/useAuth', () => ({
 }))
 
 vi.mock('@/lib/api/client', () => ({
-  campaignsApi: campaignApiMocks
+  campaignsApi: campaignApiMocks,
+  contactsApi: contactsApiMocks
 }))
 
 // Minimal campaign fixture — no templates (for empty-state tests)
@@ -77,6 +82,7 @@ async function renderWithCampaignDetail(role: string, useTemplates = true) {
 describe('CampaignsPage rendering warnings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    contactsApiMocks.getAll.mockResolvedValue([])
     mockRole = 'USER'
     Object.defineProperty(window.navigator, 'onLine', {
       configurable: true,
@@ -121,6 +127,7 @@ describe('CampaignsPage rendering warnings', () => {
 describe('CampaignsPage - role-based template UI visibility', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    contactsApiMocks.getAll.mockResolvedValue([])
     mockRole = 'USER'
   })
 
@@ -153,6 +160,7 @@ describe('CampaignsPage - role-based template UI visibility', () => {
 describe('CampaignsPage - empty templates state (no defaults)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    contactsApiMocks.getAll.mockResolvedValue([])
     mockRole = 'USER'
   })
 

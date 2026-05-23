@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useSyncStatus } from '@/hooks/useSyncStatus'
-import { campaignsApi, Campaign, CallLog, NextContactResult } from '@/lib/api/client'
+import { campaignsApi, Campaign, CallLog, NextContactResult, contactsApi } from '@/lib/api/client'
+import { Contact } from '@/lib/types'
 import { SyncStatusNotices } from '@/components/SyncStatusNotices'
 import { VolunteerPanel } from '@/components/VolunteerPanel'
 import { CampaignCallScreen } from '@/components/CampaignCallScreen'
@@ -49,6 +50,7 @@ export default function CampaignsPage() {
   const templateSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const canEditTemplates = selectedCenterDetails?.role === 'USER' || selectedCenterDetails?.role === 'ADMIN'
   const [hasLoadedCampaignsOnce, setHasLoadedCampaignsOnce] = useState(false)
+  const [contacts, setContacts] = useState<Contact[]>([])
   const { isOnline, showLongSyncNotice, showOfflineWarning } = useSyncStatus({ isSyncing: isLoading })
 
   useEffect(() => {
@@ -60,6 +62,7 @@ export default function CampaignsPage() {
   useEffect(() => {
     if (!selectedCenter) return
     loadCampaigns()
+    contactsApi.getAll(selectedCenter).then(setContacts).catch(() => {})
   }, [selectedCenter])
 
   // Load templates from campaign data when a campaign is selected
@@ -374,6 +377,7 @@ export default function CampaignsPage() {
               centerId={selectedCenter!}
               currentUserPhone={user!.phone}
               onUpdated={updated => setSelectedCampaign(updated)}
+              contacts={contacts}
             />
           </div>
 

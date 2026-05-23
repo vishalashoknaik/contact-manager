@@ -2,17 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { SyncStatusNotices } from '@/components/SyncStatusNotices'
+import { ContactSearchInput } from '@/components/ContactSearchInput'
 import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { campaignsApi, Campaign, CampaignVolunteer } from '@/lib/api/client'
+import { Contact } from '@/lib/types'
 
 interface VolunteerPanelProps {
   campaign: Campaign
   centerId: string
   currentUserPhone: string
   onUpdated: (campaign: Campaign) => void
+  contacts?: Contact[]
 }
 
-export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated }: VolunteerPanelProps) {
+export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated, contacts }: VolunteerPanelProps) {
   const [addPhone, setAddPhone] = useState('')
   const [volunteers, setVolunteers] = useState<CampaignVolunteer[]>(campaign.volunteers)
   const [isLoading, setIsLoading] = useState(false)
@@ -23,8 +26,8 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
     setVolunteers(campaign.volunteers)
   }, [campaign.id, campaign.volunteers])
 
-  const handleAddVolunteer = async () => {
-    const phone = addPhone.trim()
+  const handleAddVolunteer = async (phoneOverride?: string) => {
+    const phone = (phoneOverride ?? addPhone).trim()
     if (!phone) return
     const already = volunteers.some(v => v.phone === phone)
     if (already) {
@@ -123,14 +126,23 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
       )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <input
-          value={addPhone}
-          onChange={e => setAddPhone(e.target.value)}
-          placeholder="Volunteer phone number"
-          style={{ ...inputStyle, flex: '1 1 220px' }}
-          onKeyDown={e => e.key === 'Enter' && handleAddVolunteer()}
-        />
-        <button onClick={handleAddVolunteer} disabled={isLoading} style={btn('#0d6efd')}>
+        {contacts && contacts.length > 0 ? (
+          <ContactSearchInput
+            contacts={contacts}
+            placeholder="Search volunteer by name or phone"
+            disabled={isLoading}
+            onSelect={c => handleAddVolunteer(c.phone)}
+          />
+        ) : (
+          <input
+            value={addPhone}
+            onChange={e => setAddPhone(e.target.value)}
+            placeholder="Volunteer phone number"
+            style={{ ...inputStyle, flex: '1 1 220px' }}
+            onKeyDown={e => e.key === 'Enter' && handleAddVolunteer()}
+          />
+        )}
+        <button onClick={() => handleAddVolunteer()} disabled={isLoading} style={btn('#0d6efd')}>
           Add
         </button>
       </div>
