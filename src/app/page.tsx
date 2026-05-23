@@ -47,7 +47,7 @@ function DashboardContent() {
   const { user, selectedCenterDetails } = useAuth()
 
   const firstName = user?.name?.split(' ')[0] ?? 'there'
-  const centerName = selectedCenterDetails?.centerName ?? 'your center'
+  const centerName = selectedCenterDetails?.name ?? 'your center'
 
   const hour = new Date().getHours()
   const greeting =
