@@ -473,16 +473,18 @@ function AttendanceEntry({
   async function performPhoneLookup(phone: string) {
     if (!phone) return
 
-    if (lookupRequestRef.current && lastLookupPhoneRef.current === phone) {
+    const normalized = normalizePhoneKey(phone)
+
+    if (lookupRequestRef.current && lastLookupPhoneRef.current === normalized) {
       return lookupRequestRef.current
     }
 
-    lastLookupPhoneRef.current = phone
+    lastLookupPhoneRef.current = normalized
 
     const request = (async () => {
       setLookupStatus('loading')
       try {
-        const result = await attendanceApi.lookup(phone)
+        const result = await attendanceApi.lookup(normalized)
         if (result.found) {
           setForm(prev => ({
             ...prev,
@@ -538,7 +540,7 @@ function AttendanceEntry({
 
       const payload: AttendancePayload = {
         name: form.name.trim(),
-        phone: form.phone.trim(),
+        phone: normalizePhoneKey(form.phone.trim()),
         gender: form.gender || undefined,
         ieDate: form.ieDate || undefined,
         areaOfStay: form.areaOfStay || undefined,

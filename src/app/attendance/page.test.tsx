@@ -1165,3 +1165,135 @@ describe('AttendancePage - volunteer management', () => {
     })
   })
 })
+
+describe('AttendancePage - phone normalization', () => {
+  beforeEach(() => {
+    window.dispatchEvent(new Event('online'))
+    localStorage.clear()
+    mocks.listSessions.mockReset()
+    mocks.listSessionAttendees.mockReset()
+    mocks.lookup.mockReset()
+    mocks.submit.mockReset()
+    mocks.endSession.mockReset()
+    mocks.listSessions.mockResolvedValue([])
+    mocks.listSessionAttendees.mockResolvedValue([])
+    mocks.endSession.mockResolvedValue({ success: true })
+    configState.isLoaded = true
+    configState.error = null
+  })
+
+  it('strips dashes from phone before calling lookup API', async () => {
+    const user = userEvent.setup()
+    mocks.lookup.mockResolvedValue({ found: false })
+
+    await renderAndResumeSession(user)
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '123-456-7890')
+    fireEvent.blur(screen.getByPlaceholderText('Enter phone and press Enter'))
+
+    await waitFor(() => {
+      expect(mocks.lookup).toHaveBeenCalledWith('1234567890')
+    })
+    expect(mocks.lookup).not.toHaveBeenCalledWith('123-456-7890')
+  })
+
+  it('strips spaces and parentheses from phone before calling lookup API', async () => {
+    const user = userEvent.setup()
+    mocks.lookup.mockResolvedValue({ found: false })
+
+    await renderAndResumeSession(user)
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '(098) 765-4321')
+    fireEvent.blur(screen.getByPlaceholderText('Enter phone and press Enter'))
+
+    await waitFor(() => {
+      expect(mocks.lookup).toHaveBeenCalledWith('0987654321')
+    })
+  })
+
+  it('strips dots from phone before calling lookup API', async () => {
+    const user = userEvent.setup()
+    mocks.lookup.mockResolvedValue({ found: false })
+
+    await renderAndResumeSession(user)
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '987.654.3210')
+    fireEvent.blur(screen.getByPlaceholderText('Enter phone and press Enter'))
+
+    await waitFor(() => {
+      expect(mocks.lookup).toHaveBeenCalledWith('9876543210')
+    })
+  })
+
+  it('fills form fields from lookup when formatted phone matches stored normalized phone', async () => {
+    const user = userEvent.setup()
+    mocks.lookup.mockResolvedValueOnce({
+      found: true,
+      contact: { id: 'c1', name: 'Normalised Person', phone: '9876543210', gender: 'Female', ieDate: '2025', areaOfStay: 'East' }
+    })
+
+    await renderAndResumeSession(user)
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '987-654-3210')
+    fireEvent.blur(screen.getByPlaceholderText('Enter phone and press Enter'))
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Full name')).toHaveValue('Normalised Person')
+    })
+    expect(screen.getByText(/contact found/i)).toBeInTheDocument()
+  })
+
+  it('submits normalised phone in payload regardless of how the user typed it', async () => {
+    const user = userEvent.setup()
+    mocks.lookup.mockResolvedValue({ found: false })
+    mocks.submit.mockResolvedValue({ success: true })
+    mocks.listSessionAttendees.mockResolvedValue([])
+
+    await renderAndResumeSession(user)
+
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '123-456-7890')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Formatted Person')
+    await user.selectOptions(screen.getByRole('combobox'), 'Male')
+    await user.type(screen.getByPlaceholderText('IE Date'), '2026')
+    await user.type(screen.getByPlaceholderText('Neighbourhood / area'), 'West')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => {
+      expect(mocks.submit).toHaveBeenCalledWith(
+        expect.objectContaining({ phone: '1234567890' }),
+        'center-1'
+      )
+    })
+  })
+
+  it('deduplicates same person entered with different phone formats', async () => {
+    const user = userEvent.setup()
+    const attendee = { id: 'e1', name: 'Dup Person', phone: '9500000002', submittedAt: new Date().toISOString() }
+    mocks.lookup.mockResolvedValue({ found: false })
+    mocks.submit.mockResolvedValue({ success: true })
+    mocks.listSessionAttendees
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([attendee])
+
+    await renderAndResumeSession(user)
+
+    // First: plain digits
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '9500000002')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Dup Person')
+    await user.selectOptions(screen.getByRole('combobox'), 'Female')
+    await user.type(screen.getByPlaceholderText('IE Date'), '2026')
+    await user.type(screen.getByPlaceholderText('Neighbourhood / area'), 'North')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => expect(mocks.submit).toHaveBeenCalledTimes(1))
+
+    // Second: formatted — must resolve as same person
+    await user.type(screen.getByPlaceholderText('Enter phone and press Enter'), '950-000-0002')
+    await user.type(screen.getByPlaceholderText('Full name'), 'Dup Person Again')
+    await user.click(screen.getByRole('button', { name: /submit & next/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/attendance record.*already existed.*updated/i)).toBeInTheDocument()
+    })
+  })
+})
