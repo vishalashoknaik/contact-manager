@@ -14,7 +14,7 @@ import type { CenterOption, CenterRole, ManagedUser } from '@/lib/types/auth'
 
 interface AdminPanelProps {
   isVisible: boolean
-  section: 'access' | 'settings'
+  section: 'access' | 'settings' | 'all'
   activities: string[]
   areas: string[]
   programs: string[]
@@ -25,6 +25,62 @@ interface AdminPanelProps {
   onProgramsChange: (programs: string[]) => void
   onInterestsChange?: (interests: string[]) => void
   onContactsChange: (contacts: Contact[]) => void
+}
+
+// Collapsible accordion card — open by default so automated tests can always find elements
+function AccordionSection({
+  icon,
+  title,
+  badge,
+  badgeDanger = false,
+  children,
+  defaultOpen = true,
+}: {
+  icon?: string
+  title: string
+  badge?: number
+  badgeDanger?: boolean
+  children: React.ReactNode
+  defaultOpen?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+  return (
+    <div style={{ marginBottom: 12, border: '1px solid var(--border-color)', borderRadius: 10, overflow: 'hidden' }}>
+      <button
+        onClick={() => setIsOpen(v => !v)}
+        aria-expanded={isOpen}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          width: '100%', padding: '11px 16px',
+          background: isOpen ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+          border: 'none', borderBottom: isOpen ? '1px solid var(--border-color)' : 'none',
+          cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        {icon && <span style={{ fontSize: 15 }}>{icon}</span>}
+        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</span>
+        {badge !== undefined && (
+          <span style={{
+            marginLeft: 6, padding: '1px 7px', fontSize: 11, fontWeight: 700,
+            backgroundColor: badgeDanger && badge > 0 ? 'var(--color-danger, #e53e3e)' : 'rgba(128,128,128,0.18)',
+            color: badgeDanger && badge > 0 ? '#fff' : 'var(--text-secondary)',
+            borderRadius: 99,
+          }}>
+            {badge}
+          </span>
+        )}
+        <span style={{
+          fontSize: 16, color: 'var(--text-secondary)',
+          transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+          display: 'inline-block', transition: 'transform 0.18s ease',
+          lineHeight: 1, marginLeft: 4,
+        }}>›</span>
+      </button>
+      {isOpen && (
+        <div style={{ padding: 16, background: 'var(--bg-primary)' }}>{children}</div>
+      )}
+    </div>
+  )
 }
 
 export function AdminPanel({
@@ -577,34 +633,23 @@ export function AdminPanel({
     }
   }
 
-  const panelStyle = {
-    border: '1px solid var(--border-color, #ccc)',
-    padding: 15,
-    marginTop: 15,
-    backgroundColor: 'var(--panel-bg, #f9f9f9)',
-    borderRadius: 4
-  }
-
-  const sectionStyle = {
-    marginBottom: 20
-  }
-
   const inputStyle = {
-    padding: '6px 8px',
+    padding: '7px 10px',
     marginRight: 8,
-    border: '1px solid var(--border-color, #ddd)',
-    borderRadius: 3,
-    backgroundColor: 'var(--input-bg, #fff)',
-    color: 'var(--text-primary, #000)'
+    border: '1px solid var(--border-color)',
+    borderRadius: 6,
+    backgroundColor: 'var(--input-bg, var(--bg-primary))',
+    color: 'var(--text-primary)',
+    fontSize: 13,
   }
 
   const itemStyle = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '8px 0',
-    borderBottom: '1px solid var(--border-color, #eee)',
-    color: 'var(--text-primary, #000)'
+    padding: '9px 0',
+    borderBottom: '1px solid var(--border-color)',
+    color: 'var(--text-primary)',
   }
 
   const pendingUsers = managedUsers.filter(managedUser => !managedUser.isApproved)
@@ -612,10 +657,9 @@ export function AdminPanel({
 
   const renderAccessSection = () => (
     <>
-      <div style={sectionStyle}>
-        <h5>User Access</h5>
-        <p style={{ color: '#555', marginTop: 0 }}>
-          Search people in contacts first. If not found, add a new contact before granting access.
+      <AccordionSection icon="➕" title="Grant Access">
+        <p style={{ marginTop: 0, marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+          Search a contact first. If not found, fill in the phone and name below, then grant access.
         </p>
         <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
           <input
@@ -712,13 +756,12 @@ export function AdminPanel({
           margin="0 0 12px"
         />
 
-        {userError && <div style={{ color: '#b02a37', marginBottom: 12 }}>{userError}</div>}
-      </div>
+        {userError && <div style={{ color: 'var(--color-danger, #b02a37)', marginBottom: 12, fontSize: 13 }}>{userError}</div>}
+      </AccordionSection>
 
-      <div style={sectionStyle}>
-        <h5>Access Requests</h5>
+      <AccordionSection icon="⏳" title="Access Requests" badge={pendingUsers.length} badgeDanger>
         {pendingUsers.length === 0 && (
-          <p style={{ marginBottom: 0, color: '#666' }}>No pending access requests for this center.</p>
+          <p style={{ marginBottom: 0, fontSize: 13, color: 'var(--text-secondary)' }}>No pending access requests for this center.</p>
         )}
         {pendingUsers.map(managedUser => (
           <div key={`${managedUser.phone}-${managedUser.centerId}`} style={itemStyle}>
@@ -746,12 +789,11 @@ export function AdminPanel({
             </div>
           </div>
         ))}
-      </div>
+      </AccordionSection>
 
-      <div style={sectionStyle}>
-        <h5>Approved Users</h5>
+      <AccordionSection icon="✅" title="Approved Users" badge={approvedUsers.length}>
         {approvedUsers.length === 0 && (
-          <p style={{ marginBottom: 0, color: '#666' }}>No approved users assigned to this center yet.</p>
+          <p style={{ marginBottom: 0, fontSize: 13, color: 'var(--text-secondary)' }}>No approved users assigned to this center yet.</p>
         )}
         {approvedUsers.map(managedUser => (
           <div key={toManagedKey(managedUser)} style={itemStyle}>
@@ -820,12 +862,11 @@ export function AdminPanel({
             </div>
           </div>
         ))}
-      </div>
+      </AccordionSection>
 
       {user?.canAccessAllCenters && (
-        <div style={sectionStyle}>
-          <h5>Centers</h5>
-          <p style={{ color: '#555', marginTop: 0 }}>
+        <AccordionSection icon="🏢" title="Centers" badge={centers.length}>
+          <p style={{ marginTop: 0, marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
             Overall admins can add new centers and rename the selected center.
           </p>
           <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
@@ -873,15 +914,14 @@ export function AdminPanel({
               </div>
             ))}
           </div>
-        </div>
+        </AccordionSection>
       )}
     </>
   )
 
   const renderSettingsSection = () => (
     <>
-      <div style={sectionStyle}>
-        <h5>Activities</h5>
+      <AccordionSection icon="🏃" title="Activities" badge={activities.length}>
         <div style={{ marginBottom: 10 }}>
           <input
             type="text"
@@ -948,10 +988,9 @@ export function AdminPanel({
             </div>
           </div>
         ))}
-      </div>
+      </AccordionSection>
 
-      <div style={sectionStyle}>
-        <h5>Areas</h5>
+      <AccordionSection icon="📍" title="Areas" badge={areas.length}>
         <div style={{ marginBottom: 10 }}>
           <input
             type="text"
@@ -1018,10 +1057,9 @@ export function AdminPanel({
             </div>
           </div>
         ))}
-      </div>
+      </AccordionSection>
 
-      <div style={sectionStyle}>
-        <h5>Programs</h5>
+      <AccordionSection icon="📚" title="Programs" badge={programs.length}>
         <div style={{ marginBottom: 10 }}>
           <input
             type="text"
@@ -1088,10 +1126,9 @@ export function AdminPanel({
             </div>
           </div>
         ))}
-      </div>
+      </AccordionSection>
 
-      <div style={sectionStyle}>
-        <h5>Interest Form Categories</h5>
+      <AccordionSection icon="💡" title="Interest Categories" badge={interests.length}>
         <div style={{ marginBottom: 10 }}>
           <input
             type="text"
@@ -1158,19 +1195,18 @@ export function AdminPanel({
             </div>
           </div>
         ))}
-      </div>
+      </AccordionSection>
     </>
   )
 
   return (
-    <div style={panelStyle}>
-      <h4 style={{ color: 'var(--text-primary, #000)', marginTop: 0 }}>{section === 'access' ? '🔐 Access Management' : '⚙️ Center Settings'}</h4>
-      {section === 'access' ? renderAccessSection() : null}
-      {section === 'settings' && canManageSelectedCenterConfig ? renderSettingsSection() : null}
+    <div>
+      {(section === 'access' || section === 'all') && canManageSelectedCenterAccess ? renderAccessSection() : null}
+      {(section === 'settings' || section === 'all') && canManageSelectedCenterConfig ? renderSettingsSection() : null}
       {section === 'settings' && !canManageSelectedCenterConfig ? (
-        <div style={{ color: '#b02a37' }}>Only center admins can manage center configuration.</div>
+        <div style={{ color: 'var(--color-danger, #b02a37)', padding: '12px 16px', borderRadius: 8, backgroundColor: 'rgba(220,53,69,0.08)', fontSize: 13 }}>Only center admins can manage center configuration.</div>
       ) : null}
-      
+
       {mergeDialog && (
         <div
           style={{

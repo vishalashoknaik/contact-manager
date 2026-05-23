@@ -179,10 +179,8 @@ describe('Home page', () => {
   it('shows Settings link for admin users instead of inline admin mode toggle', async () => {
     render(<Home />)
 
-    // Admin users see a Settings link (admin panel is now at /settings)
-    const settingsLink = screen.getByRole('link', { name: /settings/i })
-    expect(settingsLink).toBeInTheDocument()
-    expect(settingsLink).toHaveAttribute('href', '/settings')
+    // Settings link is in SidebarNav (not rendered in unit tests), not inline on the contacts page
+    expect(screen.queryByRole('link', { name: /settings/i })).not.toBeInTheDocument()
 
     // No inline admin mode toggle buttons
     expect(screen.queryByRole('button', { name: /admin mode/i })).not.toBeInTheDocument()
@@ -221,20 +219,22 @@ describe('Home page', () => {
 
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
 
-    // Admin settings are now at /settings — contacts page always shows add contact form
-    expect(screen.getByText('Add Contact')).toBeInTheDocument()
+    // Add Contact section is collapsible — expand first
+    expect(screen.getByRole('button', { name: /add contact/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
 
     const nameInput = screen.getByPlaceholderText('Name')
     const phoneInput = screen.getByPlaceholderText('Phone')
     await user.type(nameInput, 'Manual User')
     await user.type(phoneInput, '6666666666')
-
-    const addContactSection = screen.getByText('Add Contact').closest('div') as HTMLElement
-    await user.click(within(addContactSection).getByRole('button', { name: 'Add' }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Manual User')).toBeInTheDocument()
     })
+
+    // Contact is added as selected — expand Bulk Actions to access ActionBar and Create Campaign button
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }))
 
     const combos = screen.getAllByRole('combobox')
     const actionCombos = combos.slice(-7, -4)
@@ -285,9 +285,10 @@ describe('Home page', () => {
 
     render(<Home />)
 
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
     await user.type(screen.getByPlaceholderText('Name'), 'Editable Person')
     await user.type(screen.getByPlaceholderText('Phone'), '1111111111')
-    await user.click(within(screen.getByText('Add Contact').closest('div') as HTMLElement).getByRole('button', { name: 'Add' }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => expect(screen.getByText('Editable Person')).toBeInTheDocument())
 
@@ -309,9 +310,10 @@ describe('Home page', () => {
 
     render(<Home />)
 
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
     await user.type(screen.getByPlaceholderText('Name'), 'Validation Person')
     await user.type(screen.getByPlaceholderText('Phone'), '2222222222')
-    await user.click(within(screen.getByText('Add Contact').closest('div') as HTMLElement).getByRole('button', { name: 'Add' }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => expect(screen.getByText('Validation Person')).toBeInTheDocument())
     await user.click(screen.getByText('Validation Person'))
@@ -329,9 +331,10 @@ describe('Home page', () => {
 
     render(<Home />)
 
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
     await user.type(screen.getByPlaceholderText('Name'), 'Trim Person')
     await user.type(screen.getByPlaceholderText('Phone'), '3333333333')
-    await user.click(within(screen.getByText('Add Contact').closest('div') as HTMLElement).getByRole('button', { name: 'Add' }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => expect(screen.getByText('Trim Person')).toBeInTheDocument())
     await user.click(screen.getByText('Trim Person'))
@@ -371,9 +374,10 @@ describe('Home page', () => {
 
     render(<Home />)
 
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
     await user.type(screen.getByPlaceholderText('Name'), 'Error Person')
     await user.type(screen.getByPlaceholderText('Phone'), '5555555555')
-    await user.click(within(screen.getByText('Add Contact').closest('div') as HTMLElement).getByRole('button', { name: 'Add' }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => expect(screen.getByText('Error Person')).toBeInTheDocument())
     await user.click(screen.getByText('Error Person'))
@@ -438,16 +442,21 @@ describe('Home page — child lock', () => {
   })
 
   it('shows a Locked button in bulk actions by default', async () => {
+    const user = userEvent.setup()
     render(<Home />)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+    await waitFor(() => screen.getByRole('button', { name: /bulk actions/i }))
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }))
+    expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument()
   })
 
   it('delete button is hidden while child lock is ON', async () => {
+    const user = userEvent.setup()
     render(<Home />)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
-
+    await waitFor(() => screen.getByRole('button', { name: /bulk actions/i }))
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }))
+    expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /delete selected/i })).not.toBeInTheDocument()
   })
 
@@ -455,7 +464,9 @@ describe('Home page — child lock', () => {
     const user = userEvent.setup()
     render(<Home />)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+    await waitFor(() => screen.getByRole('button', { name: /bulk actions/i }))
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }))
+    expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /locked/i }))
 
@@ -467,7 +478,9 @@ describe('Home page — child lock', () => {
     const user = userEvent.setup()
     render(<Home />)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+    await waitFor(() => screen.getByRole('button', { name: /bulk actions/i }))
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }))
+    expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /locked/i }))
     expect(screen.getByRole('button', { name: /delete selected/i })).toBeInTheDocument()
@@ -482,7 +495,9 @@ describe('Home page — child lock', () => {
 
     render(<Home />)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+    await waitFor(() => screen.getByRole('button', { name: /bulk actions/i }))
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }))
+    expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /locked/i }))
     await user.click(screen.getByRole('button', { name: /delete selected/i }))
@@ -503,7 +518,9 @@ describe('Home page — child lock', () => {
 
     render(<Home />)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+    await waitFor(() => screen.getByRole('button', { name: /bulk actions/i }))
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }))
+    expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /locked/i }))
     await user.click(screen.getByRole('button', { name: /delete selected/i }))
@@ -521,7 +538,9 @@ describe('Home page — child lock', () => {
 
     render(<Home />)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument())
+    await waitFor(() => screen.getByRole('button', { name: /bulk actions/i }))
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }))
+    expect(screen.getByRole('button', { name: /locked/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /locked/i }))
     await user.click(screen.getByRole('button', { name: /delete selected/i }))

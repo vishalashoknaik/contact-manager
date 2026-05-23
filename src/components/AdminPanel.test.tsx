@@ -650,7 +650,7 @@ describe('AdminPanel', () => {
   })
 
   describe('Interests section', () => {
-    it('renders the Interest Form Categories section in settings', () => {
+    it('renders the Interest Categories section in settings', () => {
       render(
         <AdminPanel
           isVisible
@@ -668,7 +668,7 @@ describe('AdminPanel', () => {
         />
       )
 
-      expect(screen.getByText('Interest Form Categories')).toBeInTheDocument()
+      expect(screen.getByText('Interest Categories')).toBeInTheDocument()
       expect(screen.getByText('Yoga')).toBeInTheDocument()
     })
 
@@ -692,7 +692,7 @@ describe('AdminPanel', () => {
         />
       )
 
-      const interestsSection = screen.getByText('Interest Form Categories').closest('div') as HTMLElement
+      const interestsSection = screen.getByText('Interest Categories').closest('div') as HTMLElement
       const input = within(interestsSection).getByPlaceholderText('New interest category')
       await user.type(input, 'Meditation')
       await user.click(within(interestsSection).getByRole('button', { name: 'Add' }))
@@ -720,7 +720,7 @@ describe('AdminPanel', () => {
         />
       )
 
-      const interestsSection = screen.getByText('Interest Form Categories').closest('div') as HTMLElement
+      const interestsSection = screen.getByText('Interest Categories').closest('div') as HTMLElement
       await user.click(within(interestsSection).getByRole('button', { name: 'Delete' }))
 
       expect(onInterestsChange).toHaveBeenCalledWith([])

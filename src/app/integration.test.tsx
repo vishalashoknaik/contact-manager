@@ -187,16 +187,15 @@ describe('Integration: Contact Management Flow', () => {
     const user = userEvent.setup()
     render(<Home />)
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Name')).toBeInTheDocument()
-    })
+    await waitFor(() => screen.getByRole('button', { name: /add contact/i }))
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
 
     const nameInput = screen.getByPlaceholderText('Name')
     const phoneInput = screen.getByPlaceholderText('Phone')
 
     await user.type(nameInput, 'Ravi Kumar')
     await user.type(phoneInput, '9876543210')
-    await user.click(screen.getByRole('button', { name: /add/i }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Ravi Kumar')).toBeInTheDocument()
@@ -207,9 +206,8 @@ describe('Integration: Contact Management Flow', () => {
     const user = userEvent.setup()
     render(<Home />)
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Name')).toBeInTheDocument()
-    })
+    await waitFor(() => screen.getByRole('button', { name: /add contact/i }))
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
 
     // Add two contacts
     const nameInput = screen.getByPlaceholderText('Name')
@@ -217,7 +215,7 @@ describe('Integration: Contact Management Flow', () => {
 
     await user.type(nameInput, 'Alice')
     await user.type(phoneInput, '1111111111')
-    await user.click(screen.getByRole('button', { name: /add/i }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Alice')).toBeInTheDocument()
@@ -230,7 +228,7 @@ describe('Integration: Contact Management Flow', () => {
     // Add second contact
     await user.type(nameInput, 'Bob')
     await user.type(phoneInput, '2222222222')
-    await user.click(screen.getByRole('button', { name: /add/i }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Bob')).toBeInTheDocument()
@@ -245,9 +243,8 @@ describe('Integration: Contact Management Flow', () => {
     const user = userEvent.setup()
     render(<Home />)
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Name')).toBeInTheDocument()
-    })
+    await waitFor(() => screen.getByRole('button', { name: /add contact/i }))
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
 
     const nameInput = screen.getByPlaceholderText('Name')
     const phoneInput = screen.getByPlaceholderText('Phone')
@@ -255,7 +252,7 @@ describe('Integration: Contact Management Flow', () => {
     // Add first contact
     await user.type(nameInput, 'Ravi')
     await user.type(phoneInput, '9876543210')
-    await user.click(screen.getByRole('button', { name: /add/i }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Ravi')).toBeInTheDocument()
@@ -268,7 +265,7 @@ describe('Integration: Contact Management Flow', () => {
     // Add contact with same phone but different name
     await user.type(nameInput, 'Ravi Kumar')
     await user.type(phoneInput, '9876543210')
-    await user.click(screen.getByRole('button', { name: /add/i }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => {
       expect(screen.queryByText('Ravi')).not.toBeInTheDocument()
@@ -280,9 +277,8 @@ describe('Integration: Contact Management Flow', () => {
     const user = userEvent.setup()
     render(<Home />)
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Name')).toBeInTheDocument()
-    })
+    await waitFor(() => screen.getByRole('button', { name: /add contact/i }))
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
 
     const nameInput = screen.getByPlaceholderText(
       'Name'
@@ -293,7 +289,7 @@ describe('Integration: Contact Management Flow', () => {
 
     await user.type(nameInput, 'Test')
     await user.type(phoneInput, '1234567890')
-    await user.click(screen.getByRole('button', { name: /add/i }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => {
       expect(nameInput.value).toBe('')
@@ -326,16 +322,15 @@ describe('Integration: Error Handling', () => {
     const user = userEvent.setup()
     render(<Home />)
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Name')).toBeInTheDocument()
-    })
+    await waitFor(() => screen.getByRole('button', { name: /add contact/i }))
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
 
     const nameInput = screen.getByPlaceholderText('Name')
     const phoneInput = screen.getByPlaceholderText('Phone')
 
     await user.type(nameInput, 'Ravi')
     await user.type(phoneInput, '9876543210')
-    await user.click(screen.getByRole('button', { name: /add/i }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     // Error should be handled gracefully
     await waitFor(() => {
@@ -349,14 +344,13 @@ describe('Integration: Error Handling', () => {
     const user = userEvent.setup()
     render(<Home />)
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Name')).toBeInTheDocument()
-    })
+    await waitFor(() => screen.getByRole('button', { name: /add contact/i }))
+    await user.click(screen.getByRole('button', { name: /add contact/i }))
 
     // Try to submit with only name
     const nameInput = screen.getByPlaceholderText('Name')
     await user.type(nameInput, 'Ravi')
-    await user.click(screen.getByRole('button', { name: /add/i }))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     // API should not be called
     expect(vi.mocked(contactsApi.create)).not.toHaveBeenCalled()
