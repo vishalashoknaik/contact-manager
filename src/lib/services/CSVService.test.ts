@@ -178,5 +178,104 @@ describe('CSVService', () => {
 
       vi.useRealTimers()
     })
+
+    it('handles Windows CRLF line endings', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-04-30T14:30:00.000Z'))
+
+      const existingContacts: any[] = []
+      // Use \r\n (CRLF) as line ending
+      const csv = 'name,phone\r\nAlice,1111111111\r\nBob,2222222222'
+
+      const result = CSVService.importCSV(csv, existingContacts)
+
+      expect(result).toHaveLength(2)
+      expect(result[0].name).toBe('Alice')
+      expect(result[1].name).toBe('Bob')
+
+      vi.useRealTimers()
+    })
+
+    it('ignores extra columns beyond name and phone', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-04-30T14:30:00.000Z'))
+
+      const existingContacts: any[] = []
+      // CSV with a third column — should not break parsing
+      const csv = ['name,phone,gender', 'Alice,1111111111,Female', 'Bob,2222222222,Male'].join('\n')
+
+      const result = CSVService.importCSV(csv, existingContacts)
+
+      expect(result).toHaveLength(2)
+      expect(result[0].name).toBe('Alice')
+      expect(result[1].name).toBe('Bob')
+
+      vi.useRealTimers()
+    })
+  })
+})
+
+describe('CSVService.importPhoneList', () => {
+  it('creates stub contacts for new phone numbers', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-01T10:00:00.000Z'))
+
+    const result = CSVService.importPhoneList('9876543210, 9876543211', [])
+
+    expect(result).toHaveLength(2)
+    expect(result[0]).toMatchObject({ phone: '9876543210', name: '', gender: 'Male', selected: true })
+    expect(result[1]).toMatchObject({ phone: '9876543211', name: '', gender: 'Male', selected: true })
+
+    vi.useRealTimers()
+  })
+
+  it('merges with existing contact by normalized phone', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-01T10:00:00.000Z'))
+
+    const existing = [makeContact({ id: 5, name: 'Ravi', phone: '(987) 654-3210' })]
+    const result = CSVService.importPhoneList('9876543210', existing)
+
+    expect(result[0]).toMatchObject({ id: 5, name: 'Ravi', selected: true })
+    expect(result).toHaveLength(1)
+
+    vi.useRealTimers()
+  })
+
+  it('supports newline-separated phones', () => {
+    const result = CSVService.importPhoneList('1234567890\n9876543210', [])
+    expect(result).toHaveLength(2)
+  })
+
+  it('supports space-separated phones', () => {
+    const result = CSVService.importPhoneList('1234567890 9876543210', [])
+    expect(result).toHaveLength(2)
+  })
+
+  it('skips tokens that are not valid phone numbers (< 10 digits)', () => {
+    const result = CSVService.importPhoneList('123, hello, 9876543210', [])
+    expect(result).toHaveLength(1)
+    expect(result[0].phone).toBe('9876543210')
+  })
+
+  it('keeps unmatched existing contacts at the end without importOrder', () => {
+    const existing = [makeContact({ id: 1, name: 'Alice', phone: '1111111111' })]
+    const result = CSVService.importPhoneList('9876543210', existing)
+
+    expect(result).toHaveLength(2)
+    expect(result[0].phone).toBe('9876543210')
+    expect(result[1]).toMatchObject({ id: 1, name: 'Alice' })
+    expect((result[1] as any).importOrder).toBeUndefined()
+  })
+
+  it('returns empty array for blank input', () => {
+    const result = CSVService.importPhoneList('   ', [])
+    expect(result).toHaveLength(0)
+  })
+
+  it('assigns importOrder to imported contacts', () => {
+    const result = CSVService.importPhoneList('1234567890, 9876543210', [])
+    expect(result[0].importOrder).toBe(0)
+    expect(result[1].importOrder).toBe(1)
   })
 })

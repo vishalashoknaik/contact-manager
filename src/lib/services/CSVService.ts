@@ -66,6 +66,60 @@ export class CSVService {
   }
 
   /**
+   * Parse a raw phone list (comma/newline/space separated) and merge with existing contacts.
+   * Tokens that don't look like phone numbers (< 10 digits after stripping) are silently skipped.
+   * Matched existing contacts are surfaced at the top and marked selected; unmatched tokens create
+   * new stub contacts with an empty name.
+   */
+  static importPhoneList(rawText: string, existingContacts: Contact[]): Contact[] {
+    const tokens = rawText.split(/[\s,]+/).filter(t => t.trim())
+    const now = new Date().toISOString()
+    const importedContacts: Contact[] = []
+    const importedIds = new Set<Contact['id']>()
+
+    tokens.forEach((token, index) => {
+      const normalized = PhoneService.normalize(token)
+      if (!normalized || normalized.length < 10) return
+
+      const existing = existingContacts.find(
+        c => PhoneService.normalize(c.phone) === normalized
+      )
+
+      if (existing) {
+        importedContacts.push({
+          ...existing,
+          selected: true,
+          lastUpdated: now,
+          importOrder: index
+        })
+        importedIds.add(existing.id)
+      } else {
+        importedContacts.push({
+          id: Date.now() + Math.random(),
+          name: '',
+          phone: token.trim(),
+          gender: 'Male',
+          activities: {},
+          areas: {},
+          programs: {},
+          selected: true,
+          lastUpdated: now,
+          importOrder: index
+        })
+      }
+    })
+
+    const remainingContacts = existingContacts
+      .filter(c => !importedIds.has(c.id))
+      .map(c => {
+        const { importOrder, ...rest } = c
+        return rest
+      })
+
+    return [...importedContacts, ...remainingContacts]
+  }
+
+  /**
    * Handle file input and return parsed contacts
    */
   static async handleFileImport(
