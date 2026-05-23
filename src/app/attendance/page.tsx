@@ -8,6 +8,8 @@ import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { attendanceApi, contactsApi } from '@/lib/api/client'
 import { ContactSearchInput } from '@/components/ContactSearchInput'
 import { SyncStatusNotices } from '@/components/SyncStatusNotices'
+import { Button } from '@/components/ui/Button'
+import { Alert } from '@/components/ui/Alert'
 import type { AttendanceSession } from '@/lib/api/client'
 import type { AttendanceSessionAttendee } from '@/lib/api/client'
 import type { Contact, Gender } from '@/lib/types'
@@ -195,7 +197,7 @@ function SetupScreen({
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: '32px 16px' }}>
-      <h2 style={{ marginBottom: 8 }}>📋 Attendance Session Setup</h2>
+      <h1 style={{ marginBottom: 8, fontSize: 22, fontWeight: 700 }}>Attendance</h1>
       <p style={{ color: 'var(--text-secondary, #666)', marginBottom: 16 }}>
         Give a session name and choose which programs, areas, or activities to track attendance for.
       </p>
@@ -225,57 +227,29 @@ function SetupScreen({
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {session.endedAt ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void onReopen(session)
-                        }}
-                        style={{
-                          padding: '10px 16px',
-                          border: 'none',
-                          borderRadius: 6,
-                          backgroundColor: '#198754',
-                          color: '#fff',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
+                      <Button
+                        variant="success"
+                        size="sm"
+                        onClick={() => { void onReopen(session) }}
                       >
                         Reopen
-                      </button>
+                      </Button>
                     ) : (
-                      <button
-                        type="button"
+                      <Button
+                        variant="primary"
+                        size="sm"
                         onClick={() => onResume(session)}
-                        style={{
-                          padding: '10px 16px',
-                          border: 'none',
-                          borderRadius: 6,
-                          backgroundColor: '#0d6efd',
-                          color: '#fff',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
                       >
                         Continue
-                      </button>
+                      </Button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void onDelete(session)
-                      }}
-                      style={{
-                        padding: '10px 16px',
-                        border: 'none',
-                        borderRadius: 6,
-                        backgroundColor: '#dc3545',
-                        color: '#fff',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => { void onDelete(session) }}
                     >
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -322,25 +296,15 @@ function SetupScreen({
       )}
 
       <div style={{ marginTop: 32, display: 'flex', gap: 12, marginBottom: 24 }}>
-        <button
-          onClick={() => {
-            void onStart(selected)
-          }}
+        <Button
+          variant="success"
+          size="md"
           disabled={noneSelected}
-          style={{
-            padding: '14px 20px',
-            backgroundColor: noneSelected ? '#adb5bd' : '#198754',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            fontSize: 15,
-            fontWeight: 600,
-            cursor: noneSelected ? 'not-allowed' : 'pointer',
-            width: '100%'
-          }}
+          onClick={() => { void onStart(selected) }}
+          style={{ width: '100%' }}
         >
           ▶ Start Attendance
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -881,20 +845,14 @@ function AttendanceEntry({
                             style={{ ...inputStyle, maxWidth: 180, flex: 1 }}
                           />
                         )}
-                        <button
-                          type="button"
+                        <Button
+                          variant="success"
+                          size="sm"
                           onClick={() => void handleAddVolunteer()}
                           disabled={addingVolunteer || !newVolunteerPhone.trim()}
-                          style={{
-                            padding: '8px 12px', borderRadius: 6, border: 'none',
-                            backgroundColor: addingVolunteer || !newVolunteerPhone.trim() ? '#adb5bd' : '#198754',
-                            color: '#fff',
-                            cursor: addingVolunteer || !newVolunteerPhone.trim() ? 'not-allowed' : 'pointer',
-                            fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap'
-                          }}
                         >
                           {addingVolunteer ? 'Adding…' : '+ Add'}
-                        </button>
+                        </Button>
                       </>
                     )}
 
@@ -914,30 +872,22 @@ function AttendanceEntry({
                           />
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button
-                            type="button"
+                          <Button
+                            variant="success"
+                            size="sm"
                             onClick={() => void handleCreateAndAddTaker()}
                             disabled={addingVolunteer}
-                            style={{
-                              padding: '8px 12px', borderRadius: 6, border: 'none',
-                              backgroundColor: '#198754', color: '#fff',
-                              cursor: 'pointer', fontWeight: 600, fontSize: 13
-                            }}
                           >
                             {addingVolunteer ? 'Adding…' : 'Create & Add'}
-                          </button>
-                          <button
-                            type="button"
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() => { setPendingNewVolPhone(null); setPendingNewVolName(''); setSessionAccessError(null) }}
                             disabled={addingVolunteer}
-                            style={{
-                              padding: '8px 12px', borderRadius: 6, border: 'none',
-                              backgroundColor: '#6c757d', color: '#fff',
-                              cursor: 'pointer', fontSize: 13
-                            }}
                           >
                             Cancel
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -946,9 +896,9 @@ function AttendanceEntry({
               </div>
             )}
             {sessionAccessError && (
-              <div style={{ marginTop: 8, color: '#842029', fontSize: 12 }}>
+              <Alert variant="error" style={{ marginTop: 8, fontSize: 12 }}>
                 {sessionAccessError}
-              </div>
+              </Alert>
             )}
             <SyncStatusNotices
               isSyncing={attendeeDataSyncing && !hasLoadedAttendeesOnce}
@@ -959,9 +909,9 @@ function AttendanceEntry({
               margin="8px 0 0"
             />
             {!isOnline && (
-              <div style={{ marginTop: 6, color: '#856404', fontSize: 12 }}>
+              <Alert variant="warning" style={{ marginTop: 6, fontSize: 12 }}>
                 Offline mode enabled. Entries are saved locally and will sync automatically once online.
-              </div>
+              </Alert>
             )}
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -972,53 +922,23 @@ function AttendanceEntry({
 
         {/* Success flash */}
         {lastSubmitted && (
-          <div
-            style={{
-              backgroundColor: '#d1e7dd',
-              border: '1px solid #a3cfbb',
-              color: '#0f5132',
-              padding: '8px 14px',
-              borderRadius: 6,
-              marginBottom: 16,
-              fontSize: 14
-            }}
-          >
-            ✅ <strong>{lastSubmitted}</strong> recorded — next person ready
-          </div>
+          <Alert variant="success" style={{ marginBottom: 16 }}>
+            <strong>{lastSubmitted}</strong> recorded — next person ready
+          </Alert>
         )}
 
         {/* Error */}
         {submitError && (
-          <div
-            style={{
-              backgroundColor: '#f8d7da',
-              border: '1px solid #f5c2c7',
-              color: '#842029',
-              padding: '8px 14px',
-              borderRadius: 6,
-              marginBottom: 16,
-              fontSize: 14
-            }}
-          >
-            ⚠️ {submitError}
-          </div>
+          <Alert variant="error" style={{ marginBottom: 16 }}>
+            {submitError}
+          </Alert>
         )}
 
         {/* Update notice (re-submission of existing attendee) */}
         {submitNotice && (
-          <div
-            style={{
-              backgroundColor: '#cff4fc',
-              border: '1px solid #9eeaf9',
-              color: '#055160',
-              padding: '8px 14px',
-              borderRadius: 6,
-              marginBottom: 16,
-              fontSize: 14
-            }}
-          >
-            ℹ️ {submitNotice}
-          </div>
+          <Alert variant="info" style={{ marginBottom: 16 }}>
+            {submitNotice}
+          </Alert>
         )}
 
         {/* Name search — pre-fills form from existing contact */}
@@ -1164,62 +1084,38 @@ function AttendanceEntry({
 
           {pendingCount > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={retryPendingRecords}
                 disabled={!isOnline}
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: isOnline ? '#ffc107' : '#adb5bd',
-                  color: '#212529',
-                  border: 'none',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: isOnline ? 'pointer' : 'not-allowed'
-                }}
+                style={{ color: '#856404', borderColor: '#ffc107' }}
               >
                 Retry Pending Sync ({pendingCount})
-              </button>
+              </Button>
             </div>
           )}
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 12 }}>
-            <button
+            <Button
+              variant="primary"
+              size="md"
               type="submit"
+              loading={submitting}
               disabled={submitting || !form.name.trim() || !form.phone.trim()}
-              style={{
-                flex: 1,
-                padding: '12px',
-                backgroundColor:
-                    submitting || !form.name.trim() || !form.phone.trim() ? '#adb5bd' : '#0d6efd',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 6,
-                fontSize: 16,
-                fontWeight: 600,
-                cursor:
-                  submitting || !form.name.trim() || !form.phone.trim() ? 'not-allowed' : 'pointer'
-              }}
+              style={{ flex: 1 }}
             >
-              {submitting ? '⏳ Saving…' : '✔ Submit & Next'}
-            </button>
-            <button
+              {submitting ? 'Saving…' : '✔ Submit & Next'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
               type="button"
               onClick={handleEndSession}
-              style={{
-                padding: '12px 20px',
-                backgroundColor: '#6c757d',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 6,
-                fontSize: 15,
-                cursor: 'pointer'
-              }}
             >
               End Session
-            </button>
+            </Button>
           </div>
         </form>
       </div>

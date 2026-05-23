@@ -36,9 +36,14 @@ describe('SyncStatusNotices', () => {
       />
     )
 
-    expect(screen.getByText('Sync has not happened yet.')).toHaveStyle({ margin: '12px 16px 0' })
-    expect(screen.getByText('Sync has not happened for more than 5 seconds.')).toHaveStyle({ margin: '8px 16px 0' })
-    expect(screen.getByText('Internet connection is unavailable. Latest data may be outdated until connection returns.')).toHaveStyle({ margin: '8px 16px 0' })
+    // Margin is now applied to the Alert container div, not the text span
+    const firstAlert = screen.getByText('Sync has not happened yet.').closest('div')
+    const secondAlert = screen.getByText('Sync has not happened for more than 5 seconds.').closest('div')
+    const thirdAlert = screen.getByText('Internet connection is unavailable. Latest data may be outdated until connection returns.').closest('div')
+
+    expect(firstAlert).toHaveStyle({ margin: '12px 16px 0' })
+    expect(secondAlert).toHaveStyle({ margin: '12px 16px 0' })
+    expect(thirdAlert).toHaveStyle({ margin: '12px 16px 0' })
 
     rerender(
       <SyncStatusNotices
@@ -49,8 +54,12 @@ describe('SyncStatusNotices', () => {
       />
     )
 
-    expect(screen.getByText('Sync has not happened yet.')).toHaveStyle({ margin: '0 0 12px' })
-    expect(screen.getByText('Sync has not happened for more than 5 seconds.')).toHaveStyle({ margin: '0 0 12px' })
-    expect(screen.getByText('Internet connection is unavailable. Latest data may be outdated until connection returns.')).toHaveStyle({ margin: '0 0 12px' })
+    const firstUpdated = screen.getByText('Sync has not happened yet.').closest('div')
+    const secondUpdated = screen.getByText('Sync has not happened for more than 5 seconds.').closest('div')
+    const thirdUpdated = screen.getByText('Internet connection is unavailable. Latest data may be outdated until connection returns.').closest('div')
+
+    expect(firstUpdated).toHaveStyle({ margin: '0 0 12px' })
+    expect(secondUpdated).toHaveStyle({ margin: '0 0 12px' })
+    expect(thirdUpdated).toHaveStyle({ margin: '0 0 12px' })
   })
 })

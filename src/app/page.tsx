@@ -10,8 +10,10 @@ import { useInputState } from '@/hooks/useInputState'
 import { useAuth } from '@/hooks/useAuth'
 import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { LoginPage } from '@/components/LoginPage'
-import { CenterSelector } from '@/components/CenterSelector'
 import { SyncStatusNotices } from '@/components/SyncStatusNotices'
+import { ConfirmModal } from '@/components/ui/Modal'
+import { useToast } from '@/components/ui/Toast'
+import { Card } from '@/components/ui/Card'
 import { FilterService } from '@/lib/services/FilterService'
 import { ContactService } from '@/lib/services/contactService'
 import { ContactForm } from '@/components/ContactForm'
@@ -21,14 +23,15 @@ import { ActionBar } from '@/components/ActionBar'
 import { ContactsTable } from '@/components/ContactsTable'
 import { CampaignModal } from '@/components/CampaignModal'
 import { contactsApi } from '@/lib/api/client'
+import { Button } from '@/components/ui/Button'
 import type { Contact } from '@/lib/types'
-
-const VERSION = `v${process.env.NEXT_PUBLIC_APP_VERSION ?? '2.2.0'}`
 
 function HomeContent() {
   const router = useRouter()
+  const { showToast } = useToast()
   const [showCampaignModal, setShowCampaignModal] = useState(false)
-  const [bulkActionFeedback, setBulkActionFeedback] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeletingContacts, setIsDeletingContacts] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [editDraft, setEditDraft] = useState({ name: '', phone: '', gender: 'Male' as Contact['gender'], ieDate: '', areaOfStay: '', remarks: '' })
@@ -99,10 +102,8 @@ function HomeContent() {
   }
 
   const handleIncrement = async () => {
-    setBulkActionFeedback(null)
-
     if (selectedContactIds.length === 0) {
-      setBulkActionFeedback('Select at least one contact to update.')
+      showToast('Select at least one contact to update.', 'warning')
       return
     }
 
@@ -116,13 +117,13 @@ function HomeContent() {
       )
 
       if (!updateSuccessful) {
-        setBulkActionFeedback('Update failed. Please try again.')
+        showToast('Update failed. Please try again.', 'error')
         return
       }
 
       const clearSuccessful = await contactsManager.clearAllSelections()
       if (!clearSuccessful) {
-        setBulkActionFeedback('Updated successfully, but failed to clear selection.')
+        showToast('Updated successfully, but failed to clear selection.', 'warning')
         return
       }
 
@@ -132,32 +133,34 @@ function HomeContent() {
       actionSelectors.program.clear()
       actionSelectors.interest.clear()
 
-      setBulkActionFeedback('Update completed. Selection cleared.')
+      showToast('Update completed. Selection cleared.', 'success')
     } finally {
       setIsUpdating(false)
     }
   }
 
-  const handleDeleteSelected = async () => {
-    setBulkActionFeedback(null)
-
+  const handleDeleteSelected = () => {
     if (selectedContactIds.length === 0) {
-      setBulkActionFeedback('Select at least one contact to delete.')
+      showToast('Select at least one contact to delete.', 'warning')
       return
     }
+    setShowDeleteConfirm(true)
+  }
 
-    const confirmed = window.confirm(
-      `Delete ${selectedContactIds.length} selected contact${selectedContactIds.length === 1 ? '' : 's'} permanently? This cannot be undone.`
-    )
-    if (!confirmed) return
-
-    const success = await contactsManager.deleteSelectedContacts()
-    if (!success) {
-      setBulkActionFeedback('Delete failed. Please try again.')
-      return
+  const handleConfirmDelete = async () => {
+    const count = selectedContactIds.length
+    setIsDeletingContacts(true)
+    try {
+      const success = await contactsManager.deleteSelectedContacts()
+      if (!success) {
+        showToast('Delete failed. Please try again.', 'error')
+        return
+      }
+      showToast(`${count} contact${count === 1 ? '' : 's'} deleted.`, 'success')
+    } finally {
+      setIsDeletingContacts(false)
+      setShowDeleteConfirm(false)
     }
-
-    setBulkActionFeedback(`${selectedContactIds.length} contact${selectedContactIds.length === 1 ? '' : 's'} deleted.`)
   }
 
   const handleFilterChange = (filterName: string, value: string) => {
@@ -180,8 +183,7 @@ function HomeContent() {
 
   return (
     <div style={{ 
-      padding: 20, 
-      fontFamily: 'system-ui, -apple-system, sans-serif',
+      padding: '20px',
       backgroundColor: 'var(--bg-primary, #ffffff)',
       color: 'var(--text-primary, #000000)',
       minHeight: '100vh'
@@ -212,27 +214,23 @@ function HomeContent() {
           </div>
         </div>
       )}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       {/* Header */}
       <div style={{ 
         marginBottom: 20, 
         borderBottom: '1px solid var(--border-color, #ddd)', 
-        paddingBottom: 20
+        paddingBottom: 16
       }}>
-        <div>
-          <h2>🌿 Volunteers Coordination</h2>
-          <p style={{ color: 'var(--text-secondary, #666)', marginTop: 5 }}>Version {VERSION}</p>
-        </div>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Contacts</h1>
       </div>
 
       {backendError && (
         <div
           style={{
-            backgroundColor: '#fff3cd',
-            border: '1px solid #ffeeba',
-            color: '#856404',
+            backgroundColor: 'var(--color-danger-bg)',
+            border: '1px solid var(--color-danger-border)',
+            color: 'var(--color-danger-fg)',
             padding: '10px 12px',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-md)',
             marginBottom: 16
           }}
         >
@@ -251,93 +249,55 @@ function HomeContent() {
         margin="0 0 16px"
       />
 
-      <div style={{ marginBottom: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {!adminManager.isAdmin && (
           <>
-            <button
+            <Button
+              variant="purple"
+              size="sm"
               onClick={() => router.push('/campaigns')}
-              style={{
-                padding: '12px 16px',
-                backgroundColor: '#6f42c1',
-                color: 'white',
-                border: 'none',
-                borderRadius: 4,
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                flex: '1 1 180px'
-              }}
             >
               📣 Campaigns
-            </button>
+            </Button>
 
-            <button
+            <Button
+              variant="success"
+              size="sm"
               onClick={() => router.push('/attendance')}
-              style={{
-                padding: '12px 16px',
-                backgroundColor: '#198754',
-                color: 'white',
-                border: 'none',
-                borderRadius: 4,
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                flex: '1 1 180px'
-              }}
             >
               📝 Take Attendance
-            </button>
+            </Button>
           </>
         )}
 
         {canAccessSelectedCenterAdminMode && (
           <>
-            <button
+            <Button
+              variant={adminManager.isAdmin ? 'danger' : 'secondary'}
+              size="sm"
               onClick={adminManager.toggleAdmin}
-              style={{
-                padding: '12px 16px',
-                backgroundColor: adminManager.isAdmin ? '#dc3545' : '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: 4,
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                flex: '1 1 180px'
-              }}
             >
               {adminManager.isAdmin ? '👤 User Mode' : '⚙️ Admin Mode'}
-            </button>
+            </Button>
 
             {adminManager.isAdmin && (
               <>
                 {canManageSelectedCenterConfig && (
-                  <button
+                  <Button
+                    variant={adminManager.activeView === 'settings' ? 'primary' : 'ghost'}
+                    size="sm"
                     onClick={adminManager.openSettingsView}
-                    style={{
-                      padding: '12px 16px',
-                      backgroundColor: adminManager.activeView === 'settings' ? '#0d6efd' : '#6c757d',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      flex: '1 1 180px'
-                    }}
                   >
                     Center Configuration
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
+                  variant={adminManager.activeView === 'access' ? 'primary' : 'ghost'}
+                  size="sm"
                   onClick={adminManager.openAccessView}
-                  style={{
-                    padding: '12px 16px',
-                    backgroundColor: adminManager.activeView === 'access' ? '#0d6efd' : '#6c757d',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                    flex: '1 1 180px'
-                  }}
                 >
                   Access Control
-                </button>
+                </Button>
               </>
             )}
           </>
@@ -368,30 +328,26 @@ function HomeContent() {
       {!adminManager.isAdmin && canViewSelectedCenterContacts && (
         <>
           {/* Contact Form & CSV Import */}
-          <div style={{ 
-            marginBottom: 20, 
-            display: 'flex', 
-            gap: 20, 
-            alignItems: 'flex-end', 
-            flexWrap: 'wrap' 
-          }}>
-            <div style={{ flex: '1 1 250px', minWidth: 250 }}>
-              <h4 style={{ margin: '0 0 10px 0' }}>Add Contact</h4>
-              <ContactForm onAddContact={handleAddContact} />
+          <Card style={{ marginBottom: 20 }}>
+            <h2 style={{ margin: '0 0 12px 0', fontSize: 15, fontWeight: 700 }}>Add Contact</h2>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 250px', minWidth: 250 }}>
+                <ContactForm onAddContact={handleAddContact} />
+              </div>
+              <div style={{ flex: '0 1 auto' }}>
+                <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Import</p>
+                <CSVImport
+                  contacts={contactsManager.contacts}
+                  onImport={handleImport}
+                />
+              </div>
             </div>
-            <div style={{ flex: '0 1 auto' }}>
-              <h4 style={{ margin: '0 0 10px 0' }}>Import</h4>
-              <CSVImport
-                contacts={contactsManager.contacts}
-                onImport={handleImport}
-              />
-            </div>
-          </div>
+          </Card>
 
           {/* Action Bar for Bulk Operations */}
           {contactsManager.contacts.length > 0 && (
             <>
-              <h4>Bulk Actions</h4>
+              <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>Bulk Actions</p>
               <ActionBar
                 activities={configManager.activities}
                 areas={configManager.areas}
@@ -408,85 +364,48 @@ function HomeContent() {
                 onIncrement={handleIncrement}
                 isUpdating={isUpdating}
               />
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-                <button
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+                <Button
+                  variant={adminManager.childLock ? 'secondary' : 'ghost'}
+                  size="sm"
                   onClick={adminManager.toggleChildLock}
                   title={adminManager.childLock ? 'Child lock ON — click to unlock bulk delete' : 'Child lock OFF — click to re-enable lock'}
-                  style={{
-                    padding: '8px 14px',
-                    backgroundColor: adminManager.childLock ? '#6c757d' : '#fd7e14',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                    fontSize: 13
-                  }}
+                  style={!adminManager.childLock ? { color: 'var(--color-warning)', borderColor: 'var(--color-warning)' } : {}}
                 >
                   {adminManager.childLock ? '🔒 Locked' : '🔓 Unlocked'}
-                </button>
+                </Button>
 
                 {!adminManager.childLock && selectedContactIds.length > 0 && (
-                  <button
+                  <Button
+                    variant="danger"
+                    size="sm"
                     onClick={handleDeleteSelected}
-                    style={{
-                      padding: '8px 14px',
-                      backgroundColor: '#dc3545',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 3,
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                      fontSize: 13
-                    }}
                   >
                     🗑 Delete Selected ({selectedContactIds.length})
-                  </button>
+                  </Button>
                 )}
               </div>
 
-              {bulkActionFeedback && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    padding: '10px 12px',
-                    borderRadius: 4,
-                    backgroundColor: 'var(--panel-bg, #f8f9fa)',
-                    border: '1px solid var(--border-color, #ddd)',
-                    color: 'var(--text-primary, #000)'
-                  }}
-                >
-                  {bulkActionFeedback}
-                </div>
-              )}
-
               {selectedContactIds.length > 0 && (
-                <div style={{ marginTop: 10 }}>
-                  <button
+                <div style={{ marginBottom: 10 }}>
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => setShowCampaignModal(true)}
-                    style={{
-                        padding: '12px 16px',
-                      backgroundColor: '#0d6efd',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                        fontWeight: 'bold',
-                        width: '100%',
-                        maxWidth: 320
-                    }}
                   >
-                    Create Campaign ({selectedContactIds.length} selected)
-                  </button>
+                    ✦ Create Campaign ({selectedContactIds.length} selected)
+                  </Button>
                 </div>
               )}
             </>
           )}
 
           {/* Contacts Table */}
-          <h4>Contacts ({filtered.length})</h4>
+          <h2 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700 }}>Contacts</h2>
           {contactsManager.isLoaded ? (
             <ContactsTable
               contacts={filtered}
+              totalCount={contactsManager.contacts.length}
               activities={configManager.activities}
               areas={configManager.areas}
               programs={configManager.programs}
@@ -637,75 +556,28 @@ function HomeContent() {
           </div>
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Contacts"
+        message={`Permanently delete ${selectedContactIds.length} selected contact${selectedContactIds.length === 1 ? '' : 's'}? This cannot be undone.`}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+        isLoading={isDeletingContacts}
+      />
     </div>
   )
 }
 
 export default function Home() {
-  const { isLoggedIn, user, logout, selectedCenter, selectedCenterDetails } = useAuth()
-
-  const roleLabelMap = {
-    ADMIN: 'Center Admin',
-    USER: 'Center User',
-    ATTENDANCE_TAKER: 'Attendance Taker'
-  } as const
+  const { isLoggedIn } = useAuth()
 
   if (!isLoggedIn) {
     return <LoginPage />
   }
 
-  return (
-    <div>
-      {/* Top Bar with User Info and Center Selector */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 12,
-          padding: '10px 20px',
-          backgroundColor: 'var(--panel-bg, #f5f5f5)',
-          borderBottom: '1px solid var(--border-color, #ddd)'
-        }}
-      >
-        <div style={{ fontSize: '14px', color: 'var(--text-secondary, #666)', flex: '1 1 280px' }}>
-          Logged in as: <strong style={{ color: 'var(--text-primary, #333)' }}>{user?.name}</strong> ({user?.phone})
-          {selectedCenter && (
-            <span style={{ marginLeft: '12px', color: 'var(--text-primary, #333)' }}>
-              📍 Center: <strong>{selectedCenterDetails?.name}</strong>
-            </span>
-          )}
-          {user?.canAccessAllCenters && (
-            <span style={{ marginLeft: '12px', color: '#0d6efd' }}>Overall Admin</span>
-          )}
-          {!user?.canAccessAllCenters && selectedCenterDetails && (
-            <span style={{ marginLeft: '12px', color: '#0d6efd' }}>
-              {roleLabelMap[selectedCenterDetails.role]}
-            </span>
-          )}
-        </div>
-        <button
-          onClick={() => {
-            logout()
-            window.location.href = '/'
-          }}
-          style={{
-            padding: '10px 16px',
-            backgroundColor: '#dc3545',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            minWidth: 120
-          }}
-        >
-          Logout
-        </button>
-      </div>
-      <CenterSelector />
-      <HomeContent />
-    </div>
-  )
+  return <HomeContent />
 }

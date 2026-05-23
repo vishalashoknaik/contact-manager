@@ -10,6 +10,8 @@ import { SyncStatusNotices } from '@/components/SyncStatusNotices'
 import { VolunteerPanel } from '@/components/VolunteerPanel'
 import { CampaignCallScreen } from '@/components/CampaignCallScreen'
 import { CallLogsTable } from '@/components/CallLogsTable'
+import { Button } from '@/components/ui/Button'
+import { Alert } from '@/components/ui/Alert'
 
 type View = 'list' | 'detail' | 'call'
 
@@ -250,23 +252,15 @@ export default function CampaignsPage() {
     <div style={container}>
       {/* Header */}
       <div style={{ marginBottom: 20, borderBottom: '1px solid var(--border-color, #ddd)', paddingBottom: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button onClick={() => router.push('/')} style={backBtn}>← Home</button>
-        <h2 style={{ margin: 0 }}>📣 Campaigns</h2>
-        <button
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Campaigns</h1>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => setShowFilters(v => !v)}
-          style={{
-            marginLeft: 'auto',
-            padding: '10px 12px',
-            borderRadius: 14,
-            border: '1px solid var(--border-color, #ddd)',
-            backgroundColor: 'transparent',
-            color: 'var(--text-primary, #000)',
-            cursor: 'pointer',
-            fontSize: 12
-          }}
+          style={{ marginLeft: 'auto' }}
         >
           {showFilters ? 'Hide Filters' : 'Show Filters'}
-        </button>
+        </Button>
       </div>
 
       {showFilters && view === 'list' && (
@@ -305,12 +299,14 @@ export default function CampaignsPage() {
               style={filterInput}
             />
 
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={clearFilters}
-              style={{ ...filterInput, cursor: 'pointer', color: '#dc3545' }}
+              style={{ color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}
             >
               Clear
-            </button>
+            </Button>
             <span style={{ fontSize: 12, color: 'var(--text-secondary, #666)' }}>
               {`${filteredCampaigns.length} of ${campaigns.length} campaigns`}
             </span>
@@ -319,9 +315,7 @@ export default function CampaignsPage() {
       )}
 
       {error && (
-        <div style={{ backgroundColor: '#fff3cd', border: '1px solid #ffeeba', color: '#856404', padding: '10px 12px', borderRadius: 4, marginBottom: 16 }}>
-          {error}
-        </div>
+        <Alert variant="error" style={{ marginBottom: 16 }}>{error}</Alert>
       )}
 
       <SyncStatusNotices
@@ -338,12 +332,14 @@ export default function CampaignsPage() {
       {/* CALL VIEW */}
       {view === 'call' && selectedCampaign && (
         <div>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => { setView('detail'); refreshCampaign() }}
-            style={backBtn}
+            style={{ marginBottom: 16 }}
           >
             ← Back to Campaign
-          </button>
+          </Button>
           <h3 style={{ margin: '0 0 16px 0' }}>{selectedCampaign.name}</h3>
           <CampaignCallScreen
             campaignId={selectedCampaign.id}
@@ -365,7 +361,9 @@ export default function CampaignsPage() {
       {/* DETAIL VIEW */}
       {view === 'detail' && selectedCampaign && (
         <div>
-          <button onClick={() => setView('list')} style={backBtn}>← All Campaigns</button>
+          <Button variant="ghost" size="sm" onClick={() => setView('list')} style={{ marginBottom: 16 }}>
+            ← All Campaigns
+          </Button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
             <h3 style={{ margin: 0 }}>{selectedCampaign.name}</h3>
             {statBadge('Total', selectedCampaign.totalContacts, '#0d6efd')}
@@ -391,48 +389,36 @@ export default function CampaignsPage() {
           {/* Call buttons */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
             {nextPending && !nextPending.done && (
-              <button
+              <Button
+                variant="success"
+                size="md"
                 onClick={() => startCalling('pending')}
-                style={{
-                  padding: '14px 18px', borderRadius: 4, cursor: 'pointer',
-                  border: 'none', backgroundColor: '#198754', color: '#fff',
-                  fontWeight: 'bold', fontSize: 15,
-                  flex: '1 1 220px'
-                }}
               >
                 📞 Call New Contacts
-              </button>
+              </Button>
             )}
             {nextSkipped && !nextSkipped.done && (
-              <button
+              <Button
+                variant="ghost"
+                size="md"
                 onClick={() => startCalling('skipped')}
-                style={{
-                  padding: '14px 18px', borderRadius: 4, cursor: 'pointer',
-                  border: 'none', backgroundColor: '#fd7e14', color: '#fff',
-                  fontWeight: 'bold', fontSize: 15,
-                  flex: '1 1 220px'
-                }}
+                style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
               >
                 🔄 Revisit Skipped ({selectedCampaign.skippedContacts})
-              </button>
+              </Button>
             )}
           </div>
           {nextPending?.done && (!nextSkipped || nextSkipped.done) && (
-            <div style={{
-              padding: '12px 16px', borderRadius: 4, marginBottom: 24,
-              backgroundColor: '#d4edda', color: '#155724', fontWeight: 500
-            }}>
-              ✅ All contacts have been called in this campaign.
-            </div>
+            <Alert variant="success" style={{ marginBottom: 24 }}>
+              All contacts have been called in this campaign.
+            </Alert>
           )}
           {nextPending?.done && nextSkipped && !nextSkipped.done && (
-            <div style={{
-              padding: '12px 16px', borderRadius: 4, marginBottom: 24,
-              backgroundColor: '#fff3cd', color: '#856404', fontWeight: 500
-            }}>
-              ✅ All new contacts called. Use “Revisit Skipped” to follow up on skipped contacts.
-            </div>
+            <Alert variant="warning" style={{ marginBottom: 24 }}>
+              All new contacts called. Use “Revisit Skipped” to follow up on skipped contacts.
+            </Alert>
           )}
+
 
           <div style={{ marginBottom: 24, padding: 12, border: '1px solid var(--border-color, #ddd)', borderRadius: 8, backgroundColor: 'var(--panel-bg, #f8f9fa)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -441,7 +427,9 @@ export default function CampaignsPage() {
                 <span style={{ fontSize: 11, color: 'var(--text-secondary, #666)' }}>Syncing…</span>
               )}
               {canEditTemplates && (
-                <button
+                <Button
+                  variant="success"
+                  size="sm"
                   onClick={() => setEditingTemplate({ index: -1, name: 'New Template', smsContent: '', whatsappContent: '' })}
                   style={{
                     padding: '6px 12px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)',
@@ -449,7 +437,7 @@ export default function CampaignsPage() {
                   }}
                 >
                   + Add Template
-                </button>
+                </Button>
               )}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginBottom: 10 }}>
@@ -485,34 +473,30 @@ export default function CampaignsPage() {
                     </div>
                   </div>
                   {canEditTemplates && (
-                    <button
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
                         setEditingTemplate({ index, name: template.name, smsContent: template.smsContent, whatsappContent: template.whatsappContent })
                       }}
-                      style={{
-                        padding: '4px 8px', borderRadius: 3, border: 'none',
-                        backgroundColor: '#0d6efd', color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600
-                      }}
                     >
                       Edit
-                    </button>
+                    </Button>
                   )}
                   {canEditTemplates && messageTemplates.length > 1 && (
-                    <button
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
                         const updated = messageTemplates.filter((_, i) => i !== index)
                         setSelectedTemplateIndex(Math.min(selectedTemplateIndex, updated.length - 1))
                         saveTemplates(updated)
                       }}
-                      style={{
-                        padding: '4px 8px', borderRadius: 3, border: 'none',
-                        backgroundColor: '#dc3545', color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600
-                      }}
                     >
                       Delete
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))}
@@ -532,16 +516,13 @@ export default function CampaignsPage() {
               including PENDING, so admins can see the complete picture */}
           {(selectedCenterDetails?.role === 'USER' || selectedCenterDetails?.role === 'ADMIN') && (
             <div style={{ marginTop: 24 }}>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowFullLog(v => !v)}
-                style={{
-                  padding: '8px 14px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)',
-                  backgroundColor: 'var(--panel-bg, #f8f9fa)', color: 'var(--text-primary, #000)',
-                  cursor: 'pointer', fontSize: 13, fontWeight: 600
-                }}
               >
-                {showFullLog ? '▲ Hide Full Report' : '▼ Show Full Report (all contacts)'}
-              </button>
+                {showFullLog ? '\u25b2 Hide Full Report' : '\u25bc Show Full Report (all contacts)'}
+              </Button>
 
               {showFullLog && (
                 <div style={{ marginTop: 12, overflowX: 'auto', border: '1px solid var(--border-color, #ddd)', borderRadius: 6 }}>
@@ -602,11 +583,43 @@ export default function CampaignsPage() {
         <div>
           {isLoading && <p>Loading campaigns...</p>}
           {!isLoading && filteredCampaigns.length === 0 && (
-            <p style={{ color: 'var(--text-secondary, #888)' }}>
-              {campaigns.length === 0
-                ? 'No campaigns yet. Select contacts on the home page and click “Create Campaign”.'
-                : 'No campaigns match the current filters.'}
-            </p>
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '48px 24px',
+                backgroundColor: 'var(--panel-bg)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-lg)',
+                marginTop: 16,
+              }}
+            >
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📣</div>
+              <h2 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>
+                {campaigns.length === 0 ? 'No campaigns yet' : 'No campaigns match the filters'}
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', margin: '0 0 20px', fontSize: 14, lineHeight: 1.6 }}>
+                {campaigns.length === 0
+                  ? 'Select contacts on the Contacts page and click "Create Campaign" to get started.'
+                  : 'Try adjusting the search or filter options.'}
+              </p>
+              {campaigns.length === 0 && (
+                <a
+                  href="/"
+                  style={{
+                    display: 'inline-block',
+                    padding: '10px 20px',
+                    backgroundColor: 'var(--color-primary)',
+                    color: '#fff',
+                    textDecoration: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  Go to Contacts
+                </a>
+              )}
+            </div>
           )}
           {filteredCampaigns.map(c => (
             <div

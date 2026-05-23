@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui/Button'
+
 interface ActionBarProps {
   activities: string[]
   areas: string[]
@@ -34,24 +36,15 @@ export function ActionBar({
   isUpdating = false
 }: ActionBarProps) {
   const selectStyle = {
-    padding: '8px 8px',
-    marginRight: 10,
-    border: '1px solid var(--border-color, #ddd)',
-    borderRadius: 3,
+    padding: '6px 8px',
+    marginRight: 6,
+    border: '1.5px solid var(--border-color, #ddd)',
+    borderRadius: 'var(--radius-md)',
     backgroundColor: 'var(--input-bg, #fff)',
     color: 'var(--text-primary, #000)',
+    fontSize: 13,
     opacity: isUpdating ? 0.5 : 1,
     cursor: isUpdating ? 'not-allowed' : 'default'
-  }
-
-  const buttonStyle = {
-    padding: '8px 16px',
-    backgroundColor: isUpdating ? '#6c757d' : '#4CAF50',
-    color: 'white',
-    border: 'none',
-    borderRadius: 3,
-    cursor: isUpdating ? 'not-allowed' : 'pointer',
-    minWidth: 90
   }
 
   return (
@@ -114,13 +107,15 @@ export function ActionBar({
         </select>
       )}
 
-      <button
-        onClick={onIncrement}
+      <Button
+        variant="success"
+        size="sm"
+        loading={isUpdating}
         disabled={isUpdating}
-        style={buttonStyle}
+        onClick={onIncrement}
       >
         {isUpdating ? 'Updating…' : 'Update'}
-      </button>
+      </Button>
     </div>
   )
 }

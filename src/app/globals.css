@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  /* ── Surface & text ────────────────────────────────── */
   --background: #ffffff;
   --foreground: #171717;
   --bg-primary: #ffffff;
@@ -9,8 +10,68 @@
   --border-color: #dddddd;
   --input-bg: #ffffff;
   --th-bg: #f5f5f5;
+  --th-filter-bg: #eaeaea;
   --panel-bg: #f9f9f9;
-  --selected-item-bg: #f0f7ff;
+  --selected-item-bg: #e8f4ff;
+  --row-hover-bg: #f0f7ff;
+
+  /* ── Action colours ────────────────────────────────── */
+  --color-primary: #0d6efd;
+  --color-primary-hover: #0b5ed7;
+  --color-primary-text: #ffffff;
+
+  --color-secondary: #6c757d;
+  --color-secondary-hover: #5c636a;
+  --color-secondary-text: #ffffff;
+
+  --color-success: #198754;
+  --color-success-hover: #157347;
+  --color-success-text: #ffffff;
+  --color-success-bg: #d1e7dd;
+  --color-success-border: #a3cfbb;
+  --color-success-fg: #0a3622;
+
+  --color-danger: #dc3545;
+  --color-danger-hover: #bb2d3b;
+  --color-danger-text: #ffffff;
+  --color-danger-bg: #f8d7da;
+  --color-danger-border: #f1aeb5;
+  --color-danger-fg: #58151c;
+
+  --color-warning: #fd7e14;
+  --color-warning-hover: #e8710a;
+  --color-warning-bg: #fff3cd;
+  --color-warning-border: #ffe69c;
+  --color-warning-fg: #664d03;
+
+  --color-info: #0dcaf0;
+  --color-info-bg: #cff4fc;
+  --color-info-border: #9eeaf9;
+  --color-info-fg: #055160;
+
+  --color-muted: #6c757d;
+  --color-muted-bg: #e9ecef;
+  --color-muted-border: #ced4da;
+  --color-muted-fg: #495057;
+
+  /* ── Purple (campaigns) ────────────────────────────── */
+  --color-purple: #6f42c1;
+  --color-purple-hover: #5a32a3;
+
+  /* ── Radius & shadow ───────────────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.16);
+
+  /* ── Nav ───────────────────────────────────────────── */
+  --nav-height: 56px;
+  --nav-bg: #1a2438;
+  --nav-text: #c9d1e0;
+  --nav-text-active: #ffffff;
+  --nav-accent: #4a9eff;
 }
 
 @theme inline {
@@ -30,8 +91,41 @@
     --border-color: #333333;
     --input-bg: #2a2a2a;
     --th-bg: #2a2a2a;
+    --th-filter-bg: #222222;
     --panel-bg: #252525;
-    --selected-item-bg: #2d4d6d;
+    --selected-item-bg: #1e3a5f;
+    --row-hover-bg: #1e2d45;
+
+    /* action colours adjusted for dark backgrounds */
+    --color-primary: #4a9eff;
+    --color-primary-hover: #2d8aff;
+    --color-success: #4caf80;
+    --color-success-hover: #3a9a6a;
+    --color-success-bg: #0d2b1d;
+    --color-success-border: #1a4a2e;
+    --color-success-fg: #a3cfbb;
+    --color-danger: #f27482;
+    --color-danger-hover: #e85c6e;
+    --color-danger-bg: #2c1115;
+    --color-danger-border: #5c2028;
+    --color-danger-fg: #f1aeb5;
+    --color-warning: #ffb74d;
+    --color-warning-hover: #ff9800;
+    --color-warning-bg: #2d2000;
+    --color-warning-border: #5c4200;
+    --color-warning-fg: #ffe082;
+    --color-info-bg: #0a2d35;
+    --color-info-border: #0d4a5c;
+    --color-info-fg: #9eeaf9;
+    --color-muted: #8e9aaa;
+    --color-muted-bg: #2a2d31;
+    --color-muted-border: #3a3f46;
+    --color-muted-fg: #adb5bd;
+
+    --nav-bg: #111827;
+    --nav-text: #9ca3af;
+    --nav-text-active: #f9fafb;
+    --nav-accent: #60a5fa;
   }
 }
 
@@ -65,4 +159,45 @@ select {
 
 textarea {
   min-height: 88px;
+}
+
+/* ── Focus ring (applied to all interactive elements) ──────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ── Input focus state ─────────────────────────────────────────────── */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--nav-accent, #4a9eff) !important;
+  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.18) !important;
+}
+
+input,
+select,
+textarea {
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* ── Table row hover ───────────────────────────────────────────────── */
+.contacts-table tbody tr:hover > td {
+  background-color: var(--row-hover-bg) !important;
+}
+
+/* ── Toast slide-in animation ──────────────────────────────────────── */
+@keyframes toast-in {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes toast-out {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(110%); opacity: 0; }
+}
+
+/* ── Spinner animation ─────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

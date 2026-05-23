@@ -111,13 +111,15 @@ export function LoginPage() {
 
   const formStyle = {
     width: '100%',
-    padding: '12px',
-    border: '1px solid var(--border-color, #ddd)',
-    borderRadius: '4px',
-    fontSize: '16px',
+    padding: '10px 12px',
+    border: '1.5px solid #dee2e6',
+    borderRadius: '8px',
+    fontSize: '15px',
     boxSizing: 'border-box' as const,
-    backgroundColor: 'var(--input-bg, #fff)',
-    color: 'var(--text-primary, #000)'
+    backgroundColor: '#ffffff',
+    color: '#212529',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
+    outline: 'none'
   }
 
   return (
@@ -127,32 +129,52 @@ export function LoginPage() {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'var(--background, #f5f5f5)',
+        background: 'linear-gradient(160deg, #111827 0%, #1a2438 45%, #1e3554 100%)',
         padding: '16px'
       }}
     >
       <div
         style={{
-          backgroundColor: 'var(--bg-primary, #fff)',
-          padding: 'clamp(20px, 5vw, 40px)',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          backgroundColor: '#ffffff',
+          padding: 'clamp(28px, 5vw, 48px)',
+          borderRadius: '16px',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.25)',
           width: '100%',
-          maxWidth: '440px'
+          maxWidth: '420px'
         }}
       >
-        <h1 style={{ textAlign: 'center', marginBottom: '30px', color: 'var(--text-primary, #333)' }}>
-          Volunteers Coordination
-        </h1>
+        {/* Brand mark */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 60,
+            height: 60,
+            borderRadius: '50%',
+            backgroundColor: '#1a2438',
+            fontSize: 28,
+            marginBottom: 14,
+            boxShadow: '0 4px 16px rgba(26,36,56,0.4)'
+          }}>
+            🌿
+          </div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1a2438', letterSpacing: '-0.02em' }}>
+            Volunteers Coordination
+          </h1>
+          <p style={{ margin: '6px 0 0', fontSize: 13, color: '#6c757d' }}>Sign in to your account</p>
+        </div>
 
         <form onSubmit={registrationRequired ? handleRegister : handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '18px' }}>
             <label
               style={{
                 display: 'block',
-                marginBottom: '8px',
-                fontWeight: 'bold',
-                color: 'var(--text-primary, #333)'
+                marginBottom: '6px',
+                fontWeight: 600,
+                fontSize: 13,
+                color: '#495057',
+                letterSpacing: '0.01em'
               }}
             >
               Phone Number
@@ -176,9 +198,11 @@ export function LoginPage() {
             <label
               style={{
                 display: 'block',
-                marginBottom: '8px',
-                fontWeight: 'bold',
-                color: 'var(--text-primary, #333)'
+                marginBottom: '6px',
+                fontWeight: 600,
+                fontSize: 13,
+                color: '#495057',
+                letterSpacing: '0.01em'
               }}
             >
               Password
@@ -196,7 +220,7 @@ export function LoginPage() {
               style={formStyle}
               required
             />
-            <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary, #666)' }}>
+            <p style={{ marginTop: '6px', fontSize: '12px', color: '#adb5bd' }}>
               Demo: phone 9876543210, password 9876543210
             </p>
           </div>
@@ -205,24 +229,27 @@ export function LoginPage() {
             <>
               <div
                 style={{
-                  backgroundColor: 'var(--panel-bg, #eef6ff)',
-                  border: '1px solid var(--border-color, #cfe3ff)',
-                  color: 'var(--text-primary, #1f4b7a)',
-                  padding: '12px',
-                  borderRadius: '4px',
-                  marginBottom: '20px'
+                  backgroundColor: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  color: '#1e40af',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  marginBottom: '18px',
+                  fontSize: '13px'
                 }}
               >
                 First-time login detected. Complete registration with your name and center.
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '18px' }}>
                 <label
                   style={{
                     display: 'block',
-                    marginBottom: '8px',
-                    fontWeight: 'bold',
-                    color: 'var(--text-primary, #333)'
+                    marginBottom: '6px',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    color: '#495057',
+                    letterSpacing: '0.01em'
                   }}
                 >
                   Name
@@ -238,13 +265,15 @@ export function LoginPage() {
                 />
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '18px' }}>
                 <label
                   style={{
                     display: 'block',
-                    marginBottom: '8px',
-                    fontWeight: 'bold',
-                    color: 'var(--text-primary, #333)'
+                    marginBottom: '6px',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    color: '#495057',
+                    letterSpacing: '0.01em'
                   }}
                 >
                   Center
@@ -269,33 +298,34 @@ export function LoginPage() {
           {serverWakingUp && !error && (
             <div
               style={{
-                backgroundColor: 'var(--panel-bg, #fff8e1)',
-                border: '1px solid #ffe082',
-                color: '#7a5a00',
+                backgroundColor: '#fefce8',
+                border: '1px solid #fde68a',
+                color: '#92400e',
                 padding: '10px 12px',
-                borderRadius: '4px',
+                borderRadius: '8px',
                 marginBottom: '16px',
                 fontSize: '13px'
               }}
             >
-              ⏳ Server is starting up after a period of inactivity. This can take up to 30 seconds. The notice will disappear once it&apos;s ready.
+              ⏳ Server is starting up after a period of inactivity. This can take up to 30 seconds.
             </div>
           )}
 
           {error && (
             <div
               style={{
-                backgroundColor: 'var(--panel-bg, #fee)',
-                border: '1px solid var(--border-color, #fcc)',
-                color: '#c33',
-                padding: '12px',
-                borderRadius: '4px',
-                marginBottom: '20px'
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#991b1b',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                fontSize: '13px'
               }}
             >
               {error}
               {(error.toLowerCase().includes('login failed') || error.toLowerCase().includes('server') || error.toLowerCase().includes('cannot reach')) && (
-                <p style={{ marginTop: '8px', fontSize: '13px', color: '#a00' }}>
+                <p style={{ marginTop: '6px', fontSize: '12px', color: '#7f1d1d' }}>
                   Wait 20–30 seconds and try again — the server may still be starting up.
                 </p>
               )}
@@ -305,12 +335,13 @@ export function LoginPage() {
           {successMessage && (
             <div
               style={{
-                backgroundColor: 'var(--panel-bg, #e9f7ef)',
-                border: '1px solid var(--border-color, #badbcc)',
-                color: '#146c43',
-                padding: '12px',
-                borderRadius: '4px',
-                marginBottom: '20px'
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                color: '#166534',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                fontSize: '13px'
               }}
             >
               {successMessage}
@@ -322,15 +353,17 @@ export function LoginPage() {
             disabled={isLoading}
             style={{
               width: '100%',
-              padding: '14px 16px',
-              backgroundColor: registrationRequired ? '#0d6efd' : '#4CAF50',
+              padding: '13px 16px',
+              backgroundColor: registrationRequired ? '#0d6efd' : '#1a2438',
               color: 'white',
               border: 'none',
-              borderRadius: '4px',
-              fontSize: '16px',
-              fontWeight: 'bold',
+              borderRadius: '8px',
+              fontSize: '15px',
+              fontWeight: '600',
               cursor: isLoading ? 'not-allowed' : 'pointer',
-              opacity: isLoading ? 0.6 : 1
+              opacity: isLoading ? 0.6 : 1,
+              letterSpacing: '0.01em',
+              transition: 'opacity 0.15s'
             }}
           >
             {isLoading ? 'Working...' : registrationRequired ? 'Complete Registration' : 'Login'}
@@ -339,23 +372,22 @@ export function LoginPage() {
 
         <div
           style={{
-            marginTop: '30px',
-            padding: '20px',
-            backgroundColor: 'var(--panel-bg, #f9f9f9)',
-            borderRadius: '4px',
-            fontSize: '14px',
-            color: 'var(--text-secondary, #666)'
+            marginTop: '28px',
+            padding: '14px 16px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            border: '1px solid #e9ecef',
+            fontSize: '12px',
+            color: '#6c757d'
           }}
         >
-          <p>
-            <strong>Demo Credentials:</strong>
-          </p>
-          <p>
-            <strong>Manager Center 1:</strong> Phone: 9876543210, Password: 9876543210
-          </p>
-          <p>
-            <strong>Admin (All Centers):</strong> Phone: 8765432109, Password: 8765432109
-          </p>
+          <p style={{ margin: '0 0 6px', fontWeight: 600, color: '#495057', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Demo Credentials:</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 12px' }}>
+            <span style={{ color: '#495057', fontWeight: 500 }}>Manager Center 1:</span>
+            <span style={{ fontFamily: 'monospace' }}>9876543210</span>
+            <span style={{ color: '#495057', fontWeight: 500 }}>Admin (All Centers):</span>
+            <span style={{ fontFamily: 'monospace' }}>8765432109</span>
+          </div>
         </div>
       </div>
     </div>

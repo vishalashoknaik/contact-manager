@@ -1,5 +1,7 @@
 'use client'
 
+import { Alert } from '@/components/ui/Alert'
+
 interface SyncStatusNoticesProps {
   isSyncing?: boolean
   syncMessage?: string
@@ -22,51 +24,13 @@ export function SyncStatusNotices({
   return (
     <>
       {isSyncing && (
-        <div
-          style={{
-            margin,
-            padding: '8px 12px',
-            borderRadius: 6,
-            backgroundColor: '#fff3cd',
-            border: '1px solid #ffe69c',
-            color: '#856404',
-            fontSize: 13
-          }}
-        >
-          {syncMessage}
-        </div>
+        <Alert variant="warning" style={{ margin }}>{syncMessage}</Alert>
       )}
-
       {showLongSyncNotice && (
-        <div
-          style={{
-            margin: margin === '12px 16px 0' ? '8px 16px 0' : margin,
-            padding: '8px 12px',
-            borderRadius: 6,
-            backgroundColor: '#f8d7da',
-            border: '1px solid #f5c2c7',
-            color: '#842029',
-            fontSize: 13
-          }}
-        >
-          {longSyncMessage}
-        </div>
+        <Alert variant="error" style={{ margin }}>{longSyncMessage}</Alert>
       )}
-
       {showOfflineWarning && (
-        <div
-          style={{
-            margin: margin === '12px 16px 0' ? '8px 16px 0' : margin,
-            padding: '8px 12px',
-            borderRadius: 6,
-            backgroundColor: '#fff3cd',
-            border: '1px solid #ffe69c',
-            color: '#856404',
-            fontSize: 13
-          }}
-        >
-          {offlineMessage}
-        </div>
+        <Alert variant="warning" style={{ margin }}>{offlineMessage}</Alert>
       )}
     </>
   )

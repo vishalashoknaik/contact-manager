@@ -3,6 +3,7 @@
 import { Contact } from '@/lib/types'
 import { ContactService } from '@/lib/services/contactService'
 import { FilterState, SortState } from '@/lib/types'
+import { Badge } from '@/components/ui/Badge'
 
 interface ContactsTableProps {
   contacts: Contact[]
@@ -23,6 +24,8 @@ interface ContactsTableProps {
   onProgramFilterChange: (program: string, value: string) => void
   onInterestFilterChange?: (interest: string, value: string) => void
   onContactClick?: (contact: Contact) => void
+  /** Total unfiltered contact count — used for the row count indicator */
+  totalCount?: number
 }
 
 export function ContactsTable({
@@ -43,7 +46,8 @@ export function ContactsTable({
   onAreaFilterChange,
   onProgramFilterChange,
   onInterestFilterChange,
-  onContactClick
+  onContactClick,
+  totalCount
 }: ContactsTableProps) {
   const thCheckbox = { width: 56, minWidth: 56, border: '1px solid var(--border-color, #ddd)', padding: 6, backgroundColor: 'var(--th-bg, #f5f5f5)', color: 'var(--text-primary, #000)' }
   const tdCheckbox = { width: 56, minWidth: 56, border: '1px solid var(--border-color, #eee)', padding: 6 }
@@ -52,7 +56,7 @@ export function ContactsTable({
   const tdCenter = { border: '1px solid var(--border-color, #eee)', padding: 6, textAlign: 'center' as const, color: 'var(--text-primary, #000)', whiteSpace: 'nowrap' as const, verticalAlign: 'top' as const, fontSize: 13 }
   const inputStyle = { width: '100%', padding: '4px 6px', borderRadius: 4, fontSize: 12, boxSizing: 'border-box' as const, backgroundColor: 'var(--input-bg, #fff)', color: 'var(--text-primary, #000)', border: '1px solid var(--border-color, #ddd)' }
   const stickyHeader = { position: 'sticky' as const, top: 0, zIndex: 20, backgroundColor: 'var(--th-bg, #f5f5f5)' }
-  const stickyFilter = { position: 'sticky' as const, top: 44, zIndex: 19, backgroundColor: 'var(--th-bg, #f5f5f5)' }
+  const stickyFilter = { position: 'sticky' as const, top: 44, zIndex: 19, backgroundColor: 'var(--th-filter-bg, #eaeaea)', borderTop: '2px solid var(--border-color, #ddd)' }
   const stickyFirstColumnHeader = { position: 'sticky' as const, left: 0, zIndex: 25, backgroundColor: 'var(--th-bg, #f5f5f5)' }
   const stickyFirstColumnCell = { position: 'sticky' as const, left: 0, zIndex: 10, backgroundColor: 'var(--bg-primary, #fff)' }
 
@@ -62,6 +66,7 @@ export function ContactsTable({
   }
 
   return (
+    <>
     <div
       style={{
         width: '100%',
@@ -70,12 +75,12 @@ export function ContactsTable({
         overflowY: 'auto',
         maxHeight: '72dvh',
         border: '1px solid var(--border-color, #ddd)',
-        borderRadius: 6,
+        borderRadius: '6px 6px 0 0',
         WebkitOverflowScrolling: 'touch',
         touchAction: 'pan-x pan-y'
       }}
     >
-    <table style={{ minWidth: 1200, width: '100%', tableLayout: 'auto', borderCollapse: 'collapse', marginTop: 0 }}>
+    <table className="contacts-table" style={{ minWidth: 1200, width: '100%', tableLayout: 'auto', borderCollapse: 'collapse', marginTop: 0 }}>
       <thead>
         {/* Header Row */}
         <tr>
@@ -311,6 +316,7 @@ export function ContactsTable({
                 type="checkbox"
                 checked={c.selected}
                 onChange={() => onToggleSelect(c.id)}
+                aria-label={`Select ${c.name}`}
               />
             </td>
 
@@ -350,13 +356,13 @@ export function ContactsTable({
             ))}
 
             <td style={tdCenter}>
-              {c.notInterested ? <span style={{ color: '#dc3545', fontWeight: 600 }}>✓</span> : <span style={{ color: '#999' }}>—</span>}
+              {c.notInterested ? <Badge variant="danger">Not Interested</Badge> : null}
             </td>
             <td style={tdCenter}>
-              {c.centerChange ? <span style={{ color: '#fd7e14', fontWeight: 600 }}>✓</span> : <span style={{ color: '#999' }}>—</span>}
+              {c.centerChange ? <Badge variant="warning">Ctr. Change</Badge> : null}
             </td>
             <td style={tdCenter}>
-              {c.doNotDisturb ? <span style={{ color: '#dc3545', fontWeight: 600 }}>✓</span> : <span style={{ color: '#999' }}>—</span>}
+              {c.doNotDisturb ? <Badge variant="danger">DND</Badge> : null}
             </td>
 
             <td style={tdCenter}>{ContactService.getTotal(c)}</td>
@@ -366,5 +372,22 @@ export function ContactsTable({
       </tbody>
     </table>
     </div>
+    {/* Row count indicator */}
+    <div
+      style={{
+        padding: '6px 10px',
+        fontSize: 12,
+        color: 'var(--text-secondary)',
+        border: '1px solid var(--border-color)',
+        borderTop: 'none',
+        backgroundColor: 'var(--panel-bg)',
+        borderRadius: '0 0 var(--radius-md) var(--radius-md)',
+      }}
+    >
+      {totalCount !== undefined && totalCount !== contacts.length
+        ? `Showing ${contacts.length} of ${totalCount} contacts`
+        : `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`}
+    </div>
+    </>
   )
 }

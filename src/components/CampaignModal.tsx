@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { campaignsApi, Campaign } from '@/lib/api/client'
+import { Modal } from '@/components/ui/Modal'
 
 interface CampaignModalProps {
   isOpen: boolean
@@ -33,8 +34,7 @@ export function CampaignModal({ isOpen, selectedContactIds, centerId, onClose, o
 
   if (!isOpen) return null
 
-  const handleSubmit = async () => {
-    setError(null)
+  const handleSubmit = async () => {    setError(null)
     setIsLoading(true)
     try {
       let campaign: Campaign
@@ -71,12 +71,10 @@ export function CampaignModal({ isOpen, selectedContactIds, centerId, onClose, o
   }
 
   return (
-    <div style={overlay} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={modal}>
-        <h3 style={{ margin: '0 0 16px 0' }}>Add to Campaign</h3>
-        <p style={{ color: 'var(--text-secondary, #666)', marginBottom: 16 }}>
-          {selectedContactIds.length} contact{selectedContactIds.length !== 1 ? 's' : ''} selected
-        </p>
+    <Modal isOpen={isOpen} onClose={onClose} title="Add to Campaign" maxWidth={440}>
+      <p style={{ color: 'var(--text-secondary, #666)', marginBottom: 16, marginTop: -8 }}>
+        {selectedContactIds.length} contact{selectedContactIds.length !== 1 ? 's' : ''} selected
+      </p>
 
         {campaigns.length > 0 && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -172,7 +170,6 @@ export function CampaignModal({ isOpen, selectedContactIds, centerId, onClose, o
             {isLoading ? 'Saving...' : mode === 'new' ? 'Create Campaign' : 'Add to Campaign'}
           </button>
         </div>
-      </div>
-    </div>
+      </Modal>
   )
 }

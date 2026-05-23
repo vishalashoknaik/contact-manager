@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { SyncStatusNotices } from '@/components/SyncStatusNotices'
 import { ContactSearchInput } from '@/components/ContactSearchInput'
+import { Alert } from '@/components/ui/Alert'
 import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { campaignsApi, Campaign, CampaignVolunteer } from '@/lib/api/client'
 import { Contact } from '@/lib/types'
@@ -198,7 +199,7 @@ export function VolunteerPanel({ campaign, centerId, currentUserPhone, onUpdated
           </div>
         )}
       </div>
-      {error && <div style={{ color: '#dc3545', marginTop: 8, fontSize: 13 }}>{error}</div>}
+      {error && <Alert variant="error" style={{ marginTop: 8 }}>{error}</Alert>}
     </div>
   )
 }

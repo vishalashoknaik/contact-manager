@@ -6,6 +6,13 @@ import Home from './page'
 import { CSVService } from '@/lib/services/CSVService'
 import { contactsApi } from '@/lib/api/client'
 
+// Mock Toast so tests don't need a ToastProvider wrapper
+const mockShowToast = vi.fn()
+vi.mock('@/components/ui/Toast', () => ({
+  useToast: () => ({ showToast: mockShowToast }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() })
 }))
@@ -166,6 +173,7 @@ vi.mock('@/lib/api/client', () => {
 describe('Home page', () => {
   beforeEach(() => {
     localStorage.clear()
+    mockShowToast.mockClear()
   })
 
   it('hides campaigns and attendance actions in admin mode and restores them in user mode', async () => {
@@ -217,7 +225,7 @@ describe('Home page', () => {
 
     const { container } = render(<Home />)
 
-    expect(screen.getByText(/Volunteers Coordination/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Admin Mode/i }))
     await user.click(screen.getByRole('button', { name: 'Center Configuration' }))
@@ -260,7 +268,7 @@ describe('Home page', () => {
     await user.click(screen.getByRole('button', { name: 'Update' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Update completed. Selection cleared.')).toBeInTheDocument()
+      expect(mockShowToast).toHaveBeenCalledWith('Update completed. Selection cleared.', 'success')
       expect(screen.queryByRole('button', { name: /create campaign \(1 selected\)/i })).not.toBeInTheDocument()
     })
 
@@ -489,7 +497,6 @@ describe('Home page — child lock', () => {
 
   it('calls contactsApi.delete and shows feedback after confirming deletion', async () => {
     const user = userEvent.setup()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     vi.mocked(contactsApi.delete).mockResolvedValue({ success: true } as any)
 
     render(<Home />)
@@ -499,16 +506,19 @@ describe('Home page — child lock', () => {
     await user.click(screen.getByRole('button', { name: /locked/i }))
     await user.click(screen.getByRole('button', { name: /delete selected/i }))
 
+    // ConfirmModal appears — click the Delete confirm button
+    await waitFor(() => expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
+
     await waitFor(() => {
       expect(contactsApi.delete).toHaveBeenCalledWith('c2')
     })
 
-    expect(screen.getByText(/deleted/i)).toBeInTheDocument()
+    expect(mockShowToast).toHaveBeenCalledWith(expect.stringMatching(/deleted/i), 'success')
   })
 
   it('does not call delete when user cancels the confirmation dialog', async () => {
     const user = userEvent.setup()
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
 
     render(<Home />)
 
@@ -517,12 +527,15 @@ describe('Home page — child lock', () => {
     await user.click(screen.getByRole('button', { name: /locked/i }))
     await user.click(screen.getByRole('button', { name: /delete selected/i }))
 
+    // ConfirmModal opens — click Cancel
+    await waitFor(() => expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+
     expect(contactsApi.delete).not.toHaveBeenCalled()
   })
 
   it('shows an error message when the delete API call fails', async () => {
     const user = userEvent.setup()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     vi.mocked(contactsApi.delete).mockRejectedValueOnce(new Error('Server error'))
 
     render(<Home />)
@@ -532,8 +545,12 @@ describe('Home page — child lock', () => {
     await user.click(screen.getByRole('button', { name: /locked/i }))
     await user.click(screen.getByRole('button', { name: /delete selected/i }))
 
+    // ConfirmModal appears — click the Delete confirm button
+    await waitFor(() => expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
+
     await waitFor(() => {
-      expect(screen.getByText(/delete failed/i)).toBeInTheDocument()
+      expect(mockShowToast).toHaveBeenCalledWith(expect.stringMatching(/delete failed/i), 'error')
     })
   })
 })
