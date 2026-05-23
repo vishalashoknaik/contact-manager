@@ -62,7 +62,7 @@ export default function CampaignsPage() {
   useEffect(() => {
     if (!selectedCenter) return
     loadCampaigns()
-    contactsApi.getAll(selectedCenter).then(setContacts).catch(() => {})
+    contactsApi.getAll(selectedCenter).then(data => setContacts(data as Contact[])).catch(() => {})
   }, [selectedCenter])
 
   // Load templates from campaign data when a campaign is selected
