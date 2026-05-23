@@ -50,6 +50,7 @@ export default function CampaignsPage() {
   const templateSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const canEditTemplates = selectedCenterDetails?.role === 'USER' || selectedCenterDetails?.role === 'ADMIN'
   const [hasLoadedCampaignsOnce, setHasLoadedCampaignsOnce] = useState(false)
+  const [showFullLog, setShowFullLog] = useState(false)
   const [contacts, setContacts] = useState<Contact[]>([])
   const { isOnline, showLongSyncNotice, showOfflineWarning } = useSyncStatus({ isSyncing: isLoading })
 
@@ -376,7 +377,10 @@ export default function CampaignsPage() {
               campaign={selectedCampaign}
               centerId={selectedCenter!}
               currentUserPhone={user!.phone}
-              onUpdated={updated => setSelectedCampaign(updated)}
+              onUpdated={updated => {
+                setSelectedCampaign(updated)
+                setCampaigns(prev => prev.map(c => c.id === updated.id ? updated : c))
+              }}
               contacts={contacts}
             />
           </div>
@@ -520,6 +524,73 @@ export default function CampaignsPage() {
             </div>
             <CallLogsTable logs={callLogs} onLogClick={openLogEditor} />
           </div>
+
+          {/* Full campaign report — visible to USER/ADMIN roles; shows ALL contacts
+              including PENDING, so admins can see the complete picture */}
+          {(selectedCenterDetails?.role === 'USER' || selectedCenterDetails?.role === 'ADMIN') && (
+            <div style={{ marginTop: 24 }}>
+              <button
+                onClick={() => setShowFullLog(v => !v)}
+                style={{
+                  padding: '8px 14px', borderRadius: 4, border: '1px solid var(--border-color, #ddd)',
+                  backgroundColor: 'var(--panel-bg, #f8f9fa)', color: 'var(--text-primary, #000)',
+                  cursor: 'pointer', fontSize: 13, fontWeight: 600
+                }}
+              >
+                {showFullLog ? '▲ Hide Full Report' : '▼ Show Full Report (all contacts)'}
+              </button>
+
+              {showFullLog && (
+                <div style={{ marginTop: 12, overflowX: 'auto', border: '1px solid var(--border-color, #ddd)', borderRadius: 6 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--th-bg, #f5f5f5)' }}>
+                        {['Contact', 'Phone', 'Status', 'Called At', 'By (Volunteer)', 'Feedback', 'Not Int.', 'Ctr Chg', 'DND', 'Remarks'].map(h => (
+                          <th key={h} style={{ border: '1px solid var(--border-color, #ddd)', padding: '6px 10px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedCampaign.contacts.map(cc => {
+                        const log = callLogs.find(l => l.campaignContactId === cc.campaignContactId)
+                        const statusColor = cc.status === 'COMPLETED' ? '#198754' : cc.status === 'SKIPPED' ? '#6c757d' : '#fd7e14'
+                        return (
+                          <tr key={cc.campaignContactId}>
+                            <td style={{ border: '1px solid var(--border-color, #eee)', padding: '5px 10px' }}>{cc.contact.name}</td>
+                            <td style={{ border: '1px solid var(--border-color, #eee)', padding: '5px 10px' }}>{cc.contact.phone}</td>
+                            <td style={{ border: '1px solid var(--border-color, #eee)', padding: '5px 10px' }}>
+                              <span style={{ fontWeight: 600, color: statusColor }}>{cc.status}</span>
+                            </td>
+                            <td style={{ border: '1px solid var(--border-color, #eee)', padding: '5px 10px' }}>
+                              {log ? new Date(log.calledAt).toLocaleString() : '—'}
+                            </td>
+                            <td style={{ border: '1px solid var(--border-color, #eee)', padding: '5px 10px' }}>
+                              {log ? log.volunteerPhone : '—'}
+                            </td>
+                            <td style={{ border: '1px solid var(--border-color, #eee)', padding: '5px 10px' }}>
+                              {log ? log.feedback : '—'}
+                            </td>
+                            <td style={{ border: '1px solid var(--border-color, #eee)', padding: '5px 10px', textAlign: 'center' }}>
+                              {log?.notInterestedToVolunteer ? '✓' : '—'}
+                            </td>
+                            <td style={{ border: '1px solid var(--border-color, #eee)', padding: '5px 10px', textAlign: 'center' }}>
+                              {log?.centerChange ? '✓' : '—'}
+                            </td>
+                            <td style={{ border: '1px solid var(--border-color, #eee)', padding: '5px 10px', textAlign: 'center' }}>
+                              {log?.doNotDisturb ? '✓' : '—'}
+                            </td>
+                            <td style={{ border: '1px solid var(--border-color, #eee)', padding: '5px 10px' }}>
+                              {log?.remarks || '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
