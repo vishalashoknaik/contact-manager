@@ -6,6 +6,7 @@ import contactsRouter from './routes/contacts.js'
 import activitiesRouter from './routes/activities.js'
 import areasRouter from './routes/areas.js'
 import programsRouter from './routes/programs.js'
+import interestsRouter from './routes/interests.js'
 import authRouter from './routes/auth.js'
 import attendanceRouter from './routes/attendance.js'
 import campaignsRouter from './routes/campaigns.js'
@@ -75,6 +76,7 @@ app.use('/api/contacts', contactsRouter)
 app.use('/api/activities', activitiesRouter)
 app.use('/api/areas', areasRouter)
 app.use('/api/programs', programsRouter)
+app.use('/api/interests', interestsRouter)
 app.use('/api/attendance', attendanceRouter)
 app.use('/api/campaigns', campaignsRouter)
 

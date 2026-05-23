@@ -204,6 +204,7 @@ export const contactsApi = {
       activities?: Record<string, number>
       areas?: Record<string, number>
       programs?: Record<string, number>
+      interests?: Record<string, number>
       selected?: boolean
       importOrder?: number
     },
