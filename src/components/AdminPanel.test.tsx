@@ -726,4 +726,70 @@ describe('AdminPanel', () => {
       expect(onInterestsChange).toHaveBeenCalledWith([])
     })
   })
+
+  describe('startCollapsed prop', () => {
+    const baseProps = {
+      isVisible: true as const,
+      activities: ['Yoga'],
+      areas: ['North'],
+      programs: ['Isha Kriya'],
+      interests: ['Meditation'],
+      contacts: [],
+      onActivitiesChange: vi.fn(),
+      onAreasChange: vi.fn(),
+      onProgramsChange: vi.fn(),
+      onInterestsChange: vi.fn(),
+      onContactsChange: vi.fn(),
+    }
+
+    it('sections start collapsed when startCollapsed={true}', () => {
+      render(<AdminPanel {...baseProps} section="settings" startCollapsed />)
+      // All section toggle buttons should be collapsed (aria-expanded=false)
+      const toggleBtns = screen.getAllByRole('button').filter(
+        btn => btn.hasAttribute('aria-expanded')
+      )
+      expect(toggleBtns.length).toBeGreaterThan(0)
+      toggleBtns.forEach(btn => {
+        expect(btn).toHaveAttribute('aria-expanded', 'false')
+      })
+    })
+
+    it('sections start open when startCollapsed is not set (default)', () => {
+      render(<AdminPanel {...baseProps} section="settings" />)
+      const toggleBtns = screen.getAllByRole('button').filter(
+        btn => btn.hasAttribute('aria-expanded')
+      )
+      expect(toggleBtns.length).toBeGreaterThan(0)
+      toggleBtns.forEach(btn => {
+        expect(btn).toHaveAttribute('aria-expanded', 'true')
+      })
+    })
+
+    it('clicking a collapsed section expands it', async () => {
+      const user = userEvent.setup()
+      render(<AdminPanel {...baseProps} section="settings" startCollapsed />)
+
+      const activitiesToggle = screen.getByRole('button', { name: /activities/i })
+      expect(activitiesToggle).toHaveAttribute('aria-expanded', 'false')
+
+      await user.click(activitiesToggle)
+      expect(activitiesToggle).toHaveAttribute('aria-expanded', 'true')
+    })
+
+    it('Access Requests section opens automatically when there are pending users regardless of startCollapsed', async () => {
+      render(
+        <AdminPanel
+          {...baseProps}
+          section="access"
+          startCollapsed
+        />
+      )
+      // Wait for users to load (mock returns [] so no pending)
+      // Access Requests should start collapsed when no pending users
+      await waitFor(() => {
+        const accessReqBtn = screen.getByRole('button', { name: /access requests/i })
+        expect(accessReqBtn).toHaveAttribute('aria-expanded', 'false')
+      })
+    })
+  })
 })

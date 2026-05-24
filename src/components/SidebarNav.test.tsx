@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -36,6 +36,14 @@ const makeAuthMock = (overrides: Record<string, unknown> = {}) => ({
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(),
+}))
+
+const { authApiMock } = vi.hoisted(() => ({
+  authApiMock: { getUsers: vi.fn(async () => []) },
+}))
+
+vi.mock('@/lib/api/client', () => ({
+  authApi: authApiMock,
 }))
 
 import { useAuth } from '@/hooks/useAuth'
@@ -194,6 +202,51 @@ describe('SidebarNav', () => {
       logoutFn.mockClear()
       await user.click(logoutBtns[1])
       expect(logoutFn).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('pending access badge on Settings link', () => {
+    beforeEach(() => {
+      authApiMock.getUsers.mockResolvedValue([])
+    })
+
+    it('shows pending count badge when there are pending access requests', async () => {
+      authApiMock.getUsers.mockResolvedValue([
+        { isApproved: false },
+        { isApproved: false },
+        { isApproved: true },
+      ])
+      vi.mocked(useAuth).mockReturnValue(
+        makeAuthMock({ canManageSelectedCenterAccess: true, canManageSelectedCenterConfig: true }) as any
+      )
+      render(<SidebarNav />)
+      // Badge should show the count of unapproved users (2)
+      await waitFor(() => {
+        expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(1)
+      })
+    })
+
+    it('shows no badge when all users are approved', async () => {
+      authApiMock.getUsers.mockResolvedValue([
+        { isApproved: true },
+        { isApproved: true },
+      ])
+      vi.mocked(useAuth).mockReturnValue(
+        makeAuthMock({ canManageSelectedCenterAccess: true, canManageSelectedCenterConfig: true }) as any
+      )
+      render(<SidebarNav />)
+      await waitFor(() => expect(authApiMock.getUsers).toHaveBeenCalled())
+      // No numeric badge elements should appear
+      expect(screen.queryByText('2')).not.toBeInTheDocument()
+      expect(screen.queryByText('1')).not.toBeInTheDocument()
+    })
+
+    it('does not fetch pending users when user lacks access-management permission', () => {
+      vi.mocked(useAuth).mockReturnValue(
+        makeAuthMock({ canManageSelectedCenterAccess: false, canManageSelectedCenterConfig: true }) as any
+      )
+      render(<SidebarNav />)
+      expect(authApiMock.getUsers).not.toHaveBeenCalled()
     })
   })
 })

@@ -13,7 +13,6 @@ import { LoginPage } from '@/components/LoginPage'
 import { SyncStatusNotices } from '@/components/SyncStatusNotices'
 import { ConfirmModal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
-import { Card } from '@/components/ui/Card'
 import { FilterService } from '@/lib/services/FilterService'
 import { ContactForm } from '@/components/ContactForm'
 import { CSVImport } from '@/components/CSVImport'
@@ -35,6 +34,8 @@ function ContactsContent() {
   const [editDraft, setEditDraft] = useState({ name: '', phone: '', gender: 'Male' as Contact['gender'], ieDate: '', areaOfStay: '', remarks: '' })
   const [isSavingContact, setIsSavingContact] = useState(false)
   const [contactSaveError, setContactSaveError] = useState<string | null>(null)
+  const [showAddContact, setShowAddContact] = useState(false)
+  const [showBulkActions, setShowBulkActions] = useState(false)
   const contactsManager = useContacts()
   const configManager = useConfig()
   const filteringManager = useFiltering()
@@ -177,6 +178,7 @@ function ContactsContent() {
       padding: '20px',
       backgroundColor: 'var(--bg-primary, #ffffff)',
       color: 'var(--text-primary, #000000)',
+      overflowX: 'hidden',
       minHeight: '100vh'
     }}>
       {/* Full-page overlay while bulk update is in progress */}
@@ -208,10 +210,21 @@ function ContactsContent() {
       {/* Header */}
       <div style={{
         marginBottom: 20,
-        borderBottom: '1px solid var(--border-color, #ddd)',
-        paddingBottom: 16
+        borderBottom: '1px solid var(--border-color)',
+        paddingBottom: 14,
+        display: 'flex',
+        alignItems: 'baseline',
+        gap: 10,
+        flexWrap: 'wrap',
       }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Contacts</h1>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>👥 Contacts</h1>
+        {contactsManager.isLoaded && (
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>
+            {filtered.length !== contactsManager.contacts.length
+              ? `${filtered.length} of ${contactsManager.contacts.length}`
+              : `${contactsManager.contacts.length} total`}
+          </span>
+        )}
       </div>
 
       {backendError && (
@@ -240,49 +253,86 @@ function ContactsContent() {
         margin="0 0 16px"
       />
 
-      <div style={{ marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        {canAccessSelectedCenterAdminMode && (
-          <a
-            href="/settings"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 4,
-              border: '1px solid var(--border-color, #ddd)',
-              backgroundColor: 'transparent',
-              color: 'var(--text-primary, #000)',
-              textDecoration: 'none',
-              fontSize: 13,
-              fontWeight: 500,
-            }}
-          >
-            ⚙ Settings
-          </a>
-        )}
-      </div>
-
       {canViewSelectedCenterContacts && (
         <>
-          {/* Contact Form & CSV Import */}
-          <Card style={{ marginBottom: 20 }}>
-            <h2 style={{ margin: '0 0 12px 0', fontSize: 15, fontWeight: 700 }}>Add Contact</h2>
-            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 250px', minWidth: 250 }}>
-                <ContactForm onAddContact={handleAddContact} />
+          {/* Contact Form & CSV Import — collapsible */}
+          <div style={{ marginBottom: 16, border: '1px solid var(--border-color)', borderRadius: 10, overflow: 'hidden' }}>
+            <button
+              onClick={() => setShowAddContact(v => !v)}
+              aria-expanded={showAddContact}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                width: '100%', padding: '11px 16px',
+                background: showAddContact ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                border: 'none', borderBottom: showAddContact ? '1px solid var(--border-color)' : 'none',
+                cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <span style={{ fontSize: 15 }}>➕</span>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Add Contact / Import
+              </span>
+              <span style={{
+                fontSize: 16, color: 'var(--text-secondary)',
+                transform: showAddContact ? 'rotate(90deg)' : 'rotate(0deg)',
+                display: 'inline-block', transition: 'transform 0.18s ease',
+                lineHeight: 1,
+              }}>›</span>
+            </button>
+            {showAddContact && (
+              <div style={{ padding: '16px', background: 'var(--bg-primary)' }}>
+                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 250px', minWidth: 250 }}>
+                    <ContactForm onAddContact={handleAddContact} />
+                  </div>
+                  <div style={{ flex: '0 1 auto' }}>
+                    <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Import</p>
+                    <CSVImport
+                      contacts={contactsManager.contacts}
+                      onImport={handleImport}
+                    />
+                  </div>
+                </div>
               </div>
-              <div style={{ flex: '0 1 auto' }}>
-                <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Import</p>
-                <CSVImport
-                  contacts={contactsManager.contacts}
-                  onImport={handleImport}
-                />
-              </div>
-            </div>
-          </Card>
+            )}
+          </div>
 
-          {/* Action Bar for Bulk Operations */}
+          {/* Action Bar for Bulk Operations — collapsible */}
           {contactsManager.contacts.length > 0 && (
-            <>
-              <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>Bulk Actions</p>
+            <div style={{ marginBottom: 16, border: '1px solid var(--border-color)', borderRadius: 10, overflow: 'hidden' }}>
+              <button
+                onClick={() => setShowBulkActions(v => !v)}
+                aria-expanded={showBulkActions}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  width: '100%', padding: '11px 16px',
+                  background: showBulkActions ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                  border: 'none', borderBottom: showBulkActions ? '1px solid var(--border-color)' : 'none',
+                  cursor: 'pointer', textAlign: 'left',
+                }}
+              >
+                <span style={{ fontSize: 15 }}>⚡</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Bulk Actions
+                  {selectedContactIds.length > 0 && (
+                    <span style={{
+                      marginLeft: 8, padding: '1px 7px', fontSize: 11, fontWeight: 700,
+                      backgroundColor: 'var(--color-primary, #4a9eff)', color: '#fff',
+                      borderRadius: 99,
+                    }}>
+                      {selectedContactIds.length} selected
+                    </span>
+                  )}
+                </span>
+                <span style={{
+                  fontSize: 16, color: 'var(--text-secondary)',
+                  transform: showBulkActions ? 'rotate(90deg)' : 'rotate(0deg)',
+                  display: 'inline-block', transition: 'transform 0.18s ease',
+                  lineHeight: 1,
+                }}>›</span>
+              </button>
+              {showBulkActions && (
+                <div style={{ padding: '16px', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <ActionBar
                 activities={configManager.activities}
                 areas={configManager.areas}
@@ -322,7 +372,7 @@ function ContactsContent() {
               </div>
 
               {selectedContactIds.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
+                <div>
                   <Button
                     variant="primary"
                     size="sm"
@@ -332,11 +382,14 @@ function ContactsContent() {
                   </Button>
                 </div>
               )}
-            </>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Contacts Table */}
           <h2 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700 }}>Contacts</h2>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {contactsManager.isLoaded ? (
             <ContactsTable
               contacts={filtered}
@@ -373,6 +426,7 @@ function ContactsContent() {
           ) : (
             <p>Loading...</p>
           )}
+          </div>
         </>
       )}
 
