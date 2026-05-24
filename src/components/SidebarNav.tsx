@@ -1,9 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import { CenterSelector } from '@/components/CenterSelector'
+import { authApi } from '@/lib/api/client'
 
 // Primary navigation items — icon (emoji), label, route, exact-match flag
 const BASE_NAV_ITEMS = [
@@ -32,8 +33,17 @@ const ROLE_LABELS: Record<string, string> = {
  * gets a clean, full-screen layout.
  */
 export function SidebarNav() {
-  const { isLoggedIn, user, selectedCenterDetails, logout, canManageSelectedCenterConfig, canManageSelectedCenterAccess } = useAuth()
+  const { isLoggedIn, user, selectedCenter, selectedCenterDetails, selectCenter, logout, canManageSelectedCenterConfig, canManageSelectedCenterAccess } = useAuth()
   const pathname = usePathname()
+
+  // Fetch pending access requests count for the badge on the Settings link
+  const [pendingAccessCount, setPendingAccessCount] = useState(0)
+  useEffect(() => {
+    if (!canManageSelectedCenterAccess || !selectedCenter) return
+    authApi.getUsers(selectedCenter)
+      .then(users => setPendingAccessCount(users.filter(u => !u.isApproved).length))
+      .catch(() => {})
+  }, [canManageSelectedCenterAccess, selectedCenter])
 
   const showSettings = canManageSelectedCenterConfig || canManageSelectedCenterAccess
   const navItems = showSettings
@@ -125,6 +135,7 @@ export function SidebarNav() {
         >
           {navItems.map(item => {
             const active = isActive(item.href, item.exact)
+            const badge = item.href === '/settings' ? pendingAccessCount : 0
             return (
               <Link
                 key={item.href}
@@ -145,7 +156,21 @@ export function SidebarNav() {
                 >
                   {item.icon}
                 </span>
-                <span>{item.label}</span>
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {badge > 0 && (
+                  <span style={{
+                    background: 'var(--color-danger, #e53e3e)',
+                    color: '#fff',
+                    borderRadius: 99,
+                    padding: '1px 6px',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    minWidth: 18,
+                    textAlign: 'center',
+                  }}>
+                    {badge}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -162,10 +187,38 @@ export function SidebarNav() {
             gap: 6,
           }}
         >
-          {/* Center selector (handles multi-center users) */}
-          <div style={{ padding: '0 4px' }}>
-            <CenterSelector />
-          </div>
+          {/* Compact center selector — only shown for multi-center users */}
+          {user && user.centers.length > 1 && (
+            <div style={{ padding: '0 4px' }}>
+              <label
+                htmlFor="sidebar-center-select"
+                style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}
+              >
+                Center
+              </label>
+              <select
+                id="sidebar-center-select"
+                value={selectedCenter || ''}
+                onChange={e => selectCenter(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '5px 8px',
+                  borderRadius: 6,
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  color: '#fff',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                {user.centerDetails?.map(center => (
+                  <option key={center.id} value={center.id} style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>
+                    {center.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* User card + logout */}
           <div
@@ -240,13 +293,53 @@ export function SidebarNav() {
               ↩
             </button>
           </div>
+
+          {/* Version */}
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 2, textAlign: 'center' }}>
+            v3.0.0
+          </div>
         </div>
       </aside>
+
+      {/* ── Mobile top header bar ────────────────────────────────────── */}
+      <header className="mobile-header-bar">
+        {/* Logo + title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 22, lineHeight: 1 }}>🌿</span>
+          <div>
+            <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>Volunteers</div>
+            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Coordination</div>
+          </div>
+        </div>
+        {/* Right: version + logout */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>v3.0.0</span>
+          <button
+            onClick={logout}
+            title="Logout"
+            aria-label="Logout"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'rgba(255,255,255,0.75)',
+              fontSize: 20,
+              padding: '4px 6px',
+              lineHeight: 1,
+              minHeight: 'unset',
+              borderRadius: 6,
+            }}
+          >
+            ↩
+          </button>
+        </div>
+      </header>
 
       {/* ── Mobile bottom tab bar ───────────────────────────────────── */}
       <nav className="bottom-nav-mobile" aria-label="Main navigation">
         {navItems.map(item => {
           const active = isActive(item.href, item.exact)
+          const badge = item.href === '/settings' ? pendingAccessCount : 0
           return (
             <Link
               key={item.href}
@@ -265,9 +358,30 @@ export function SidebarNav() {
                 fontSize: 10,
                 fontWeight: active ? 600 : 400,
                 transition: 'color 0.15s',
+                position: 'relative',
               }}
             >
-              <span style={{ fontSize: 22, lineHeight: 1 }}>{item.icon}</span>
+              <span style={{ fontSize: 22, lineHeight: 1, position: 'relative', display: 'inline-block' }}>
+                {item.icon}
+                {badge > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -8,
+                    background: 'var(--color-danger, #e53e3e)',
+                    borderRadius: 99,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: '#fff',
+                    padding: '0 4px',
+                    minWidth: 14,
+                    textAlign: 'center',
+                    lineHeight: '14px',
+                  }}>
+                    {badge}
+                  </span>
+                )}
+              </span>
               <span>{item.label}</span>
             </Link>
           )

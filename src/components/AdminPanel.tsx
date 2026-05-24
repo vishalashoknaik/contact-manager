@@ -15,6 +15,8 @@ import type { CenterOption, CenterRole, ManagedUser } from '@/lib/types/auth'
 interface AdminPanelProps {
   isVisible: boolean
   section: 'access' | 'settings' | 'all'
+  /** When true every accordion starts collapsed (except Access Requests if there are pending users). Defaults to false so tests see all content without needing to expand. */
+  startCollapsed?: boolean
   activities: string[]
   areas: string[]
   programs: string[]
@@ -86,6 +88,7 @@ function AccordionSection({
 export function AdminPanel({
   isVisible,
   section,
+  startCollapsed = false,
   activities,
   areas,
   programs,
@@ -157,7 +160,7 @@ export function AdminPanel({
 
   const toExistingContactByPhone = (phone: string) =>
     contacts.find(contact => contact.phone.trim() === phone.trim())
-  const shouldLoadCenters = !!user?.canAccessAllCenters && isVisible && section === 'access'
+  const shouldLoadCenters = !!user?.canAccessAllCenters && isVisible && (section === 'access' || section === 'all')
   const isAccessSyncing = (isLoadingUsers && !hasLoadedUsersOnce) || (shouldLoadCenters && isLoadingCenters && !hasLoadedCentersOnce)
   const {
     isOnline,
@@ -166,7 +169,7 @@ export function AdminPanel({
   } = useSyncStatus({ isSyncing: isAccessSyncing })
 
   useEffect(() => {
-    if (!isVisible || !selectedCenter || !canManageSelectedCenterAccess || section !== 'access') {
+    if (!isVisible || !selectedCenter || !canManageSelectedCenterAccess || (section !== 'access' && section !== 'all')) {
       return
     }
 
@@ -214,7 +217,7 @@ export function AdminPanel({
   }, [selectedCenterDetails?.name])
 
   useEffect(() => {
-    if (!isVisible || section !== 'access' || !user?.canAccessAllCenters) {
+    if (!isVisible || (section !== 'access' && section !== 'all') || !user?.canAccessAllCenters) {
       return
     }
 
@@ -657,7 +660,7 @@ export function AdminPanel({
 
   const renderAccessSection = () => (
     <>
-      <AccordionSection icon="➕" title="Grant Access">
+      <AccordionSection icon="➕" title="Grant Access" defaultOpen={!startCollapsed}>
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
           Search a contact first. If not found, fill in the phone and name below, then grant access.
         </p>
@@ -759,7 +762,7 @@ export function AdminPanel({
         {userError && <div style={{ color: 'var(--color-danger, #b02a37)', marginBottom: 12, fontSize: 13 }}>{userError}</div>}
       </AccordionSection>
 
-      <AccordionSection icon="⏳" title="Access Requests" badge={pendingUsers.length} badgeDanger>
+      <AccordionSection icon="⏳" title="Access Requests" badge={pendingUsers.length} badgeDanger defaultOpen={pendingUsers.length > 0 || !startCollapsed}>
         {pendingUsers.length === 0 && (
           <p style={{ marginBottom: 0, fontSize: 13, color: 'var(--text-secondary)' }}>No pending access requests for this center.</p>
         )}
@@ -791,7 +794,7 @@ export function AdminPanel({
         ))}
       </AccordionSection>
 
-      <AccordionSection icon="✅" title="Approved Users" badge={approvedUsers.length}>
+      <AccordionSection icon="✅" title="Approved Users" badge={approvedUsers.length} defaultOpen={!startCollapsed}>
         {approvedUsers.length === 0 && (
           <p style={{ marginBottom: 0, fontSize: 13, color: 'var(--text-secondary)' }}>No approved users assigned to this center yet.</p>
         )}
@@ -865,7 +868,7 @@ export function AdminPanel({
       </AccordionSection>
 
       {user?.canAccessAllCenters && (
-        <AccordionSection icon="🏢" title="Centers" badge={centers.length}>
+        <AccordionSection icon="🏢" title="Centers" badge={centers.length} defaultOpen={!startCollapsed}>
           <p style={{ marginTop: 0, marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
             Overall admins can add new centers and rename the selected center.
           </p>
@@ -921,7 +924,7 @@ export function AdminPanel({
 
   const renderSettingsSection = () => (
     <>
-      <AccordionSection icon="🏃" title="Activities" badge={activities.length}>
+      <AccordionSection icon="🏃" title="Activities" badge={activities.length} defaultOpen={!startCollapsed}>
         <div style={{ marginBottom: 10 }}>
           <input
             type="text"
@@ -990,7 +993,7 @@ export function AdminPanel({
         ))}
       </AccordionSection>
 
-      <AccordionSection icon="📍" title="Areas" badge={areas.length}>
+      <AccordionSection icon="📍" title="Areas" badge={areas.length} defaultOpen={!startCollapsed}>
         <div style={{ marginBottom: 10 }}>
           <input
             type="text"
@@ -1059,7 +1062,7 @@ export function AdminPanel({
         ))}
       </AccordionSection>
 
-      <AccordionSection icon="📚" title="Programs" badge={programs.length}>
+      <AccordionSection icon="📚" title="Programs" badge={programs.length} defaultOpen={!startCollapsed}>
         <div style={{ marginBottom: 10 }}>
           <input
             type="text"
@@ -1128,7 +1131,7 @@ export function AdminPanel({
         ))}
       </AccordionSection>
 
-      <AccordionSection icon="💡" title="Interest Categories" badge={interests.length}>
+      <AccordionSection icon="💡" title="Interest Categories" badge={interests.length} defaultOpen={!startCollapsed}>
         <div style={{ marginBottom: 10 }}>
           <input
             type="text"
