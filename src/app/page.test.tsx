@@ -249,7 +249,7 @@ describe('Home page', () => {
     await user.click(screen.getByRole('button', { name: 'Update' }))
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith('Update completed. Selection cleared.', 'success')
+      expect(mockShowToast).toHaveBeenCalledWith('1 contact updated with Walkathon, Area1, Program1', 'success')
       expect(screen.queryByRole('button', { name: /create campaign \(1 selected\)/i })).not.toBeInTheDocument()
     })
 

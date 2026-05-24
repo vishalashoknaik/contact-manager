@@ -39,8 +39,9 @@ describe('ServerWarmupBanner', () => {
   it('always renders children', async () => {
     mocks.ping.mockResolvedValue(undefined)
     renderBanner()
-    // Ping resolves → server ready → children shown
+    // Ping resolves → progress jumps to 100 % → 700 ms reveal delay → children shown
     await act(async () => { await Promise.resolve() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(700) })
     expect(screen.getByText('App content')).toBeInTheDocument()
   })
 
@@ -48,9 +49,9 @@ describe('ServerWarmupBanner', () => {
     mocks.ping.mockResolvedValue(undefined)
     renderBanner()
 
-    await act(async () => {
-      await Promise.resolve()
-    })
+    await act(async () => { await Promise.resolve() })
+    // Bar animates to 100 %; wait for the 700 ms reveal delay before overlay unmounts
+    await act(async () => { await vi.advanceTimersByTimeAsync(700) })
 
     expect(screen.queryByTestId('server-warmup-banner')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -99,8 +100,9 @@ describe('ServerWarmupBanner', () => {
     expect(screen.getByTestId('server-warmup-banner')).toBeInTheDocument()
 
     // Advance past the 5-second retry interval; advanceTimersByTimeAsync flushes
-    // the async ping callback so the state update is processed inside act
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    // the async ping callback so the state update is processed inside act.
+    // Extra 700 ms covers the reveal delay before the overlay unmounts.
+    await act(async () => { await vi.advanceTimersByTimeAsync(5700) })
 
     expect(screen.queryByTestId('server-warmup-banner')).not.toBeInTheDocument()
   })
@@ -165,11 +167,11 @@ describe('ServerWarmupBanner', () => {
     // Now make future pings succeed
     mocks.ping.mockResolvedValue(undefined)
 
-    // Click Retry — the handler calls pingServer() which calls authApi.ping()
-    // Use advanceTimersByTimeAsync(0) to flush the microtask chain
+    // Click Retry — the handler calls pingServer() which calls authApi.ping().
+    // Advance 700 ms to cover the reveal delay before the overlay unmounts.
     await act(async () => {
       screen.getByRole('button', { name: /retry/i }).click()
-      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(700)
     })
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -191,8 +193,8 @@ describe('ServerWarmupBanner', () => {
     // Retry 1 fires at 5s and fails
     await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
 
-    // Retry 2 fires at 10s total and succeeds
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    // Retry 2 fires at 10s total and succeeds; +700 ms for the reveal delay
+    await act(async () => { await vi.advanceTimersByTimeAsync(5700) })
 
     expect(screen.queryByTestId('server-warmup-banner')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

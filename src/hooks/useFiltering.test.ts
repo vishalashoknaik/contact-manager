@@ -13,8 +13,8 @@ describe('useFiltering', () => {
     expect(result.current.filters.programFilters).toEqual({})
     expect(result.current.filters.totalFilter).toBe('')
     expect(result.current.filters.dateFilter).toBe('')
-    expect(result.current.sortState.key).toBe('name')
-    expect(result.current.sortState.direction).toBe('asc')
+    expect(result.current.sortState.key).toBe('lastUpdated')
+    expect(result.current.sortState.direction).toBe('desc')
   })
 
   it('setNameFilter updates nameFilter', () => {
@@ -97,23 +97,21 @@ describe('useFiltering', () => {
   it('toggleSort flips direction when same key is toggled again', () => {
     const { result } = renderHook(() => useFiltering())
 
-    act(() => result.current.toggleSort('name'))
-    expect(result.current.sortState.direction).toBe('desc')
-
-    act(() => result.current.toggleSort('name'))
+    // Default is {key: 'lastUpdated', direction: 'desc'} — toggle same key
+    act(() => result.current.toggleSort('lastUpdated'))
     expect(result.current.sortState.direction).toBe('asc')
+
+    act(() => result.current.toggleSort('lastUpdated'))
+    expect(result.current.sortState.direction).toBe('desc')
   })
 
   it('toggleSort resets to asc when switching to a different key', () => {
     const { result } = renderHook(() => useFiltering())
 
-    // Make current key desc
+    // Default is already {key: 'lastUpdated', direction: 'desc'}
+    // Switching to a different key must reset direction to asc
     act(() => result.current.toggleSort('name'))
-    expect(result.current.sortState.direction).toBe('desc')
-
-    // Switch to a different key
-    act(() => result.current.toggleSort('phone'))
-    expect(result.current.sortState.key).toBe('phone')
+    expect(result.current.sortState.key).toBe('name')
     expect(result.current.sortState.direction).toBe('asc')
   })
 
@@ -201,7 +199,7 @@ describe('useFiltering — setGenderFilter and setAreaOfStayFilter', () => {
   })
 })
 
-describe('useFiltering � campaign boolean flag filters', () => {
+describe('useFiltering � campaign boolean flag filters', () => {
   it('initialises notInterestedFilter, centerChangeFilter, doNotDisturbFilter as empty strings', () => {
     const { result } = renderHook(() => useFiltering())
     expect(result.current.filters.notInterestedFilter).toBe('')

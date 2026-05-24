@@ -10,11 +10,12 @@ const WARMUP_TIMEOUT_MS = 2 * 60 * 1_000
 /** Interval between progress bar ticks. */
 const PROGRESS_TICK_MS = 200
 /**
- * Progress increment per tick.
- * 90 / (50 000 ms / 200 ms per tick) = 0.36 % per tick
- * → bar reaches 90 % in exactly 50 seconds, then holds there.
+ * Target time (ms) for the bar to reach 90 %.
+ * Using elapsed wall-clock time so throttled background tabs still advance correctly.
  */
-const PROGRESS_INCREMENT = 90 / (50_000 / PROGRESS_TICK_MS)
+const PROGRESS_DURATION_MS = 50_000
+/** How long to hold the bar at 100 % before revealing the app. */
+const REVEAL_DELAY_MS = 700
 
 interface ServerWarmupBannerProps {
   children: ReactNode
@@ -41,29 +42,40 @@ export function ServerWarmupBanner({ children }: ServerWarmupBannerProps) {
 
   const cancelledRef       = useRef(false)
   const serverReadyRef     = useRef(false)
+  const startTimeRef       = useRef(0)
   const retryTimerRef      = useRef<ReturnType<typeof setTimeout>  | null>(null)
   const timeoutTimerRef    = useRef<ReturnType<typeof setTimeout>  | null>(null)
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const revealTimerRef     = useRef<ReturnType<typeof setTimeout>  | null>(null)
 
   function clearAllTimers() {
-    if (retryTimerRef.current)      clearTimeout(retryTimerRef.current)
-    if (timeoutTimerRef.current)    clearTimeout(timeoutTimerRef.current)
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+    if (retryTimerRef.current)       { clearTimeout(retryTimerRef.current);        retryTimerRef.current = null }
+    if (timeoutTimerRef.current)     { clearTimeout(timeoutTimerRef.current);      timeoutTimerRef.current = null }
+    if (progressIntervalRef.current) { clearInterval(progressIntervalRef.current); progressIntervalRef.current = null }
+    if (revealTimerRef.current)      { clearTimeout(revealTimerRef.current);       revealTimerRef.current = null }
   }
 
   function startProgress() {
     if (progressIntervalRef.current) return
+    startTimeRef.current = Date.now()
     progressIntervalRef.current = setInterval(() => {
-      setProgress(p => (p >= 90 ? 90 : Math.min(p + PROGRESS_INCREMENT, 90)))
+      const elapsed = Date.now() - startTimeRef.current
+      setProgress(Math.min(90, (elapsed / PROGRESS_DURATION_MS) * 90))
     }, PROGRESS_TICK_MS)
   }
 
   function markOnline() {
     serverReadyRef.current = true
-    setServerReady(true)
-    setProgress(100)
     setTimedOut(false)
-    clearAllTimers()
+    // Stop retry/timeout/progress — keep the overlay alive until the bar completes
+    if (retryTimerRef.current)       { clearTimeout(retryTimerRef.current);        retryTimerRef.current = null }
+    if (timeoutTimerRef.current)     { clearTimeout(timeoutTimerRef.current);      timeoutTimerRef.current = null }
+    if (progressIntervalRef.current) { clearInterval(progressIntervalRef.current); progressIntervalRef.current = null }
+    // Animate bar to 100 %, hold briefly, then reveal the app
+    setProgress(100)
+    revealTimerRef.current = setTimeout(() => {
+      if (!cancelledRef.current) setServerReady(true)
+    }, REVEAL_DELAY_MS)
   }
 
   async function pingServer() {
@@ -216,7 +228,7 @@ export function ServerWarmupBanner({ children }: ServerWarmupBannerProps) {
               width: `${progress}%`,
               backgroundColor: '#198754',
               borderRadius: 99,
-              transition: 'width 0.2s linear',
+              transition: progress >= 99 ? 'width 0.5s ease-out' : 'width 0.2s linear',
             }}
           />
         </div>

@@ -85,6 +85,16 @@ function ContactsContent() {
     }
   }, [canAccessSelectedCenterAdminMode, adminManager])
 
+  // Clear selections and action dropdowns whenever the page loads
+  useEffect(() => {
+    void contactsManager.clearAllSelections()
+    actionSelectors.activity.clear()
+    actionSelectors.area.clear()
+    actionSelectors.program.clear()
+    actionSelectors.interest.clear()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const handleAddContact = (name: string, phone: string, gender: import('@/lib/types').Gender, ieDate?: string, areaOfStay?: string, remarks?: string) => {
     contactsManager.addOrUpdateContact(name, phone, gender, ieDate, areaOfStay, remarks)
   }
@@ -120,12 +130,23 @@ function ContactsContent() {
       }
 
       // Reset dropdown selectors so user starts fresh for the next round
+      const count = selectedContactIds.length
+      const categories = [
+        actionSelectors.activity.value,
+        actionSelectors.area.value,
+        actionSelectors.program.value,
+        actionSelectors.interest.value,
+      ].filter(Boolean).join(', ')
       actionSelectors.activity.clear()
       actionSelectors.area.clear()
       actionSelectors.program.clear()
       actionSelectors.interest.clear()
 
-      showToast('Update completed. Selection cleared.', 'success')
+      const noun = count === 1 ? 'contact' : 'contacts'
+      const msg = categories
+        ? `${count} ${noun} updated with ${categories}`
+        : `${count} ${noun} updated`
+      showToast(msg, 'success')
     } finally {
       setIsUpdating(false)
     }

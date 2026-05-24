@@ -25,8 +25,8 @@ export function useFiltering() {
   })
 
   const [sortState, setSortState] = useState<SortState>({
-    key: 'name',
-    direction: 'asc'
+    key: 'lastUpdated',
+    direction: 'desc'
   })
 
   const setNameFilter = (value: string) => {
