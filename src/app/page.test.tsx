@@ -554,3 +554,77 @@ describe('Home page — child lock', () => {
     })
   })
 })
+
+// ── Collapsible sections ──────────────────────────────────────────────────────
+describe('Home page — collapsible sections', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    mockShowToast.mockClear()
+  })
+
+  it('"Add Contact / Import" section starts collapsed (form not rendered)', () => {
+    render(<Home />)
+    expect(screen.queryByPlaceholderText('Name')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add contact/i })).toBeInTheDocument()
+  })
+
+  it('"Add Contact / Import" expands on click and collapses again', async () => {
+    const user = userEvent.setup()
+    render(<Home />)
+
+    const toggle = screen.getByRole('button', { name: /add contact/i })
+
+    // Starts collapsed
+    expect(screen.queryByPlaceholderText('Name')).not.toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    // Expand
+    await user.click(toggle)
+    expect(screen.getByPlaceholderText('Name')).toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+
+    // Collapse
+    await user.click(toggle)
+    expect(screen.queryByPlaceholderText('Name')).not.toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('"Bulk Actions" section is absent when there are no contacts', async () => {
+    // Force empty contacts list regardless of shared mock state
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([])
+    render(<Home />)
+    // Wait for load cycle to complete, then assert no Bulk Actions button
+    await waitFor(() => expect(screen.queryByRole('button', { name: /bulk actions/i })).not.toBeInTheDocument())
+  })
+
+  it('"Bulk Actions" section starts collapsed and can be toggled when contacts exist', async () => {
+    vi.mocked(contactsApi.getAll).mockResolvedValueOnce([
+      {
+        id: 'ba1', name: 'Test Contact', phone: '9000000001', gender: 'Male',
+        activities: {}, areas: {}, programs: {}, selected: false,
+        lastUpdated: new Date().toISOString(),
+      } as any,
+    ])
+
+    const user = userEvent.setup()
+    render(<Home />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /bulk actions/i })).toBeInTheDocument())
+
+    const toggle = screen.getByRole('button', { name: /bulk actions/i })
+
+    // Starts collapsed — ActionBar Update button not in DOM
+    expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    // Expand
+    await user.click(toggle)
+    expect(screen.getByRole('button', { name: /^update$/i })).toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+
+    // Collapse
+    await user.click(toggle)
+    expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+})

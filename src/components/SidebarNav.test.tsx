@@ -163,5 +163,37 @@ describe('SidebarNav', () => {
       render(<SidebarNav />)
       expect(screen.queryByRole('link', { name: /settings/i })).not.toBeInTheDocument()
     })
+
+    it('logout buttons all show visible Logout text (not icon-only)', () => {
+      render(<SidebarNav />)
+      const logoutBtns = screen.getAllByRole('button', { name: /logout/i })
+      logoutBtns.forEach(btn => {
+        expect(btn.textContent?.toLowerCase()).toContain('logout')
+      })
+    })
+
+    it('has exactly 2 logout buttons — desktop sidebar footer and mobile header', () => {
+      render(<SidebarNav />)
+      expect(screen.getAllByRole('button', { name: /logout/i })).toHaveLength(2)
+    })
+
+    it('both logout buttons call logout when clicked', async () => {
+      const user = userEvent.setup()
+      const logoutFn = vi.fn()
+      vi.mocked(useAuth).mockReturnValue(makeAuthMock({ logout: logoutFn }) as any)
+
+      render(<SidebarNav />)
+      const logoutBtns = screen.getAllByRole('button', { name: /logout/i })
+      expect(logoutBtns).toHaveLength(2)
+
+      // Click desktop sidebar logout
+      await user.click(logoutBtns[0])
+      expect(logoutFn).toHaveBeenCalledTimes(1)
+
+      // Click mobile header logout
+      logoutFn.mockClear()
+      await user.click(logoutBtns[1])
+      expect(logoutFn).toHaveBeenCalledTimes(1)
+    })
   })
 })

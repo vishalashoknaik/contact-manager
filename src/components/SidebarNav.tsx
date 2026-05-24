@@ -281,16 +281,20 @@ export function SidebarNav() {
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: 'rgba(255,255,255,0.5)',
-                fontSize: 17,
-                padding: '2px 4px',
+                color: 'rgba(255,255,255,0.65)',
+                fontSize: 11,
+                padding: '4px 8px',
                 borderRadius: 4,
                 flexShrink: 0,
                 lineHeight: 1,
                 minHeight: 'unset',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
               }}
             >
-              ↩
+              <span style={{ fontSize: 14 }}>↩</span>
+              <span>Logout</span>
             </button>
           </div>
 
@@ -322,15 +326,19 @@ export function SidebarNav() {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              color: 'rgba(255,255,255,0.75)',
-              fontSize: 20,
-              padding: '4px 6px',
+              color: 'rgba(255,255,255,0.8)',
+              fontSize: 11,
+              padding: '4px 8px',
               lineHeight: 1,
               minHeight: 'unset',
               borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
             }}
           >
-            ↩
+            <span style={{ fontSize: 16 }}>↩</span>
+            <span>Logout</span>
           </button>
         </div>
       </header>
