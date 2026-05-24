@@ -39,6 +39,8 @@ describe('ServerWarmupBanner', () => {
   it('always renders children', async () => {
     mocks.ping.mockResolvedValue(undefined)
     renderBanner()
+    // Ping resolves → server ready → children shown
+    await act(async () => { await Promise.resolve() })
     expect(screen.getByText('App content')).toBeInTheDocument()
   })
 
@@ -54,7 +56,7 @@ describe('ServerWarmupBanner', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('shows no banner during the 3-second grace period after first failed ping', async () => {
+  it('shows loading screen immediately on mount while server is unavailable', async () => {
     mocks.ping.mockRejectedValue(new Error('Network error'))
     renderBanner()
 
@@ -62,12 +64,8 @@ describe('ServerWarmupBanner', () => {
       await Promise.resolve() // let the ping settle
     })
 
-    // Just under 3 seconds — banner must not appear yet
-    await act(async () => {
-      vi.advanceTimersByTime(2999)
-    })
-
-    expect(screen.queryByTestId('server-warmup-banner')).not.toBeInTheDocument()
+    // Loading overlay must appear immediately — no grace period
+    expect(screen.getByTestId('server-warmup-banner')).toBeInTheDocument()
   })
 
   it('shows the "starting" banner after 3 seconds of server being unreachable', async () => {
@@ -78,6 +76,7 @@ describe('ServerWarmupBanner', () => {
       await Promise.resolve()
     })
 
+    // Banner is visible immediately (no 3-second delay with the new full-screen loader)
     await act(async () => {
       vi.advanceTimersByTime(3000)
     })
@@ -87,7 +86,7 @@ describe('ServerWarmupBanner', () => {
   })
 
   it('banner disappears as soon as the server responds after being visible', async () => {
-    // First ping fails → banner appears; second ping (after 5s retry) succeeds
+    // First ping fails → loading screen; second ping (after 5s retry) succeeds
     mocks.ping
       .mockRejectedValueOnce(new Error('Cold'))
       .mockResolvedValue(undefined)
@@ -96,9 +95,6 @@ describe('ServerWarmupBanner', () => {
 
     // Let the first (failing) ping settle
     await act(async () => { await Promise.resolve() })
-
-    // Advance past the 3-second show-notice delay
-    await act(async () => { vi.advanceTimersByTime(3000) })
 
     expect(screen.getByTestId('server-warmup-banner')).toBeInTheDocument()
 
@@ -115,10 +111,6 @@ describe('ServerWarmupBanner', () => {
 
     await act(async () => {
       await Promise.resolve()
-    })
-
-    await act(async () => {
-      vi.advanceTimersByTime(3000)
     })
 
     const banner = screen.getByTestId('server-warmup-banner')
@@ -196,7 +188,7 @@ describe('ServerWarmupBanner', () => {
     // First ping fails
     await act(async () => { await Promise.resolve() })
 
-    // Retry 1 fires at 5s and fails — banner becomes visible at 3s
+    // Retry 1 fires at 5s and fails
     await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
 
     // Retry 2 fires at 10s total and succeeds
@@ -216,3 +208,4 @@ describe('ServerWarmupBanner', () => {
     expect(clearTimeoutSpy).toHaveBeenCalled()
   })
 })
+
