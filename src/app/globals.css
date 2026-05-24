@@ -5,6 +5,7 @@
   --background: #ffffff;
   --foreground: #171717;
   --bg-primary: #ffffff;
+  --bg-secondary: #f4f6f9;
   --text-primary: #000000;
   --text-secondary: #666666;
   --border-color: #dddddd;
@@ -86,9 +87,10 @@
     --background: #0a0a0a;
     --foreground: #ededed;
     --bg-primary: #1a1a1a;
+    --bg-secondary: #252830;
     --text-primary: #ffffff;
     --text-secondary: #aaaaaa;
-    --border-color: #333333;
+    --border-color: #3d4049;
     --input-bg: #2a2a2a;
     --th-bg: #2a2a2a;
     --th-filter-bg: #222222;
@@ -205,6 +207,8 @@ textarea {
 /* ── App shell layout (sidebar + main content) ─────────────────────── */
 .app-sidebar {
   /* Visible on desktop, hidden on mobile via media query below */
+  display: flex;
+  flex-direction: column;
 }
 
 .main-content-with-sidebar {
@@ -216,6 +220,10 @@ textarea {
   display: none;
 }
 
+.mobile-header-bar {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .app-sidebar {
     display: none !important;
@@ -223,6 +231,7 @@ textarea {
 
   .main-content-with-sidebar {
     margin-left: 0;
+    padding-top: 52px;  /* space for mobile top header */
     padding-bottom: 68px; /* space for bottom tab bar */
   }
 
@@ -237,6 +246,21 @@ textarea {
     border-top: 1px solid rgba(255, 255, 255, 0.10);
     z-index: 100;
     box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .mobile-header-bar {
+    display: flex;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    padding: 0 16px;
+    background-color: var(--nav-bg);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 101;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   }
 }
 

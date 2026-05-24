@@ -90,8 +90,6 @@ export function SidebarNav() {
           left: 0,
           top: 0,
           height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
           backgroundColor: 'var(--nav-bg)',
           borderRight: '1px solid rgba(255,255,255,0.08)',
           zIndex: 100,
@@ -300,7 +298,7 @@ export function SidebarNav() {
 
           {/* Version */}
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 2, textAlign: 'center' }}>
-            v3.0.0
+            v3.1.0
           </div>
         </div>
       </aside>
@@ -317,7 +315,7 @@ export function SidebarNav() {
         </div>
         {/* Right: version + logout */}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>v3.0.0</span>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>v3.1.0</span>
           <button
             onClick={logout}
             title="Logout"

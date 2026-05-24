@@ -65,13 +65,13 @@ describe('SidebarNav', () => {
 
     it('shows the version number', () => {
       render(<SidebarNav />)
-      const versionEls = screen.getAllByText(/v3\.0\.0/i)
+      const versionEls = screen.getAllByText(/v3\.1\.0/i)
       expect(versionEls.length).toBeGreaterThanOrEqual(1)
     })
 
     it('shows the version in both the sidebar footer and mobile header', () => {
       render(<SidebarNav />)
-      const versionEls = screen.getAllByText(/v3\.0\.0/i)
+      const versionEls = screen.getAllByText(/v3\.1\.0/i)
       expect(versionEls.length).toBe(2)
     })
 
